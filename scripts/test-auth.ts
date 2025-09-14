@@ -56,10 +56,10 @@ async function testAuthFlow() {
     }
 
     console.log('✅ Registration successful')
-    console.log(`   User ID: ${registerResponse.data.user.id}`)
-    console.log(`   Tenant: ${registerResponse.data.tenant.name}`)
+    console.log(`   User ID: ${(registerResponse.data as any).user.id}`)
+    console.log(`   Tenant: ${(registerResponse.data as any).tenant.name}`)
 
-    const { accessToken, refreshToken } = registerResponse.data.tokens
+    const { accessToken, refreshToken } = (registerResponse.data as any).tokens
 
     // 2. Test protected endpoint (get accounts)
     console.log('\n2️⃣ Testing protected endpoint access...')
@@ -75,7 +75,7 @@ async function testAuthFlow() {
     }
 
     console.log('✅ Protected endpoint access successful')
-    console.log(`   Found ${accountsResponse.data.items.length} accounts`)
+    console.log(`   Found ${(accountsResponse.data as any).items.length} accounts`)
 
     // 3. Test token refresh
     console.log('\n3️⃣ Testing token refresh...')
@@ -91,7 +91,7 @@ async function testAuthFlow() {
     }
 
     console.log('✅ Token refresh successful')
-    const newAccessToken = refreshResponse.data.tokens.accessToken
+    const newAccessToken = (refreshResponse.data as any).tokens.accessToken
 
     // 4. Test with new token
     console.log('\n4️⃣ Testing with refreshed token...')
@@ -113,7 +113,7 @@ async function testAuthFlow() {
     const logoutResponse = await makeRequest('/auth/logout', {
       method: 'POST',
       body: JSON.stringify({
-        refreshToken: refreshResponse.data.tokens.refreshToken
+        refreshToken: (refreshResponse.data as any).tokens.refreshToken
       })
     })
 

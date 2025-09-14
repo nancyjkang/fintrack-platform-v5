@@ -191,10 +191,7 @@ export async function invalidateSession(refreshToken: string) {
 export async function cleanupExpiredSessions() {
   return prisma.userSession.deleteMany({
     where: {
-      OR: [
-        { expires_at: { lt: new Date() } },
-        { is_active: false }
-      ]
+      expires_at: { lt: new Date() }
     }
   })
 }

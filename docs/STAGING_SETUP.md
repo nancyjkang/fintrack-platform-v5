@@ -20,7 +20,7 @@
 ### **Step 1: Create Supabase Project**
 
 1. **Sign up**: Go to [supabase.com](https://supabase.com)
-2. **Create project**: 
+2. **Create project**:
    - Name: `fintrack-v5-staging`
    - Database password: Generate strong password
    - Region: Choose closest to your users
@@ -252,15 +252,15 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run migrations
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: npm run db:migrate:prod
-      
+
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v20
         with:
