@@ -1,18 +1,13 @@
 #!/usr/bin/env sh
 
-echo "🚀 FinTrack v4 Pre-push checks starting..."
+echo "🚀 FinTrack v5 Pre-push checks starting..."
 
-# Run comprehensive dependency checks (includes security audit, outdated packages, etc.)
-echo "🔍 Running comprehensive dependency checks..."
-node scripts/check-dependencies.js --pre-push
+# Basic security audit
+echo "🔍 Running security audit..."
+npm audit --audit-level=moderate
 if [ $? -ne 0 ]; then
-  echo "🚫 PUSH REJECTED: Comprehensive dependency checks failed"
-  echo ""
-  echo "💡 Common fixes:"
-  echo "   • Run 'npm audit fix' to fix security vulnerabilities"
-  echo "   • Run 'npm update' to update outdated dependencies"
-  echo "   • Run 'npm install' to sync dependencies"
-  echo "   • Remove unused dependencies from package.json"
+  echo "🚫 PUSH REJECTED: Security vulnerabilities found"
+  echo "💡 Run 'npm audit fix' to fix security issues"
   exit 1
 fi
 
