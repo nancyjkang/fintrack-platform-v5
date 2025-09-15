@@ -1,147 +1,126 @@
 # FinTrack v5 Documentation
 
-Welcome to the FinTrack v5 documentation! This directory contains all the technical documentation, guides, and specifications for the project.
+## 🎯 **Quick Start - What to Work on Next**
 
-## 📁 Documentation Structure
+### **1. Check the Feature Backlog**
+👉 **[FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)** - Prioritized list of all features
 
-### 📋 **[setup/](./setup/)**
-Getting started guides and environment setup instructions.
+### **2. Start a New Feature**
+```bash
+./scripts/create-feature.sh [feature-name]
+```
 
-- **[ENVIRONMENT_SETUP.md](./setup/ENVIRONMENT_SETUP.md)** - Complete environment overview (dev/staging/prod)
-- **[STAGING_DATABASE_SETUP.md](./setup/STAGING_DATABASE_SETUP.md)** - Cloud database setup guide
-- **[STAGING_SETUP.md](./setup/STAGING_SETUP.md)** - Staging environment configuration
-
-### 🏗️ **[architecture/](./architecture/)**
-System design and architectural documentation.
-
-- **[api-design.md](./architecture/api-design.md)** - RESTful API design patterns
-- **[authentication-design.md](./architecture/authentication-design.md)** - JWT-based auth architecture
-- **[database-schema.md](./architecture/database-schema.md)** - Multi-tenant database design
-
-### 🚀 **[deployment/](./deployment/)**
-Deployment processes and CI/CD workflows.
-
-- **[CI_CD_WORKFLOW.md](./deployment/CI_CD_WORKFLOW.md)** - Complete CI/CD pipeline documentation
-- **[DATABASE_DEPLOYMENT_GUIDE.md](./deployment/DATABASE_DEPLOYMENT_GUIDE.md)** - Database deployment strategies
-
-### 🔐 **[security/](./security/)**
-Security implementation and compliance documentation.
-
-- **[SECURITY_PRD.md](./security/SECURITY_PRD.md)** - Security Product Requirements Document
-- **[SECURITY_IMPLEMENTATION_CHECKLIST.md](./security/SECURITY_IMPLEMENTATION_CHECKLIST.md)** - Production security checklist
-
-### 🎨 **[development/](./development/)**
-Development guidelines and standards.
-
-- **[UI_GUIDELINES.md](./development/UI_GUIDELINES.md)** - UI/UX design system and guidelines
-- **[development-roadmap.md](./development/development-roadmap.md)** - Project roadmap and milestones
-
-### 📊 **[features/](./features/)**
-Feature specifications and algorithms.
-
-- **[benchmarking-algorithms.md](./features/benchmarking-algorithms.md)** - Anonymous benchmarking system design
-
-### 📚 **[reference/](./reference/)**
-Reference materials and data structures.
-
-- **[default-categories.ts](./reference/default-categories.ts)** - Default financial categories configuration
+### **3. Track Your Progress**
+👉 **[PROGRESS_TRACKER.md](./PROGRESS_TRACKER.md)** - Weekly progress tracking
 
 ---
 
-## 🚀 Quick Start
+## 📚 **Documentation Structure**
 
-### For New Developers
-1. Start with **[setup/ENVIRONMENT_SETUP.md](./setup/ENVIRONMENT_SETUP.md)** for environment overview
-2. Follow **[setup/STAGING_DATABASE_SETUP.md](./setup/STAGING_DATABASE_SETUP.md)** for database setup
-3. Review **[architecture/](./architecture/)** for system understanding
-4. Check **[development/UI_GUIDELINES.md](./development/UI_GUIDELINES.md)** for coding standards
+### **🎯 Planning & Execution**
+- **[FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)** - Prioritized feature list (START HERE)
+- **[WEEKLY_PLANNING.md](./WEEKLY_PLANNING.md)** - Current week's plan and daily breakdown
+- **[DAILY_EXECUTION.md](./DAILY_EXECUTION.md)** - Daily task tracking template
+- **[PROGRESS_TRACKER.md](./PROGRESS_TRACKER.md)** - Weekly progress and status overview
 
-### For DevOps/Deployment
-1. Review **[deployment/CI_CD_WORKFLOW.md](./deployment/CI_CD_WORKFLOW.md)** for pipeline setup
-2. Follow **[deployment/DATABASE_DEPLOYMENT_GUIDE.md](./deployment/DATABASE_DEPLOYMENT_GUIDE.md)** for database deployment
-3. Check **[security/SECURITY_IMPLEMENTATION_CHECKLIST.md](./security/SECURITY_IMPLEMENTATION_CHECKLIST.md)** before production
+### **🛠️ Development System**
+- **[FEATURE_LIFECYCLE_SYSTEM.md](./FEATURE_LIFECYCLE_SYSTEM.md)** - Complete feature development process
+- **[templates/](./templates/)** - Templates for planning and documenting features
+- **[scripts/create-feature.sh](../scripts/create-feature.sh)** - Script to create new features
 
-### For Product/Security Review
-1. Start with **[security/SECURITY_PRD.md](./security/SECURITY_PRD.md)** for security requirements
-2. Review **[features/](./features/)** for feature specifications
-3. Check **[development/development-roadmap.md](./development/development-roadmap.md)** for project timeline
+### **📋 Technical Specifications**
+- **[features/fintrack-platform-v5-specification.md](./features/fintrack-platform-v5-specification.md)** - Complete technical blueprint
+- **[features/fintrack-platform-v5-implementation.md](./features/fintrack-platform-v5-implementation.md)** - Implementation status
+- **[features/fintrack-platform-v5-requirements.md](./features/fintrack-platform-v5-requirements.md)** - Documentation index
 
----
+### **🚀 Deployment & Setup**
+- **[deployment/](./deployment/)** - Deployment guides and CI/CD documentation
+- **[setup/](./setup/)** - Project setup and configuration guides
 
-## 📖 Documentation Standards
-
-### File Naming Convention
-- Use `UPPERCASE.md` for major documents (README, PRD, etc.)
-- Use `lowercase-with-hyphens.md` for specific guides
-- Use descriptive names that clearly indicate content
-
-### Content Structure
-- Start with clear purpose/goal statement
-- Include table of contents for long documents
-- Use consistent heading hierarchy (H1 → H2 → H3)
-- Include code examples where applicable
-- End with next steps or related documentation links
-
-### Maintenance
-- Keep documentation up-to-date with code changes
-- Review and update during each major release
-- Archive outdated documentation rather than deleting
-- Link related documents for easy navigation
+### **🏗️ Architecture & Design**
+- **[architecture/](./architecture/)** - Database schema, API design, authentication
+- **[security/](./security/)** - Security implementation and guidelines
+- **[reference/](./reference/)** - Reference data and utilities
 
 ---
 
-## 🔄 Document Status
+## 🔄 **Typical Workflow**
 
-### ✅ Complete and Current
-- Environment setup guides
-- Security documentation
-- CI/CD workflow
-- UI guidelines
+### **Starting Your Week**
+1. Review **[FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)**
+2. Pick the highest priority "Ready" feature
+3. Run `./scripts/create-feature.sh [feature-name]`
+4. Fill out the planning document completely
+5. Update **[WEEKLY_PLANNING.md](./WEEKLY_PLANNING.md)** with your plan
 
-### 🚧 In Progress
-- Feature specifications (benchmarking)
-- Advanced deployment guides
-- Performance optimization docs
+### **During Development**
+1. Use the execution log for daily updates
+2. Update **[DAILY_EXECUTION.md](./DAILY_EXECUTION.md)** template
+3. Track blockers and decisions
 
-### 📋 Planned
-- API reference documentation
-- Testing strategy guide
-- Monitoring and alerting setup
-- User onboarding documentation
+### **Completing a Feature**
+1. Fill out the implementation documentation
+2. Update **[PROGRESS_TRACKER.md](./PROGRESS_TRACKER.md)**
+3. Update **[FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)** status
+4. Deploy and verify
 
----
-
-## 🤝 Contributing to Documentation
-
-### When to Update Documentation
-- ✅ New features or major changes
-- ✅ Environment or deployment changes
-- ✅ Security updates or new requirements
-- ✅ Bug fixes that affect documented processes
-
-### How to Update
-1. **Edit existing docs** for changes to current processes
-2. **Create new docs** for new features or major additions
-3. **Update this README** when adding new documentation
-4. **Test instructions** to ensure they work as documented
-
-### Documentation Review Process
-1. Technical accuracy review
-2. Clarity and completeness check
-3. Link validation and formatting
-4. Integration with existing documentation
+### **Weekly Review**
+1. Update **[PROGRESS_TRACKER.md](./PROGRESS_TRACKER.md)** with completed work
+2. Re-prioritize **[FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)** based on learnings
+3. Plan next week in **[WEEKLY_PLANNING.md](./WEEKLY_PLANNING.md)**
 
 ---
 
-## 📞 Need Help?
+## 🎯 **Key Principles**
 
-- **Setup Issues**: Check [setup/](./setup/) directory first
-- **Deployment Problems**: Review [deployment/](./deployment/) guides
-- **Security Questions**: Consult [security/](./security/) documentation
-- **Architecture Questions**: See [architecture/](./architecture/) designs
+### **Always Start with Planning**
+- Never code without filling out a planning document first
+- Use the feature backlog to pick what to work on
+- Estimate time and identify dependencies upfront
+
+### **Track Everything**
+- Update progress daily
+- Document decisions and learnings
+- Keep the backlog current and prioritized
+
+### **Focus on Value**
+- Work on highest priority features first
+- Complete features fully before moving to the next
+- Test and deploy regularly
 
 ---
 
-*Last Updated: $(date)*
-*Documentation Version: v5.0.0*
-*Project Status: Development → Staging Setup*
+## 📖 **Template Usage**
+
+### **For New Features**
+```bash
+# Creates planning, documentation, and execution templates
+./scripts/create-feature.sh my-new-feature
+```
+
+### **Manual Template Usage**
+- Copy **[templates/FEATURE_PLANNING_TEMPLATE.md](./templates/FEATURE_PLANNING_TEMPLATE.md)** for planning
+- Copy **[templates/FEATURE_DOCUMENTATION_TEMPLATE.md](./templates/FEATURE_DOCUMENTATION_TEMPLATE.md)** for final docs
+
+---
+
+## 🔍 **Finding Information**
+
+### **"What should I work on next?"**
+👉 **[FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)**
+
+### **"What's the current status?"**
+👉 **[PROGRESS_TRACKER.md](./PROGRESS_TRACKER.md)**
+
+### **"How do I implement feature X?"**
+👉 **[features/fintrack-platform-v5-specification.md](./features/fintrack-platform-v5-specification.md)**
+
+### **"How do I plan a new feature?"**
+👉 **[FEATURE_LIFECYCLE_SYSTEM.md](./FEATURE_LIFECYCLE_SYSTEM.md)**
+
+### **"How do I deploy changes?"**
+👉 **[deployment/DEPLOYMENT_MANUAL.md](./deployment/DEPLOYMENT_MANUAL.md)**
+
+---
+
+*This documentation system is designed to be simple, practical, and always up-to-date. Keep it current and use it consistently for best results.*
