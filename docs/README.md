@@ -142,6 +142,6 @@ Reference materials and data structures.
 
 ---
 
-*Last Updated: $(date)*  
-*Documentation Version: v5.0.0*  
+*Last Updated: $(date)*
+*Documentation Version: v5.0.0*
 *Project Status: Development → Staging Setup*

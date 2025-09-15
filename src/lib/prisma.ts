@@ -65,7 +65,7 @@ export async function withTransaction<T>(
     } catch (error) {
       lastError = error as Error
 
-      // Don't retry on validation errors
+      // Do not retry on validation errors
       if (error instanceof Error && error.message.includes('Unique constraint')) {
         throw error
       }

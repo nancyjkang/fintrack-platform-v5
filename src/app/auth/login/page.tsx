@@ -122,7 +122,7 @@ export default function LoginPage() {
             {/* Footer */}
             <div className="auth-footer">
               <p className="auth-link">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link href="/auth/register">
                   Create one here
                 </Link>
