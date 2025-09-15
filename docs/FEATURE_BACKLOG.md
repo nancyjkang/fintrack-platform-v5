@@ -27,23 +27,27 @@ This document contains the prioritized list of all features to be implemented, s
 
 - **Schema Design** - ✅ Complete
   - **Estimate**: 2 days (actual: 1 day)
-  - **Completed**: 2025-09-15
+  - **Completed**: 2025-09-15 14:05
   - **Last Updated**: 2025-09-15
   - **Dependencies**: None
   - **Notes**: Phase 1 of Database Schema Rebuild - clean v4.1-based schema with multi-tenant support
   - **Documentation**: [Planning](docs/features/schema-design/planning.md) | [Implementation](docs/features/schema-design/implementation.md) | [Overall Project](docs/features/database-schema-rebuild/planning.md)
 
-- **API Updates for New Schema** - 📋 Ready
-  - **Estimate**: 3 days
+- **API Updates for New Schema** - ✅ Complete
+  - **Estimate**: 3 days (actual: 1 day)
+  - **Completed**: 2025-09-15 16:30
   - **Last Updated**: 2025-09-15
   - **Dependencies**: Schema Design ✅
-  - **Notes**: Phase 2 of database rebuild - update all endpoints for new schema
-  - **Documentation**: [Planning](docs/features/api-updates-for-new-schema/planning.md)
+  - **Notes**: Phase 2 of database rebuild - service layer architecture + API updates + comprehensive unit tests
+  - **Documentation**: [Planning](docs/features/api-updates-for-new-schema/planning.md) | [Implementation](docs/features/api-updates-for-new-schema/implementation.md) | [Execution Log](docs/features/api-updates-for-new-schema/execution-log.md)
 
-- **Transaction CRUD** - ⏳ Blocked
-  - **Estimate**: 4 days
-  - **Dependencies**: API Updates for New Schema
-  - **Notes**: Core functionality - will use new simplified schema
+- **Transaction CRUD** - ✅ Complete (API) / 📋 Ready (UI)
+  - **Estimate**: 4 days (API: 0.5 days actual, UI: 3.5 days remaining)
+  - **Completed**: 2025-09-15 16:30 (API portion)
+  - **Last Updated**: 2025-09-15
+  - **Dependencies**: API Updates for New Schema ✅
+  - **Notes**: API portion complete with service layer. UI implementation ready to start.
+  - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
 
 - **Account Management UI** - 📋 Ready
   - **Estimate**: 3 days
@@ -345,9 +349,9 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 - **Value**: Focus on high-impact user features first
 
 ### **Current Sprint Progress:**
-- **Features Completed**: 1/8 (Transaction CRUD in progress)
-- **Estimated Completion**: 4 weeks for Priority 1 features
-- **Risk Level**: Low (clear dependencies, reasonable estimates)
+- **Features Completed**: 3/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅)
+- **Estimated Completion**: 2 weeks for remaining Priority 1 features
+- **Risk Level**: Low (strong foundation established, clear path forward)
 
 ---
 

@@ -57,45 +57,70 @@
 
 ---
 
-## 📝 **Daily Log Template**
+## 📝 **Daily Logging Strategy**
 
-### **Monday, January 20, 2025**
+### **Where to Record Daily Progress:**
 
-#### **🎯 Goal**: Document Account Management System
-- [ ] Run `./scripts/document-existing-feature.sh account-management "Account Management"`
-- [ ] Fill out implementation.md with API endpoints and UI components
-- [ ] Update FEATURE_BACKLOG.md with documentation link
+#### **🎯 Daily Planning (Use This Document)**
+- **Morning**: Use the "Today's Focus" section above to plan your day
+- **Set Goals**: Define specific, actionable tasks for today
+- **Choose Feature**: Pick which feature you're working on
 
-#### **✅ Completed**
-- ✅ Created account management feature documentation structure
-- ✅ Documented GET/POST /api/accounts endpoints
-- ✅ Added UI component specifications
+#### **📋 Daily Progress Logging (Two Options)**
 
-#### **🔄 In Progress**
-- 🔄 Writing implementation.md - need to add testing section
+**Option A: Feature-Specific Logging (Recommended)**
+- **Record progress** in the current feature's `execution-log.md`
+- **Location**: `docs/features/[current-feature]/execution-log.md`
+- **Benefits**: Progress tied to specific features, better organization
+- **Use when**: Working on a specific feature
 
-#### **🚧 Blockers/Issues**
-- Need to verify all UI components are documented
-- Should test API endpoints to confirm exact behavior
-
-#### **💡 Notes**
-- Account management has both API and UI components
-- Good example of feature with multiple touchpoints
-- Documentation pattern established for future features
-
-#### **🎯 Tomorrow's Priority**
-- Complete account management implementation.md
-- Start documenting dashboard system
-- Update feature backlog with completed docs
+**Option B: General Daily Log (Alternative)**
+- **Record progress** directly in this document (see template below)
+- **Benefits**: All daily progress in one place
+- **Use when**: Working on multiple features or general tasks
 
 ---
 
-### **Tuesday, January 21, 2025**
+## 📝 **Daily Log Templates**
 
-#### **🎯 Goal**: Start Transaction CRUD Feature
-- [ ] Run `./scripts/create-feature.sh transaction-crud`
-- [ ] Fill out planning.md with API specifications
-- [ ] Begin implementation of POST /api/transactions
+### **Template A: Feature-Specific Progress (Recommended)**
+
+**In `docs/features/[feature-name]/execution-log.md`:**
+```markdown
+## Day [X]: [Date] - [Feature Name]
+
+### 🎯 Today's Goal
+[Specific outcome for this feature today]
+
+### 📋 Tasks Completed
+- ✅ [Specific task completed]
+- ✅ [Another completed task]
+
+### 🔄 In Progress
+- 🔄 [Task partially done] - [what's left]
+
+### 🚧 Blockers/Issues
+- [Any problems encountered]
+
+### 💡 Decisions Made
+- [Technical decisions or discoveries]
+
+### 🎯 Tomorrow's Priority
+- [Next step for this feature]
+```
+
+### **Template B: General Daily Log (Alternative)**
+
+**Use this section below for general daily logging:**
+
+---
+
+### **[Today's Date] - Daily Log**
+
+#### **🎯 Goal**: [Today's main objective]
+- [ ] [Specific task 1]
+- [ ] [Specific task 2]
+- [ ] [Specific task 3]
 
 #### **✅ Completed**
 - [Fill in at end of day]
@@ -111,6 +136,10 @@
 
 #### **🎯 Tomorrow's Priority**
 - [Fill in at end of day]
+
+---
+
+*Replace this template with your actual daily log, or use feature-specific logging in execution-log.md files*
 
 ---
 

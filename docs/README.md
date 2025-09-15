@@ -1,5 +1,8 @@
 # FinTrack v5 Documentation
 
+## 🔖 **Quick Reference (Bookmark This!)**
+👉 **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Your daily workflow reference card
+
 ## 🎯 **Quick Start - What to Work on Next**
 
 ### **1. Check the Feature Backlog**
@@ -11,7 +14,7 @@
 ```
 
 ### **3. Track Your Progress**
-👉 **[PROGRESS_TRACKER.md](./PROGRESS_TRACKER.md)** - Weekly progress tracking
+👉 **[DAILY_EXECUTION.md](./DAILY_EXECUTION.md)** - Daily workflow and progress tracking
 
 ---
 
