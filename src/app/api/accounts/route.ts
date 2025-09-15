@@ -1,57 +1,57 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth'
-import { createSuccessResponse, handleApiError, parsePaginationParams, createPaginatedResponse } from '@/lib/api-response'
+import { z } from 'zod'
+import { verifyAuth } from '@/lib/auth'
+import { createSuccessResponse, handleApiError } from '@/lib/api-response'
+import { AccountService } from '@/lib/services/account.service'
+
+// Validation schemas (aligned with new schema)
+const createAccountSchema = z.object({
+  name: z.string().min(1, 'Account name is required'),
+  type: z.enum(['CHECKING', 'SAVINGS', 'CREDIT', 'INVESTMENT', 'CASH'], {
+    errorMap: () => ({ message: 'Type must be CHECKING, SAVINGS, CREDIT, INVESTMENT, or CASH' })
+  }),
+  balance: z.number().default(0),
+  balance_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid date format').optional(),
+  color: z.string().min(1, 'Color is required'),
+  is_active: z.boolean().default(true)
+})
+
+const querySchema = z.object({
+  type: z.enum(['CHECKING', 'SAVINGS', 'CREDIT', 'INVESTMENT', 'CASH']).optional(),
+  is_active: z.string().optional().transform((val) => val === 'true' ? true : val === 'false' ? false : undefined),
+  search: z.string().optional(),
+})
 
 /**
- * GET /api/accounts - Get user's accounts
+ * GET /api/accounts
+ * List accounts for the authenticated user's tenant
  */
 export async function GET(request: NextRequest) {
   try {
-    // Require authentication
-    const user = await requireAuth(request)
+    // Authenticate user
+    const auth = await verifyAuth(request)
+    if (!auth) {
+      return handleApiError(new Error('Authentication required'))
+    }
 
-    // Parse pagination parameters
-    const { searchParams } = new URL(request.url)
-    const pagination = parsePaginationParams(searchParams)
+    // Parse query parameters
+    const url = new URL(request.url)
+    const queryParams = Object.fromEntries(url.searchParams.entries())
+    const { type, is_active, search } = querySchema.parse(queryParams)
 
-    // Get accounts for the user's tenant
-    const [accounts, total] = await Promise.all([
-      prisma.account.findMany({
-        where: {
-          tenant_id: user.tenantId,
-          is_active: true
-        },
-        orderBy: [
-          { type: 'asc' },
-          { name: 'asc' }
-        ],
-        skip: pagination.offset,
-        take: pagination.limit,
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          subtype: true,
-          current_balance: true,
-          currency: true,
-          account_number_last4: true,
-          institution_name: true,
-          color: true,
-          icon: true,
-          created_at: true,
-          updated_at: true
-        }
-      }),
-      prisma.account.count({
-        where: {
-          tenant_id: user.tenantId,
-          is_active: true
-        }
-      })
-    ])
+    // Build filters
+    const filters: any = {}
+    if (type) filters.type = type
+    if (is_active !== undefined) filters.is_active = is_active
+    if (search) filters.search = search
 
-    return createPaginatedResponse(accounts, total, pagination)
+    // Get accounts using service
+    const accounts = await AccountService.getAccounts(auth.tenantId, filters)
+
+    return createSuccessResponse({
+      accounts,
+      total: accounts.length
+    })
 
   } catch (error) {
     return handleApiError(error)
@@ -59,51 +59,29 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/accounts - Create a new account
+ * POST /api/accounts
+ * Create a new account
  */
 export async function POST(request: NextRequest) {
   try {
-    // Require authentication
-    const user = await requireAuth(request)
-
-    const body = await request.json()
-
-    // Validate required fields
-    const requiredFields = ['name', 'type', 'currency']
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        throw new Error(`Field '${field}' is required`)
-      }
+    // Authenticate user
+    const auth = await verifyAuth(request)
+    if (!auth) {
+      return handleApiError(new Error('Authentication required'))
     }
 
-    // Create account
-    const account = await prisma.account.create({
-      data: {
-        tenant_id: user.tenantId,
-        name: body.name,
-        type: body.type,
-        subtype: body.subtype || body.type,
-        current_balance: body.initialBalance || 0,
-        currency: body.currency,
-        account_number_last4: body.accountNumberLast4,
-        institution_name: body.institutionName,
-        color: body.color || '#3B82F6',
-        icon: body.icon || '🏦',
-        is_active: true
-      },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        subtype: true,
-        current_balance: true,
-        currency: true,
-        account_number_last4: true,
-        institution_name: true,
-        color: true,
-        icon: true,
-        created_at: true
-      }
+    // Parse and validate request body
+    const body = await request.json()
+    const validatedData = createAccountSchema.parse(body)
+
+    // Create account using service
+    const account = await AccountService.createAccount(auth.tenantId, {
+      name: validatedData.name,
+      type: validatedData.type,
+      balance: validatedData.balance,
+      balance_date: validatedData.balance_date ? new Date(validatedData.balance_date) : new Date(),
+      color: validatedData.color,
+      is_active: validatedData.is_active
     })
 
     return createSuccessResponse(account, 'Account created successfully')

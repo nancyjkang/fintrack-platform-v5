@@ -101,12 +101,11 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
     return null
   }
 
-  // Get user with active membership (tenant context)
+  // Get user with membership (tenant context)
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     include: {
       memberships: {
-        where: { is_active: true },
         include: {
           tenant: true
         },
@@ -115,7 +114,7 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
     }
   })
 
-  if (!user || !user.is_active || user.memberships.length === 0) {
+  if (!user || user.memberships.length === 0) {
     return null
   }
 
@@ -127,6 +126,13 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
     tenantId: membership.tenant_id,
     role: membership.role
   }
+}
+
+/**
+ * Verify authentication and return user or null
+ */
+export async function verifyAuth(request: NextRequest): Promise<AuthenticatedUser | null> {
+  return authenticateRequest(request)
 }
 
 /**
@@ -154,44 +160,31 @@ export async function requireRole(request: NextRequest, requiredRole: 'ADMIN' | 
 }
 
 /**
- * Create a new user session record
+ * Create a new user session (simplified - no database storage)
+ * In v4.1 approach, we rely on JWT tokens only
  */
 export async function createUserSession(userId: string, refreshToken: string, userAgent?: string, ipAddress?: string) {
-  // Generate a unique session token
-  const sessionToken = jwt.sign(
-    { userId, type: 'session' },
-    JWT_ACCESS_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRY }
-  )
-
-  return prisma.userSession.create({
-    data: {
-      user_id: userId,
-      session_token: sessionToken,
-      refresh_token_hash: refreshToken, // Store the refresh token hash
-      device_info: userAgent ? { userAgent } : null,
-      ip_address: ipAddress,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-    }
-  })
+  // In the simplified approach, we just return the refresh token
+  // Session management is handled via JWT tokens only
+  return {
+    refresh_token: refreshToken,
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+  }
 }
 
 /**
- * Invalidate user session
+ * Invalidate user session (simplified)
  */
 export async function invalidateSession(refreshToken: string) {
-  return prisma.userSession.deleteMany({
-    where: { refresh_token_hash: refreshToken }
-  })
+  // In simplified approach, we rely on token expiration
+  // Could implement a token blacklist in the future if needed
+  return { success: true }
 }
 
 /**
- * Clean up expired sessions
+ * Clean up expired sessions (simplified)
  */
 export async function cleanupExpiredSessions() {
-  return prisma.userSession.deleteMany({
-    where: {
-      expires_at: { lt: new Date() }
-    }
-  })
+  // In simplified approach, expired tokens are automatically invalid
+  return { success: true }
 }

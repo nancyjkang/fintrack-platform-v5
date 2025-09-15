@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
 import { verifyPassword, generateTokens, createUserSession } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
+import { UserService } from '@/lib/services/user.service'
 
 // Validation schema
 const loginSchema = z.object({
@@ -17,26 +17,15 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const { email, password } = loginSchema.parse(body)
 
-    // Find user with active membership
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        memberships: {
-          where: { is_active: true },
-          include: {
-            tenant: true
-          },
-          take: 1 // For now, assume users have one active tenant
-        }
-      }
-    })
+    // Find user with membership using service
+    const user = await UserService.getUserByEmail(email)
 
-    if (!user || !user.is_active) {
+    if (!user) {
       return handleApiError(new Error('Invalid email or password'))
     }
 
     // Verify password
-    const isValidPassword = await verifyPassword(password, user.password_hash)
+    const isValidPassword = await verifyPassword(password, user.password)
     if (!isValidPassword) {
       return handleApiError(new Error('Invalid email or password'))
     }
@@ -69,23 +58,15 @@ export async function POST(request: NextRequest) {
       ipAddress
     )
 
-    // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { last_login: new Date() }
-    })
-
     return createSuccessResponse({
       user: {
         id: user.id,
         email: user.email,
-        emailVerified: user.email_verified,
-        lastLogin: new Date()
+        name: user.name
       },
       tenant: {
         id: membership.tenant.id,
         name: membership.tenant.name,
-        type: membership.tenant.type,
         role: membership.role
       },
       tokens: {

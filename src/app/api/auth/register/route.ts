@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import { hashPassword, generateTokens, createUserSession } from '@/lib/auth'
-import { createSuccessResponse, handleApiError, validateRequestBody } from '@/lib/api-response'
+import { generateTokens, createUserSession } from '@/lib/auth'
+import { createSuccessResponse, handleApiError } from '@/lib/api-response'
+import { UserService } from '@/lib/services/user.service'
 
 // Validation schema
 const registerSchema = z.object({
@@ -21,52 +21,12 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validatedData = registerSchema.parse(body)
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: validatedData.email }
-    })
-
-    if (existingUser) {
-      return handleApiError(new Error('User already exists with this email'))
-    }
-
-    // Hash password
-    const passwordHash = await hashPassword(validatedData.password)
-
-    // Create user and tenant in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create user
-      const user = await tx.user.create({
-        data: {
-          email: validatedData.email,
-          password_hash: passwordHash,
-          email_verified: false // In production, require email verification
-        }
-      })
-
-      // Create tenant (personal finance space)
-      const tenantName = validatedData.tenantName || `${validatedData.name || 'User'}'s Finances`
-      const tenant = await tx.tenant.create({
-        data: {
-          name: tenantName,
-          type: 'PERSONAL',
-          currency: 'USD',
-          timezone: 'UTC',
-          locale: 'en-US'
-        }
-      })
-
-      // Create membership (user-tenant relationship)
-      await tx.membership.create({
-        data: {
-          user_id: user.id,
-          tenant_id: tenant.id,
-          role: 'ADMIN',
-          is_active: true
-        }
-      })
-
-      return { user, tenant }
+    // Create user using service
+    const result = await UserService.createUser({
+      email: validatedData.email,
+      password: validatedData.password,
+      name: validatedData.name,
+      tenantName: validatedData.tenantName
     })
 
     // Generate tokens
@@ -74,7 +34,7 @@ export async function POST(request: NextRequest) {
       userId: result.user.id,
       email: result.user.email,
       tenantId: result.tenant.id,
-      role: 'ADMIN'
+      role: result.membership.role
     })
 
     // Create session
@@ -94,12 +54,11 @@ export async function POST(request: NextRequest) {
       user: {
         id: result.user.id,
         email: result.user.email,
-        emailVerified: result.user.email_verified
+        name: result.user.name
       },
       tenant: {
         id: result.tenant.id,
-        name: result.tenant.name,
-        type: result.tenant.type
+        name: result.tenant.name
       },
       tokens: {
         accessToken: tokens.accessToken,

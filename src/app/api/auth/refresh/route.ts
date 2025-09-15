@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
 import { verifyToken, generateTokens, createUserSession, invalidateSession } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
+import { UserService } from '@/lib/services/user.service'
 
 // Validation schema
 const refreshSchema = z.object({
@@ -22,30 +22,13 @@ export async function POST(request: NextRequest) {
       return handleApiError(new Error('Invalid refresh token'))
     }
 
-    // Check if session exists and is active
-    const session = await prisma.userSession.findFirst({
-      where: {
-        refresh_token_hash: refreshToken,
-        expires_at: { gt: new Date() }
-      },
-      include: {
-        user: {
-          include: {
-            memberships: {
-              where: { is_active: true },
-              include: { tenant: true },
-              take: 1
-            }
-          }
-        }
-      }
-    })
+    // Get user from token payload using service
+    const user = await UserService.getUserById(payload.userId)
 
-    if (!session || !session.user.is_active || session.user.memberships.length === 0) {
+    if (!user || user.memberships.length === 0) {
       return handleApiError(new Error('Invalid or expired session'))
     }
 
-    const user = session.user
     const membership = user.memberships[0]
 
     // Generate new tokens
