@@ -37,7 +37,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
+
       {/* Main Content - offset by navigation height */}
       <main className="pt-16">
         <div className="container mx-auto px-4 py-6 md:py-8 max-w-7xl">
