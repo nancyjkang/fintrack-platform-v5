@@ -11,6 +11,7 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
 
+
   // Ensure path mapping works
   webpack: (config) => {
     config.resolve.alias = {
