@@ -1,6 +1,6 @@
 # FinTrack v5 - Feature Backlog
 
-**Last Updated**: January 2025
+**Last Updated**: September 15, 2025
 **Current Sprint**: Foundation & Core Features
 
 This document contains the prioritized list of all features to be implemented, serving as the single source of truth for development planning.
@@ -14,16 +14,36 @@ This document contains the prioritized list of all features to be implemented, s
 3. **Update Status**: Move features through the pipeline as they progress
 4. **Weekly Review**: Update priorities and estimates every Friday
 
+### **📅 Date Tracking**
+- **Completed**: Date when feature was finished and deployed
+- **Last Updated**: Date when feature status/details were last modified
+- **Estimate vs Actual**: Track estimation accuracy for future planning
+
 ---
 
 ## 🚀 **Current Sprint - Foundation & Core Features**
 
 ### **🔥 Priority 1: Critical Path (Work on These First)**
 
-- **Transaction CRUD** - 🔄 In Progress
+- **Schema Design** - ✅ Complete
+  - **Estimate**: 2 days (actual: 1 day)
+  - **Completed**: 2025-09-15
+  - **Last Updated**: 2025-09-15
+  - **Dependencies**: None
+  - **Notes**: Phase 1 of Database Schema Rebuild - clean v4.1-based schema with multi-tenant support
+  - **Documentation**: [Planning](docs/features/schema-design/planning.md) | [Implementation](docs/features/schema-design/implementation.md) | [Overall Project](docs/features/database-schema-rebuild/planning.md)
+
+- **API Updates for New Schema** - 📋 Ready
+  - **Estimate**: 3 days
+  - **Last Updated**: 2025-09-15
+  - **Dependencies**: Schema Design ✅
+  - **Notes**: Phase 2 of database rebuild - update all endpoints for new schema
+  - **Documentation**: [Planning](docs/features/api-updates-for-new-schema/planning.md)
+
+- **Transaction CRUD** - ⏳ Blocked
   - **Estimate**: 4 days
-  - **Dependencies**: Account APIs
-  - **Notes**: Core functionality - highest priority
+  - **Dependencies**: API Updates for New Schema
+  - **Notes**: Core functionality - will use new simplified schema
 
 - **Account Management UI** - 📋 Ready
   - **Estimate**: 3 days
@@ -166,11 +186,15 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 
 - **Authentication System** - ✅ Complete
   - **Estimate**: 4 weeks
+  - **Completed**: 2025-09-10 (estimated)
+  - **Last Updated**: 2025-09-15
   - **Value**: Critical
   - **Notes**: JWT-based auth with multi-tenant support - **[📁 Docs](./features/authentication-system/)**
 
 - **Multi-Tenant Support** - ✅ Complete
   - **Estimate**: 6 weeks (integrated with auth)
+  - **Completed**: 2025-09-12 (estimated)
+  - **Last Updated**: 2025-09-15
   - **Value**: Critical
   - **Notes**: Complete data isolation, role-based access - **[📁 Docs](./features/multi-tenant-support/)**
 
@@ -237,13 +261,18 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 
 ## 📊 **Status Legend**
 
-- ✅ **Complete** - Feature is done and deployed
-- 🔄 **In Progress** - Currently being developed
+- ✅ **Complete** - Feature is done and deployed (includes **Completed** date)
+- 🔄 **In Progress** - Currently being developed (includes **Last Updated** date)
 - 📋 **Ready** - Planned and ready to start (use `./scripts/create-feature.sh`)
 - 🔍 **Research** - Needs investigation before planning
 - ⏸️ **Blocked** - Waiting on dependencies
 - 📦 **Backlog** - Future feature, not yet prioritized for current sprint
 - ❌ **Cancelled** - No longer needed
+
+### **📅 Date Field Usage**
+- **Completed**: Only for ✅ Complete features - when they were finished
+- **Last Updated**: For all features - when status/details were last changed
+- **Estimate vs Actual**: Track for completed features to improve future estimates
 
 ---
 

@@ -1,5 +1,6 @@
 // FinTrack v5 Database Schema
-// Multi-tenant central database architecture for scalable personal finance platform
+// Based on v4.1 structure with multi-tenant support
+// Fresh start approach - no migration complexity
 
 generator client {
   provider = "prisma-client-js"
@@ -11,391 +12,166 @@ datasource db {
 }
 
 // ============================================================================
-// USERS & AUTHENTICATION (Minimal user data)
+// MULTI-TENANT FOUNDATION
 // ============================================================================
 
 model User {
-  id                         String    @id @default(cuid())
-  email                      String    @unique
-  password_hash              String
-  email_verified             Boolean   @default(false)
-  email_verification_token   String?
-  password_reset_token       String?
-  password_reset_expires     DateTime?
-  created_at                 DateTime  @default(now())
-  updated_at                 DateTime  @updatedAt
-  last_login                 DateTime?
-  is_active                  Boolean   @default(true)
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  name       String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  // Relationships
-  memberships                Membership[]
-  sessions                   UserSession[]
-  auditLogs                  AuditLog[]
+  // Multi-tenant relationships
+  memberships Membership[]
 
   @@map("users")
 }
 
-// ============================================================================
-// MULTI-TENANT ARCHITECTURE
-// ============================================================================
-
 model Tenant {
-  id                       String     @id @default(cuid())
-  name                     String     // "John's Finances", "Smith Family", "Acme Corp"
-  type                     TenantType @default(PERSONAL)
-  timezone                 String     @default("UTC")
-  locale                   String     @default("en-US")
-  currency                 String     @default("USD")
-  is_active                Boolean    @default(true)
-  created_at               DateTime   @default(now())
-  updated_at               DateTime   @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  // Relationships
-  memberships              Membership[]
-  accounts                 Account[]
-  categories               Category[]
-  spending_goals           SpendingGoal[]
-  encryption_keys          EncryptionKey[]
+  // Tenant data relationships
+  memberships     Membership[]
+  accounts        Account[]
+  categories      Category[]
+  transactions    Transaction[]
+  spending_goals  SpendingGoal[]
+  balance_anchors AccountBalanceAnchor[]
 
   @@map("tenants")
 }
 
 model Membership {
-  id                       String         @id @default(cuid())
-  user_id                  String
-  tenant_id                String
-  role                     MembershipRole @default(ADMIN)
-  is_active                Boolean        @default(true)
-  created_at               DateTime       @default(now())
-  updated_at               DateTime       @updatedAt
+  id        String @id @default(cuid())
+  user_id   String
+  tenant_id String
+  role      String @default("member") // member, admin, owner
 
   // Relationships
-  user                     User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  tenant                   Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, tenant_id])
   @@map("memberships")
 }
 
-// User profile moved to tenant-specific data
-// Demographics and preferences are now tenant-scoped
-
-model UserSession {
-  id                    String    @id @default(cuid())
-  user_id               String
-  session_token         String    @unique
-  current_tenant_id     String?   // Active tenant for this session
-  device_info           Json?
-  ip_address            String?
-  created_at            DateTime  @default(now())
-  expires_at            DateTime
-  last_accessed         DateTime  @default(now())
-  refresh_token_hash    String?
-
-  // Relationships
-  user                  User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@map("user_sessions")
-}
-
 // ============================================================================
-// FINANCIAL CORE DATA
+// CORE DATA MODELS (Based on v4.1 structure)
 // ============================================================================
 
 model Account {
-  id                     String    @id @default(cuid())
-  tenant_id              String
-  name                   String
-  type                   String    // checking, savings, credit, investment, loan
-  subtype                String?   // high_yield_savings, rewards_credit, etc.
-
-  // Balance tracking
-  current_balance        Decimal   @default(0) @db.Decimal(12, 2)
-  available_balance      Decimal?  @db.Decimal(12, 2)
-  credit_limit           Decimal?  @db.Decimal(12, 2)
-
-  // Account details
-  currency               String    @default("USD")
-  account_number_last4   String?
-  institution_name       String?
-
-  // Status and metadata
-  is_active              Boolean   @default(true)
-  is_hidden              Boolean   @default(false)
-  display_order          Int       @default(0)
-  color                  String?
-  icon                   String?
-
-  created_at             DateTime  @default(now())
-  updated_at             DateTime  @updatedAt
+  id           Int      @id @default(autoincrement())
+  tenant_id    String
+  name         String
+  type         String   // CHECKING, SAVINGS, CREDIT, INVESTMENT, CASH
+  balance      Decimal  @db.Decimal(12, 2)
+  balance_date DateTime
+  color        String
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
   // Relationships
-  tenant                 Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  transactions           Transaction[]
-  transfer_transactions  Transaction[] @relation("TransferAccount")
-  balance_anchors        AccountBalanceAnchor[]
-  balance_history        AccountBalanceHistory[]
+  tenant          Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  balance_anchors AccountBalanceAnchor[]
 
+  // Unique constraints
+  @@unique([tenant_id, name])
   @@map("accounts")
 }
 
 model Category {
-  id                String    @id @default(cuid())
-  tenant_id         String
-  name              String
-  parent_id         String?
-
-  // Display properties
-  color             String?
-  icon              String?
-  display_order     Int       @default(0)
-
-  // Category metadata
-  is_system         Boolean   @default(false)
-  is_active         Boolean   @default(true)
-  transaction_count Int       @default(0)
-
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  id         Int      @id @default(autoincrement())
+  tenant_id  String
+  name       String
+  type       String   // INCOME, EXPENSE, TRANSFER
+  color      String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relationships
-  tenant            Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  parent            Category? @relation("CategoryHierarchy", fields: [parent_id], references: [id])
-  children          Category[] @relation("CategoryHierarchy")
-  transactions      Transaction[]
+  tenant       Tenant        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
-  @@unique([tenant_id, name, parent_id])
+  // Unique constraints
+  @@unique([tenant_id, name, type])
   @@map("categories")
 }
 
 model Transaction {
-  id                      String    @id @default(cuid())
-  account_id              String
-  category_id             String?
-
-  // Transaction details
-  amount                  Decimal   @db.Decimal(12, 2)
-  description             String
-  notes                   String?
-  date                    DateTime  @db.Date
-
-  // Transaction metadata
-  type                    String    // income, expense, transfer
-  status                  String    @default("cleared") // pending, cleared, reconciled
-
-  // Transfer handling
-  transfer_account_id     String?
-  transfer_transaction_id String?   @unique
-
-  // Import and deduplication
-  import_id               String?
-  external_id             String?
-
-  // Flexible metadata
-  tags                    String[]
-  metadata                Json?
-
-  // Audit trail
-  created_at              DateTime  @default(now())
-  updated_at              DateTime  @updatedAt
-  created_by              String    @default("user")
+  id           Int      @id @default(autoincrement())
+  tenant_id    String
+  account_id   Int
+  category_id  Int?
+  amount       Decimal  @db.Decimal(12, 2)
+  description  String
+  date         DateTime
+  type         String   // INCOME, EXPENSE, TRANSFER
+  is_recurring Boolean  @default(false)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
   // Relationships
-  account                 Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  category                Category? @relation(fields: [category_id], references: [id])
-  transfer_account        Account? @relation("TransferAccount", fields: [transfer_account_id], references: [id])
-  transfer_transaction    Transaction? @relation("TransferPair", fields: [transfer_transaction_id], references: [id])
-  linked_transfer         Transaction? @relation("TransferPair")
+  tenant   Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  account  Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
 
   @@map("transactions")
 }
 
-// ============================================================================
-// BALANCE HISTORY & ANCHORS
-// ============================================================================
-
-model AccountBalanceHistory {
-  id                   String   @id @default(cuid())
-  account_id           String
-
-  balance              Decimal  @db.Decimal(12, 2)
-  date                 DateTime @db.Date
-
-  // Balance calculation metadata
-  transaction_count    Int      @default(0)
-  last_transaction_id  String?
-
-  created_at           DateTime @default(now())
-
-  // Relationships
-  account              Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-  @@unique([account_id, date])
-  @@map("account_balance_history")
-}
-
 model AccountBalanceAnchor {
-  id                   String   @id @default(cuid())
-  account_id           String
-
-  balance              Decimal  @db.Decimal(12, 2)
-  anchor_date          DateTime @db.Date
-  description          String?
-
-  // Anchor metadata
-  is_initial_balance   Boolean  @default(false)
-  confidence_level     String   @default("high")
-
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  tenant_id   String
+  account_id  Int
+  balance     Decimal  @db.Decimal(12, 2)
+  anchor_date DateTime
+  description String?
+  created_at  DateTime @default(now())
 
   // Relationships
-  account              Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
 
-  @@unique([account_id, anchor_date])
   @@map("account_balance_anchors")
 }
 
-// ============================================================================
-// ANALYTICS & GOALS
-// ============================================================================
-
 model SpendingGoal {
-  id               String    @id @default(cuid())
-  tenant_id        String
-  category_id      String?
+  id                        String   @id @default(cuid())
+  tenant_id                 String
+  name                      String
+  goal_type                 String   // maximum, minimum
+  target_amount             Decimal  @db.Decimal(12, 2)
+  timeframe                 String   // monthly, quarterly, bi-annual, annual
+  start_date                DateTime
+  end_date                  DateTime
+  status                    String   @default("active") // active, cancelled, expired
+  alert_warning_threshold   Int      @default(80)
+  alert_critical_threshold  Int      @default(90)
 
-  // Goal details
-  name             String
-  target_amount    Decimal   @db.Decimal(12, 2)
-  period_type      String    // monthly, quarterly, yearly
+  // Criteria (simplified approach - arrays instead of separate tables)
+  criteria_category_ids     Int[]    @default([])
+  criteria_account_ids      Int[]    @default([])
+  criteria_recurring        Boolean?
+  criteria_transaction_type String   // INCOME, EXPENSE, TRANSFER
 
-  // Goal period
-  start_date       DateTime  @db.Date
-  end_date         DateTime? @db.Date
-
-  // Progress tracking
-  current_amount   Decimal   @default(0) @db.Decimal(12, 2)
-  last_calculated  DateTime?
-
-  // Goal metadata
-  is_active        Boolean   @default(true)
-  alert_threshold  Decimal   @default(0.80) @db.Decimal(3, 2)
-
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relationships
-  tenant           Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@map("spending_goals")
-}
-
-// ============================================================================
-// SECURITY & AUDIT
-// ============================================================================
-
-model AuditLog {
-  id            String    @id @default(cuid())
-  user_id       String?   // Who performed the action
-  tenant_id     String?   // Which tenant's data was affected
-
-  // Action details
-  action        String
-  resource_type String
-  resource_id   String?
-
-  // Request context
-  ip_address    String?
-  user_agent    String?
-  session_id    String?
-
-  // Change tracking
-  old_values    Json?
-  new_values    Json?
-
-  // Metadata
-  success       Boolean   @default(true)
-  error_message String?
-
-  created_at    DateTime  @default(now())
-
-  // Relationships
-  user          User? @relation(fields: [user_id], references: [id])
-
-  @@map("audit_logs")
-}
-
-model EncryptionKey {
-  id            String    @id @default(cuid())
-  tenant_id     String
-  key_name      String
-  encrypted_key String
-  algorithm     String    @default("AES-256-GCM")
-  created_at    DateTime  @default(now())
-  rotated_at    DateTime?
-  is_active     Boolean   @default(true)
-
-  // Relationships
-  tenant        Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-
-  @@unique([tenant_id, key_name])
-  @@map("encryption_keys")
-}
-
-// ============================================================================
-// ENUMS
-// ============================================================================
-
-enum MembershipRole {
-  ADMIN
-  VIEWER
-}
-
-enum TenantType {
-  PERSONAL
-  FAMILY
-  BUSINESS
 }
 
 // ============================================================================
 // INDEXES FOR PERFORMANCE
 // ============================================================================
 
-// Critical performance indexes are defined here as comments
-// They should be created manually or via migration scripts
-
-// Multi-tenant indexes
-// CREATE INDEX idx_memberships_user ON memberships(user_id, is_active) WHERE is_active = true;
-// CREATE INDEX idx_memberships_tenant ON memberships(tenant_id, is_active) WHERE is_active = true;
-
-// Transactions (account-scoped, tenant via account relationship)
-// CREATE INDEX idx_transactions_account_date ON transactions(account_id, date DESC);
-// CREATE INDEX idx_transactions_category ON transactions(category_id, date DESC);
-// CREATE INDEX idx_transactions_account_amount ON transactions(account_id, amount) WHERE amount < 0;
-// CREATE INDEX idx_transactions_account_type_date ON transactions(account_id, type, date DESC);
-
-// Accounts (tenant-scoped)
-// CREATE INDEX idx_accounts_tenant_active ON accounts(tenant_id) WHERE is_active = true;
-// CREATE INDEX idx_accounts_type ON accounts(tenant_id, type);
-
-// Categories (tenant-scoped)
-// CREATE INDEX idx_categories_tenant ON categories(tenant_id, is_active) WHERE is_active = true;
-// CREATE INDEX idx_categories_parent ON categories(parent_id) WHERE parent_id IS NOT NULL;
-
-// Balance history (account-scoped, tenant via account relationship)
-// CREATE INDEX idx_balance_history_account_date ON account_balance_history(account_id, date DESC);
-// CREATE INDEX idx_balance_anchors_account_date ON account_balance_anchors(account_id, anchor_date DESC);
-
-// Analytics (tenant-scoped)
-// CREATE INDEX idx_goals_tenant_active ON spending_goals(tenant_id, is_active) WHERE is_active = true;
-
-// Audit logs
-// CREATE INDEX idx_audit_user_time ON audit_logs(user_id, created_at DESC);
-// CREATE INDEX idx_audit_tenant_time ON audit_logs(tenant_id, created_at DESC);
-// CREATE INDEX idx_audit_resource ON audit_logs(resource_type, resource_id, created_at DESC);
-
-// Sessions
-// CREATE INDEX idx_sessions_user ON user_sessions(user_id, expires_at);
-// CREATE INDEX idx_sessions_token ON user_sessions(session_token) WHERE expires_at > NOW();
-// CREATE INDEX idx_sessions_tenant ON user_sessions(current_tenant_id) WHERE current_tenant_id IS NOT NULL;
+// Tenant isolation indexes (critical for performance)
+// These will be added after basic schema is working
