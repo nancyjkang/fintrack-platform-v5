@@ -35,7 +35,7 @@ This document contains the prioritized list of all features to be implemented, s
 
 - **API Updates for New Schema** - ✅ Complete
   - **Estimate**: 3 days (actual: 1 day)
-  - **Completed**: 2025-09-15 16:30
+  - **Completed**: 2025-09-15 14:50
   - **Last Updated**: 2025-09-15
   - **Dependencies**: Schema Design ✅
   - **Notes**: Phase 2 of database rebuild - service layer architecture + API updates + comprehensive unit tests
@@ -43,11 +43,18 @@ This document contains the prioritized list of all features to be implemented, s
 
 - **Transaction CRUD** - ✅ Complete (API) / 📋 Ready (UI)
   - **Estimate**: 4 days (API: 0.5 days actual, UI: 3.5 days remaining)
-  - **Completed**: 2025-09-15 16:30 (API portion)
+  - **Completed**: 2025-09-15 14:50 (API portion)
   - **Last Updated**: 2025-09-15
   - **Dependencies**: API Updates for New Schema ✅
   - **Notes**: API portion complete with service layer. UI implementation ready to start.
   - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
+
+- **Date Handling Utilities** - 📋 Ready
+  - **Estimate**: 2 days
+  - **Last Updated**: 2025-09-15
+  - **Dependencies**: None
+  - **Notes**: **CRITICAL FOUNDATION** - Prevent recurring date bugs that have plagued previous versions. Timezone-safe utilities for consistent date handling.
+  - **Documentation**: [Planning](docs/features/date-handling-utilities/planning.md) | [Best Practices](docs/architecture/date-handling-best-practices.md)
 
 - **Account Management UI** - 📋 Ready
   - **Estimate**: 3 days
