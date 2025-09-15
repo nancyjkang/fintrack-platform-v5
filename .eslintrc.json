@@ -2,5 +2,68 @@
   "extends": [
     "next/core-web-vitals",
     "next/typescript"
+  ],
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "NewExpression[callee.name='Date']",
+        "message": "❌ Direct 'new Date()' usage is prohibited. Use date utilities from '@/lib/utils/date-utils' instead. See docs/architecture/date-handling-best-practices.md"
+      },
+      {
+        "selector": "CallExpression[callee.name='Date']",
+        "message": "❌ Direct 'Date()' calls are prohibited. Use date utilities from '@/lib/utils/date-utils' instead."
+      },
+      {
+        "selector": "MemberExpression[object.name='Date'][property.name='now']",
+        "message": "❌ 'Date.now()' usage should be replaced with date utilities. Use getCurrentUTCDate() or getCurrentDate() from '@/lib/utils/date-utils'."
+      },
+      {
+        "selector": "CallExpression[callee.type='MemberExpression'][callee.object.name='Date'][callee.property.name='parse']",
+        "message": "❌ 'Date.parse()' is prohibited due to timezone inconsistencies. Use parseAndConvertToUTC() from '@/lib/utils/date-utils'."
+      },
+      {
+        "selector": "CallExpression[callee.type='MemberExpression'][callee.property.name='toISOString']",
+        "message": "⚠️  Consider using toUTCDateString() from '@/lib/utils/date-utils' for consistent date string formatting."
+      },
+      {
+        "selector": "CallExpression[callee.type='MemberExpression'][callee.property.name='toLocaleDateString']",
+        "message": "⚠️  Consider using formatDateForDisplay() from '@/lib/utils/date-utils' for consistent user-facing date formatting."
+      },
+      {
+        "selector": "CallExpression[callee.type='MemberExpression'][callee.property.name='getTime']",
+        "message": "⚠️  Direct timestamp usage may cause timezone issues. Consider using date utilities for date comparisons."
+      }
+    ],
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "Date",
+        "message": "❌ Global 'Date' constructor is prohibited. Import and use date utilities from '@/lib/utils/date-utils' instead."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/lib/utils/date-utils.ts"],
+      "rules": {
+        "no-restricted-syntax": "off",
+        "no-restricted-globals": "off"
+      }
+    },
+    {
+      "files": ["src/lib/utils/__tests__/date-utils.test.ts"],
+      "rules": {
+        "no-restricted-syntax": "off",
+        "no-restricted-globals": "off"
+      }
+    },
+    {
+      "files": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "no-restricted-syntax": "off",
+        "no-restricted-globals": "off"
+      }
+    }
   ]
 }

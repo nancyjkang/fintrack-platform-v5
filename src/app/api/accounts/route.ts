@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
 import { AccountService } from '@/lib/services/account.service'
+import { isValidDateString, parseAndConvertToUTC, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
 // Validation schemas (aligned with new schema)
 const createAccountSchema = z.object({
@@ -11,7 +12,7 @@ const createAccountSchema = z.object({
     errorMap: () => ({ message: 'Type must be CHECKING, SAVINGS, CREDIT, INVESTMENT, or CASH' })
   }),
   balance: z.number().default(0),
-  balance_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid date format').optional(),
+  balance_date: z.string().refine((date) => isValidDateString(date), 'Invalid date format').optional(),
   color: z.string().min(1, 'Color is required'),
   is_active: z.boolean().default(true)
 })
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       name: validatedData.name,
       type: validatedData.type,
       balance: validatedData.balance,
-      balance_date: validatedData.balance_date ? new Date(validatedData.balance_date) : new Date(),
+      balance_date: validatedData.balance_date ? parseAndConvertToUTC(validatedData.balance_date) : getCurrentUTCDate(),
       color: validatedData.color,
       is_active: validatedData.is_active
     })

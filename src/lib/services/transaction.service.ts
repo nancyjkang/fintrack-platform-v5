@@ -1,12 +1,14 @@
 import { BaseService } from './base.service'
 import type { Transaction, Account, Category } from '@prisma/client'
+import { getCurrentUTCDate, parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 export interface CreateTransactionData {
   account_id: number
   category_id?: number
   amount: number
   description: string
-  date: Date
+  // eslint-disable-next-line no-restricted-globals
+  date: Date // Keep as Date for Prisma compatibility - conversion happens in API layer
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   is_recurring?: boolean
 }
@@ -16,6 +18,7 @@ export interface UpdateTransactionData {
   category_id?: number
   amount?: number
   description?: string
+  // eslint-disable-next-line no-restricted-globals
   date?: Date
   type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   is_recurring?: boolean
@@ -26,7 +29,9 @@ export interface TransactionFilters {
   category_id?: number
   type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   is_recurring?: boolean
+  // eslint-disable-next-line no-restricted-globals
   date_from?: Date
+  // eslint-disable-next-line no-restricted-globals
   date_to?: Date
   search?: string
 }
@@ -228,7 +233,7 @@ export class TransactionService extends BaseService {
         where: { id },
         data: {
           ...data,
-          updated_at: new Date()
+          updated_at: getCurrentUTCDate()
         },
         include: {
           account: true,
