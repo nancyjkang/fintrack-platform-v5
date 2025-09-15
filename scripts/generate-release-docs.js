@@ -12,7 +12,7 @@ const path = require('path');
 function generateReleaseDocs(version) {
   console.log(`📝 Generating release documentation for v${version}...`);
 
-  const releaseDir = path.join(process.cwd(), 'releases');
+  const releaseDir = path.join(process.cwd(), 'docs', 'releases');
   if (!fs.existsSync(releaseDir)) {
     fs.mkdirSync(releaseDir, { recursive: true });
   }
@@ -77,12 +77,34 @@ Generated on ${timestamp}
     const releaseFile = path.join(releaseDir, `release-${version}.md`);
     fs.writeFileSync(releaseFile, releaseNotes);
 
-    // Update latest release symlink
+    // Create latest release pointer
+    const latestContent = `# FinTrack v5 - Latest Release
+
+## Current Release: v${version}
+
+**📄 [View Full Release Notes](./release-${version}.md)**
+
+## Quick Info
+- **Version**: ${version}
+- **Release Date**: ${new Date().toLocaleDateString()}
+- **Commit**: ${shortHash}
+- **Build Time**: ${timestamp}
+
+## Recent Changes (${commits.length} commits)
+${commits.slice(0, 5).map(commit => `- ${commit}`).join('\n')}
+${commits.length > 5 ? `\n... and ${commits.length - 5} more commits` : ''}
+
+---
+*This file always points to the latest release. For full details, see [release-${version}.md](./release-${version}.md)*
+
+Generated on ${timestamp}
+`;
+
     const latestFile = path.join(releaseDir, 'latest.md');
     if (fs.existsSync(latestFile)) {
       fs.unlinkSync(latestFile);
     }
-    fs.writeFileSync(latestFile, releaseNotes);
+    fs.writeFileSync(latestFile, latestContent);
 
     console.log('✅ Release documentation generated:');
     console.log(`   📄 ${releaseFile}`);
