@@ -1,21 +1,18 @@
-# database schema rebuild - Implementation Documentation
+# api updates for new schema - Implementation Documentation
 
 **Completed**: 2025-09-15
 **Deployed**: 2025-09-15
-**Developer**: Claude Assistant
+**Developer**: [NAME]
 
 ---
 
 ## 📋 **What Was Built**
 
 ### **Feature Summary**
-Complete database schema rebuild from scratch, starting with v4.1's proven simple structure and adding multi-tenant support. This eliminates over-engineered complexity and provides a clean foundation for future development.
+[Brief description of what the feature does and why it was built]
 
 ### **User Impact**
-- **Developers**: Clean, simple schema that's easy to work with and extend
-- **Performance**: Faster queries with simplified data structure
-- **Scalability**: Multi-tenant architecture ready for team collaboration features
-- **Reliability**: Comprehensive test coverage ensures data integrity
+[How this helps users - what can they now do that they couldn't before?]
 
 ---
 
@@ -23,25 +20,15 @@ Complete database schema rebuild from scratch, starting with v4.1's proven simpl
 
 ### **Database Changes**
 ```sql
--- Complete schema rebuild - no migration, fresh start
--- Applied: 2025-09-15
+-- Migration: [migration_name]
+-- Applied: [date]
 
--- New multi-tenant architecture with simplified v4.1-based models
--- See: prisma/schema.prisma for complete schema definition
+[SQL changes made, if any]
 ```
 
 **Tables Modified/Added**:
-- `users`: User authentication and profile data
-- `tenants`: Multi-tenant organization structure
-- `memberships`: User-tenant relationships with roles
-- `accounts`: Simplified account structure (removed subtype, institution fields)
-- `categories`: Clean category system (name, type, color only)
-- `transactions`: Simplified transactions (removed transfer fields, metadata, tags)
-- `account_balance_anchors`: Balance reference points for calculations
-- `spending_goals`: Goal tracking system
-- `audit_logs`: Security and compliance logging
-- `user_sessions`: Session management
-- `encryption_keys`: Tenant-specific encryption
+- `[table_name]`: [description of changes]
+- `[another_table]`: [description of changes]
 
 ### **API Endpoints**
 
