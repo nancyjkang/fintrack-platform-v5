@@ -2,45 +2,45 @@
 
 echo "🚀 FinTrack v5 Pre-push checks starting..."
 
-# Basic security audit
+# CRITICAL: Production build check (moved from pre-commit for faster commits)
+echo "🔍 Checking production build..."
+npm run build > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "🚫 PUSH REJECTED: Production build failed"
+  echo "💡 Run 'npm run build' to see detailed errors"
+  echo "💡 Build must pass before pushing to ensure deployable code"
+  exit 1
+fi
+echo "✅ Production build passed"
+
+# TypeScript compilation double-check
+echo "🔍 Final TypeScript compilation check..."
+npx tsc --noEmit
+if [ $? -ne 0 ]; then
+  echo "🚫 PUSH REJECTED: TypeScript compilation failed"
+  echo "💡 Fix TypeScript errors before pushing"
+  exit 1
+fi
+echo "✅ TypeScript compilation passed"
+
+# Full test suite
+echo "🔍 Running complete test suite..."
+npm run test
+if [ $? -ne 0 ]; then
+  echo "🚫 PUSH REJECTED: Test suite failed"
+  echo "💡 Fix failing tests before pushing"
+  exit 1
+fi
+echo "✅ Test suite passed"
+
+# Security audit
 echo "🔍 Running security audit..."
-npm audit --audit-level=moderate
+npm audit --audit-level=moderate --silent
 if [ $? -ne 0 ]; then
   echo "🚫 PUSH REJECTED: Security vulnerabilities found"
   echo "💡 Run 'npm audit fix' to fix security issues"
   exit 1
 fi
-
-# Ensure build passes
-echo "🔍 Verifying build..."
-npm run build
-if [ $? -ne 0 ]; then
-  echo "🚫 PUSH REJECTED: Build failed"
-  echo ""
-  echo "💡 Fix build errors before pushing to ensure deployable code"
-  exit 1
-fi
-
-# Run type checking
-echo "🔍 Running type checks..."
-npm run type-check
-if [ $? -ne 0 ]; then
-  echo "🚫 PUSH REJECTED: Type checking failed"
-  echo ""
-  echo "💡 Fix TypeScript errors before pushing"
-  exit 1
-fi
-
-# Optional: Run tests if they exist
-if [ -f "package.json" ] && grep -q '"test"' package.json; then
-  echo "🔍 Running tests..."
-  npm test -- --passWithNoTests
-  if [ $? -ne 0 ]; then
-    echo "🚫 PUSH REJECTED: Tests failed"
-    echo ""
-    echo "💡 Fix failing tests before pushing"
-    exit 1
-  fi
-fi
+echo "✅ Security audit passed"
 
 echo "✅ All pre-push checks passed! Safe to deploy 🚀"

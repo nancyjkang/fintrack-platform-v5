@@ -68,15 +68,7 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ TypeScript compilation passed"
 
-# CRITICAL: Build check (ensures production build works)
-echo "🔍 Checking production build..."
-npm run build > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-  echo "🚫 COMMIT REJECTED: Production build failed"
-  echo "💡 Run 'npm run build' to see detailed errors"
-  exit 1
-fi
-echo "✅ Production build passed"
+# Build check moved to pre-push hook for faster commits
 
 # CRITICAL: Test suite check (ensures all tests pass)
 echo "🔍 Running test suite..."
