@@ -232,3 +232,4 @@ export function CategoryMergeModal({ sourceCategory, categories, onSubmit, onClo
     </div>
   )
 }
+

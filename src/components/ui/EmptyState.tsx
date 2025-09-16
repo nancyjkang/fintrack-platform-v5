@@ -4,16 +4,17 @@ interface EmptyStateProps {
   icon: React.ComponentType<{ className?: string }>
   title: string
   description: string
-  actionLabel: string
-  onAction: () => void
+  action?: {
+    label: string
+    onClick: () => void
+  }
 }
 
 export default function EmptyState({
   icon: Icon,
   title,
   description,
-  actionLabel,
-  onAction
+  action
 }: EmptyStateProps) {
   return (
     <div className="text-center py-12">
@@ -24,13 +25,18 @@ export default function EmptyState({
       <p className="text-gray-600 mb-6 max-w-md mx-auto">
         {description}
       </p>
-      <button
-        onClick={onAction}
-        className="btn btn-primary flex items-center gap-2 mx-auto"
-      >
-        <Plus className="h-4 w-4" />
-        {actionLabel}
-      </button>
+      {action && (
+        <button
+          onClick={action.onClick}
+          className="btn btn-primary flex items-center gap-2 mx-auto"
+        >
+          <Plus className="h-4 w-4" />
+          {action.label}
+        </button>
+      )}
     </div>
   )
 }
+
+// Named export for convenience
+export { EmptyState }

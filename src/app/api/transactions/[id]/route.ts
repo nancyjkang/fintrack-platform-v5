@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
 import { TransactionService } from '@/lib/services/transaction.service'
+import { isValidDateString, parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 // Validation schemas
 const updateTransactionSchema = z.object({
@@ -10,7 +11,7 @@ const updateTransactionSchema = z.object({
   category_id: z.number().int().positive().optional(),
   amount: z.number().min(0.01).optional(),
   description: z.string().min(1).optional(),
-  date: z.string().refine((date) => !isNaN(Date.parse(date))).optional(),
+  date: z.string().refine((date) => isValidDateString(date)).optional(),
   type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']).optional(),
   is_recurring: z.boolean().optional(),
 })
@@ -33,7 +34,7 @@ export async function GET(
     // Get transaction ID from params
     const { id } = await params
     const transactionId = parseInt(id)
-    
+
     if (isNaN(transactionId)) {
       return handleApiError(new Error('Invalid transaction ID'))
     }
@@ -70,7 +71,7 @@ export async function PUT(
     // Get transaction ID from params
     const { id } = await params
     const transactionId = parseInt(id)
-    
+
     if (isNaN(transactionId)) {
       return handleApiError(new Error('Invalid transaction ID'))
     }
@@ -85,7 +86,7 @@ export async function PUT(
     if (validatedData.category_id !== undefined) updateData.category_id = validatedData.category_id
     if (validatedData.amount !== undefined) updateData.amount = validatedData.amount
     if (validatedData.description !== undefined) updateData.description = validatedData.description
-    if (validatedData.date !== undefined) updateData.date = new Date(validatedData.date)
+    if (validatedData.date !== undefined) updateData.date = parseAndConvertToUTC(validatedData.date)
     if (validatedData.type !== undefined) updateData.type = validatedData.type
     if (validatedData.is_recurring !== undefined) updateData.is_recurring = validatedData.is_recurring
 
@@ -117,7 +118,7 @@ export async function DELETE(
     // Get transaction ID from params
     const { id } = await params
     const transactionId = parseInt(id)
-    
+
     if (isNaN(transactionId)) {
       return handleApiError(new Error('Invalid transaction ID'))
     }

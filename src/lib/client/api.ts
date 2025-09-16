@@ -196,46 +196,114 @@ class ApiClient {
   }
 
   // Account methods
-  async getAccounts(): Promise<ApiResponse<{
-    items: Array<{
-      id: string
-      name: string
-      type: string
-      subtype: string
-      current_balance: number
-      currency: string
-      account_number_last4?: string
-      institution_name?: string
-      color: string
-      icon: string
-    }>
-    pagination: {
-      page: number
-      limit: number
-      total: number
-      totalPages: number
-      hasNext: boolean
-      hasPrev: boolean
-    }
+  async getAccounts(filters?: {
+    type?: string
+    is_active?: boolean
+    search?: string
+  }): Promise<ApiResponse<Array<{
+    id: number
+    tenant_id: string
+    name: string
+    type: string
+    net_worth_category: string
+    balance: number
+    balance_date: string
+    color: string
+    is_active: boolean
+    created_at: string
+    updated_at: string
+  }>>> {
+    const params = new URLSearchParams()
+    if (filters?.type) params.append('type', filters.type)
+    if (filters?.is_active !== undefined) params.append('is_active', filters.is_active.toString())
+    if (filters?.search) params.append('search', filters.search)
+    
+    const queryString = params.toString()
+    return this.request(`/accounts${queryString ? `?${queryString}` : ''}`)
+  }
+
+  async getAccount(id: number): Promise<ApiResponse<{
+    id: number
+    tenant_id: string
+    name: string
+    type: string
+    net_worth_category: string
+    balance: number
+    balance_date: string
+    color: string
+    is_active: boolean
+    created_at: string
+    updated_at: string
   }>> {
-    return this.request('/accounts')
+    return this.request(`/accounts/${id}`)
   }
 
   async createAccount(data: {
     name: string
-    type: string
-    subtype?: string
-    initialBalance?: number
-    currency: string
-    accountNumberLast4?: string
-    institutionName?: string
-    color?: string
-    icon?: string
+    type: 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'LOAN' | 'TRADITIONAL_RETIREMENT' | 'ROTH_RETIREMENT'
+    net_worth_category?: 'ASSET' | 'LIABILITY' | 'EXCLUDED'
+    balance: number
+    balance_date: string // YYYY-MM-DD format
+    color: string
+    is_active?: boolean
   }): Promise<ApiResponse<any>> {
     return this.request('/accounts', {
       method: 'POST',
       body: JSON.stringify(data)
     })
+  }
+
+  async updateAccount(id: number, data: {
+    name?: string
+    type?: 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'LOAN' | 'TRADITIONAL_RETIREMENT' | 'ROTH_RETIREMENT'
+    net_worth_category?: 'ASSET' | 'LIABILITY' | 'EXCLUDED'
+    balance?: number
+    balance_date?: string // YYYY-MM-DD format
+    color?: string
+    is_active?: boolean
+  }): Promise<ApiResponse<any>> {
+    return this.request(`/accounts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async deleteAccount(id: number): Promise<ApiResponse<any>> {
+    return this.request(`/accounts/${id}`, {
+      method: 'DELETE'
+    })
+  }
+
+  async reconcileAccount(id: number, data: {
+    newBalance: number
+    reconcileDate: string // YYYY-MM-DD format
+    adjustmentType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+  }): Promise<ApiResponse<{
+    account: any
+    adjustmentTransaction?: any
+    message: string
+  }>> {
+    return this.request(`/accounts/${id}/reconcile`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async getNetWorth(): Promise<ApiResponse<{
+    netWorth: number
+    breakdown: {
+      totalAssets: number
+      totalLiabilities: number
+      excludedAccounts: number
+    }
+    accountCounts: {
+      assets: number
+      liabilities: number
+      excluded: number
+      total: number
+    }
+  }>> {
+    return this.request('/accounts/net-worth')
   }
 
   // Transaction methods

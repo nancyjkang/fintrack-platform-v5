@@ -97,7 +97,16 @@
 - ✅ [Another completed task]
 
 ### 🔄 In Progress
-- 🔄 [Task partially done] - [what's left]
+- in filters, make it 2 rows:
+row 1: search box, date range, start date, end date
+row 2: account, type, category, recurring vs not.
+
+Have the start and end date populated when date range is selected, but editable.
+
+
+
+
+
 
 ### 🚧 Blockers/Issues
 - [Any problems encountered]

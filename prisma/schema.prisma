@@ -65,16 +65,17 @@ model Membership {
 // ============================================================================
 
 model Account {
-  id           Int      @id @default(autoincrement())
-  tenant_id    String
-  name         String
-  type         String   // CHECKING, SAVINGS, CREDIT, INVESTMENT, CASH
-  balance      Decimal  @db.Decimal(12, 2)
-  balance_date DateTime
-  color        String
-  is_active    Boolean  @default(true)
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  tenant_id           String
+  name                String
+  type                String   // CHECKING, SAVINGS, CREDIT_CARD, INVESTMENT, LOAN, TRADITIONAL_RETIREMENT, ROTH_RETIREMENT
+  net_worth_category  String   // ASSET, LIABILITY, EXCLUDED
+  balance             Decimal  @db.Decimal(12, 2)
+  balance_date        DateTime
+  color               String
+  is_active           Boolean  @default(true)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
   // Relationships
   tenant          Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)

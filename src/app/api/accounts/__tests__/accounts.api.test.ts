@@ -41,6 +41,21 @@ describe('Accounts API', () => {
     updated_at: new Date('2025-01-01T00:00:00.000Z'),
   }
 
+  // Expected response format (dates are serialized to strings in API responses)
+  const expectedAccountResponse = {
+    id: 1,
+    tenant_id: 'tenant-123',
+    name: 'Test Account',
+    type: 'CHECKING',
+    net_worth_category: 'ASSET',
+    balance: '1000.5',
+    balance_date: '2025-01-01T00:00:00.000Z',
+    color: '#0066cc',
+    is_active: true,
+    created_at: '2025-01-01T00:00:00.000Z',
+    updated_at: '2025-01-01T00:00:00.000Z',
+  }
+
   beforeEach(() => {
     jest.clearAllMocks()
     mockVerifyAuth.mockResolvedValue(mockUser)
@@ -64,7 +79,7 @@ describe('Accounts API', () => {
       expect(response.status).toBe(200)
       expect(data).toEqual({
         success: true,
-        data: [mockAccount],
+        data: [expectedAccountResponse],
         count: 1
       })
       expect(mockAccountService.getAccounts).toHaveBeenCalledWith('tenant-123', {})
@@ -140,7 +155,7 @@ describe('Accounts API', () => {
       expect(response.status).toBe(201)
       expect(data).toEqual({
         success: true,
-        data: mockAccount
+        data: expectedAccountResponse
       })
       expect(mockAccountService.createAccount).toHaveBeenCalledWith('tenant-123', {
         name: 'New Account',
@@ -237,7 +252,7 @@ describe('Accounts API', () => {
       expect(response.status).toBe(200)
       expect(data).toEqual({
         success: true,
-        data: mockAccount
+        data: expectedAccountResponse
       })
       expect(mockAccountService.getAccountById).toHaveBeenCalledWith(1, 'tenant-123')
     })
@@ -268,12 +283,12 @@ describe('Accounts API', () => {
   describe('PUT /api/accounts/[id]', () => {
     const updateData = {
       name: 'Updated Account',
-      balance: new Decimal(1500.75),
+      balance: 1500.75,
       net_worth_category: 'LIABILITY'
     }
 
     it('should update account successfully', async () => {
-      const updatedAccount = { ...mockAccount, ...updateData }
+      const updatedAccount = { ...mockAccount, ...updateData, balance: new Decimal(updateData.balance) }
       mockAccountService.updateAccount.mockResolvedValueOnce(updatedAccount)
 
       const request = new NextRequest('http://localhost:3000/api/accounts/1', {
@@ -285,9 +300,10 @@ describe('Accounts API', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
+      const expectedUpdatedResponse = { ...expectedAccountResponse, ...updateData, balance: updateData.balance.toString() }
       expect(data).toEqual({
         success: true,
-        data: updatedAccount
+        data: expectedUpdatedResponse
       })
       expect(mockAccountService.updateAccount).toHaveBeenCalledWith(1, 'tenant-123', updateData)
     })
@@ -423,6 +439,16 @@ describe('Accounts API', () => {
         }
       }
 
+      const expectedReconcileResponse = {
+        account: { ...expectedAccountResponse, balance: '1500' },
+        adjustmentTransaction: {
+          id: 1,
+          amount: 499.5,
+          description: 'Balance Adjustment',
+          type: 'INCOME'
+        }
+      }
+
       mockAccountService.reconcileAccount.mockResolvedValueOnce(reconcileResult)
 
       const request = new NextRequest('http://localhost:3000/api/accounts/1/reconcile', {
@@ -435,7 +461,7 @@ describe('Accounts API', () => {
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
-      expect(data.data.account).toEqual(reconcileResult.account)
+      expect(data.data.account).toEqual(expectedReconcileResponse.account)
       expect(data.data.adjustmentTransaction).toEqual(reconcileResult.adjustmentTransaction)
       expect(data.data.message).toBe('Account reconciled with adjustment transaction created')
     })
@@ -443,6 +469,11 @@ describe('Accounts API', () => {
     it('should reconcile without adjustment transaction', async () => {
       const reconcileResult = {
         account: { ...mockAccount, balance: new Decimal(1000.51) },
+        adjustmentTransaction: null
+      }
+
+      const expectedReconcileResponse2 = {
+        account: { ...expectedAccountResponse, balance: '1000.51' },
         adjustmentTransaction: null
       }
 

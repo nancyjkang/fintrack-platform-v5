@@ -1,28 +1,29 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
+import { toISOString, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
 /**
  * GET /api/health - Health check endpoint for deployment validation
  */
 export async function GET(request: NextRequest) {
   try {
-    const startTime = Date.now()
+    const startTime = process.hrtime.bigint()
 
     // Test database connection
     await prisma.$queryRaw`SELECT 1`
 
-    const dbResponseTime = Date.now() - startTime
+    const dbResponseTime = Number(process.hrtime.bigint() - startTime) / 1000000 // Convert nanoseconds to milliseconds
 
     // Get basic system info
     const healthData = {
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: toISOString(getCurrentUTCDate()),
       version: process.env.npm_package_version || '5.0.0',
       environment: process.env.NODE_ENV || 'development',
       database: {
         status: 'connected',
-        responseTime: `${dbResponseTime}ms`
+        responseTime: `${Math.round(dbResponseTime)}ms`
       },
       uptime: process.uptime(),
       memory: {
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const errorData = {
       status: 'unhealthy',
-      timestamp: new Date().toISOString(),
+      timestamp: toISOString(getCurrentUTCDate()),
       error: error instanceof Error ? error.message : 'Unknown error',
       database: {
         status: 'disconnected'

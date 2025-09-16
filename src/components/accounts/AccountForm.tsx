@@ -89,9 +89,13 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
       } else {
         // For new accounts, send all fields
         response = await api.createAccount({
-          ...formData,
+          name: formData.name,
           type: formData.type as 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'INVESTMENT' | 'LOAN' | 'TRADITIONAL_RETIREMENT' | 'ROTH_RETIREMENT',
-          net_worth_category: formData.net_worth_category as 'ASSET' | 'LIABILITY' | 'EXCLUDED'
+          net_worth_category: formData.net_worth_category as 'ASSET' | 'LIABILITY' | 'EXCLUDED',
+          balance: formData.balance,
+          balance_date: formData.balance_date,
+          color: formData.color,
+          is_active: formData.is_active
         })
       }
 

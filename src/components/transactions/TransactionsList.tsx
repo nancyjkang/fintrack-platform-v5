@@ -137,14 +137,14 @@ export default function TransactionsList({
       if (accountsResponse.success && accountsResponse.data) {
         // Map API response to Account interface
         const mappedAccounts = accountsResponse.data.map(item => ({
-          id: parseInt(item.id),
+          id: item.id.toString(),
           name: item.name,
           type: item.type,
-          balance: item.current_balance,
+          balance: item.balance,
           color: item.color,
           is_active: true // Assume active since it's returned by API
         }));
-        setAccounts(mappedAccounts);
+        setAccounts(mappedAccounts as any);
       }
 
       if (categoriesResponse.success && categoriesResponse.data?.categories) {

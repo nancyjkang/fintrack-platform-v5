@@ -47,15 +47,15 @@ describe('UserService', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         name: 'Test User',
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:00:00Z'),
       }
 
       const mockTenant = {
         id: 'tenant-456',
         name: 'Test Tenant',
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:00:00Z'),
       }
 
       const mockMembership = {
@@ -63,8 +63,8 @@ describe('UserService', () => {
         user_id: 'user-123',
         tenant_id: 'tenant-456',
         role: 'OWNER',
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:00:00Z'),
       }
 
       // Mock dependencies
@@ -99,8 +99,8 @@ describe('UserService', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         name: 'Existing User',
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:00:00Z'),
       }
 
       mockPrisma.user.findUnique.mockResolvedValue(existingUser)

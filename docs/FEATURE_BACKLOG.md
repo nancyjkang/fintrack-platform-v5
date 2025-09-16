@@ -198,6 +198,19 @@ These are features that exist in v4.1 and need to be ported to v5's PostgreSQL a
 
 ---
 
+## 🏗️ **Infrastructure & DevOps**
+
+Critical infrastructure features that support the entire application.
+
+- **CI/CD Pipeline** - ✅ Complete
+  - **Estimate**: 1 day (actual: 1 day)
+  - **Completed**: 2025-01-16
+  - **Last Updated**: 2025-01-16
+  - **Dependencies**: None ✅
+  - **Value**: Critical
+  - **Notes**: Complete GitHub Actions workflow with database migrations, automated testing, security scanning, and multi-environment deployment
+  - **Documentation**: [Planning](docs/features/ci-cd-pipeline/planning.md) | [Implementation](docs/features/ci-cd-pipeline/implementation.md) | [Execution Log](docs/features/ci-cd-pipeline/execution-log.md)
+
 ## 🆕 **New v5-Only Features**
 
 These are new features that don't exist in v4.1 but leverage v5's PostgreSQL architecture.
@@ -365,9 +378,9 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 - **Value**: Focus on high-impact user features first
 
 ### **Current Sprint Progress:**
-- **Features Completed**: 6/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅, Date Handling Utilities ✅, Category Management ✅, Account Management ✅)
+- **Features Completed**: 7/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅, Date Handling Utilities ✅, Category Management ✅, Account Management ✅, CI/CD Pipeline ✅)
 - **Estimated Completion**: 1 week for remaining Priority 1 features (Transaction CRUD UI, Account Balance History)
-- **Risk Level**: Very Low (strong foundation + date safety established, category and account management complete)
+- **Risk Level**: Very Low (strong foundation + automated deployment pipeline established)
 
 ---
 

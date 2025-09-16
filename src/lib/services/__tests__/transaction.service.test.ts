@@ -37,19 +37,19 @@ describe('TransactionService', () => {
     date: new Date('2025-01-01'),
     type: 'EXPENSE' as const,
     is_recurring: false,
-    created_at: new Date(),
-    updated_at: new Date(),
+    created_at: new Date('2025-01-01T00:00:00Z'),
+    updated_at: new Date('2025-01-01T00:00:00Z'),
     account: {
       id: 1,
       name: 'Test Account',
       type: 'CHECKING',
       balance: 1000,
-      balance_date: new Date(),
+      balance_date: new Date('2025-01-01T00:00:00Z'),
       color: '#blue',
       is_active: true,
       tenant_id: mockTenantId,
-      created_at: new Date(),
-      updated_at: new Date(),
+      created_at: new Date('2025-01-01T00:00:00Z'),
+      updated_at: new Date('2025-01-01T00:00:00Z'),
     },
     category: {
       id: 1,
@@ -57,8 +57,8 @@ describe('TransactionService', () => {
       type: 'EXPENSE',
       color: '#red',
       tenant_id: mockTenantId,
-      created_at: new Date(),
-      updated_at: new Date(),
+      created_at: new Date('2025-01-01T00:00:00Z'),
+      updated_at: new Date('2025-01-01T00:00:00Z'),
     }
   }
 
@@ -174,11 +174,11 @@ describe('TransactionService', () => {
         name: 'Test Account',
         type: 'CHECKING',
         balance: 1000,
-        balance_date: new Date(),
+        balance_date: new Date('2025-01-01T00:00:00Z'),
         color: '#blue',
         is_active: true,
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:00:00Z'),
       })
 
       // Mock category validation
@@ -188,8 +188,8 @@ describe('TransactionService', () => {
         name: 'Test Category',
         type: 'EXPENSE',
         color: '#red',
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:00:00Z'),
       })
 
       mockPrisma.transaction.create.mockResolvedValue(mockTransactionWithRelations)
@@ -270,7 +270,7 @@ describe('TransactionService', () => {
       mockPrisma.transaction.update.mockResolvedValue({
         ...mockTransactionWithRelations,
         ...updateData,
-        updated_at: new Date()
+        updated_at: new Date('2025-01-01T00:00:00Z')
       })
 
       const result = await TransactionService.updateTransaction(1, mockTenantId, updateData)
@@ -384,7 +384,7 @@ describe('TransactionService', () => {
         account_id: 1,
         amount: 100,
         description: 'Test',
-        date: new Date(),
+        date: new Date('2025-01-01T00:00:00Z'),
         type: 'EXPENSE'
       })).rejects.toThrow('Database connection failed')
     })

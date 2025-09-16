@@ -3,13 +3,14 @@ import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
 import { TransactionService } from '@/lib/services/transaction.service'
+import { isValidDateString, parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 // Validation schemas (aligned with new schema)
 const createTransactionSchema = z.object({
   account_id: z.number().int().positive('Account ID must be a positive integer'),
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
   description: z.string().min(1, 'Description is required'),
-  date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid date format'),
+  date: z.string().refine((date) => isValidDateString(date), 'Invalid date format'),
   type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER'], {
     errorMap: () => ({ message: 'Type must be INCOME, EXPENSE, or TRANSFER' })
   }),
@@ -25,8 +26,8 @@ const querySchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']).optional(),
   is_recurring: z.string().optional().transform((val) => val === 'true' ? true : val === 'false' ? false : undefined),
   search: z.string().optional(),
-  date_from: z.string().optional().transform((val) => val ? new Date(val) : undefined),
-  date_to: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  date_from: z.string().optional().transform((val) => val ? parseAndConvertToUTC(val) : undefined),
+  date_to: z.string().optional().transform((val) => val ? parseAndConvertToUTC(val) : undefined),
 })
 
 /**
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
       category_id: validatedData.category_id,
       amount: validatedData.amount,
       description: validatedData.description,
-      date: new Date(validatedData.date),
+      date: parseAndConvertToUTC(validatedData.date),
       type: validatedData.type,
       is_recurring: validatedData.is_recurring
     })

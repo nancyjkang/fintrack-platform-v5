@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { toISOString, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
 export interface ApiResponse<T = any> {
   success: boolean
@@ -22,7 +23,7 @@ export function createSuccessResponse<T>(data: T, message?: string): NextRespons
     success: true,
     data,
     message,
-    timestamp: new Date().toISOString()
+    timestamp: toISOString(getCurrentUTCDate())
   })
 }
 
@@ -39,7 +40,7 @@ export function createErrorResponse(
     {
       success: false,
       error: errorObj.message,
-      timestamp: new Date().toISOString()
+      timestamp: toISOString(getCurrentUTCDate())
     },
     { status }
   )

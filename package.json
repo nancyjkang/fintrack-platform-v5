@@ -40,6 +40,11 @@
     "deploy": "./scripts/deploy-to-vercel.sh",
     "deploy:preview": "./scripts/deploy-to-vercel.sh --preview",
     "deploy:force": "./scripts/deploy-to-vercel.sh --force",
+    "deploy:staging": "./scripts/deploy-with-migrations.sh staging",
+    "deploy:production": "./scripts/deploy-with-migrations.sh production",
+    "migrate:safe": "./scripts/safe-migrate.sh",
+    "migrate:staging": "./scripts/safe-migrate.sh staging",
+    "migrate:production": "./scripts/safe-migrate.sh production",
     "rollback": "vercel rollback --previous",
     "prepare": "husky"
   },

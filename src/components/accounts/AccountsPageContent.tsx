@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Calculator } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { AccountForm } from './AccountForm'
-import { EmptyState } from '@/components/ui/EmptyState'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface Account {
   id: number

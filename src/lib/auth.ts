@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { NextRequest } from 'next/server'
 import { prisma } from './prisma'
+import { addDays, getCurrentUTCDate, toUTCMidnight } from '@/lib/utils/date-utils'
 
 // JWT Configuration
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!
@@ -168,7 +169,7 @@ export async function createUserSession(userId: string, refreshToken: string, us
   // Session management is handled via JWT tokens only
   return {
     refresh_token: refreshToken,
-    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    expires_at: toUTCMidnight(addDays(getCurrentUTCDate(), 7)) // 7 days
   }
 }
 

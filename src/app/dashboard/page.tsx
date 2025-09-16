@@ -38,7 +38,11 @@ export default function DashboardPage() {
       const response = await api.getAccounts()
 
       if (response.success && response.data) {
-        setAccounts(response.data)
+        // Handle both array format and paginated format
+        const accountsData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any).items || response.data
+        setAccounts(accountsData as any)
       } else {
         setError(response.error || 'Failed to load accounts')
       }
