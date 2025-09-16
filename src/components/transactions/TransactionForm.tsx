@@ -101,7 +101,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
         description: editingTransaction.description || '',
         category_id: editingTransaction.category_id?.toString() || '',
         type: editingTransaction.type || 'EXPENSE',
-        date: editingTransaction.date ? editingTransaction.date.toISOString().split('T')[0] : getCurrentDate(),
+        date: editingTransaction.date ? editingTransaction.date.split('T')[0] : getCurrentDate(),
         is_recurring: editingTransaction.is_recurring || false
       });
     } else {
@@ -176,7 +176,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -195,10 +195,10 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
         is_recurring: formData.is_recurring
       };
 
-      const url = editingTransaction 
+      const url = editingTransaction
         ? `/api/transactions/${editingTransaction.id}`
         : '/api/transactions';
-      
+
       const method = editingTransaction ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -214,7 +214,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         onSave();
       } else {
@@ -256,7 +256,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onCancel} />
-      
+
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-auto">
@@ -473,7 +473,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSubmitting}
               >
-                {isSubmitting 
+                {isSubmitting
                   ? (editingTransaction ? 'Updating...' : 'Adding...')
                   : (editingTransaction ? 'Update Transaction' : 'Add Transaction')
                 }

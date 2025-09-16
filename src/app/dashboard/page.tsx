@@ -39,8 +39,8 @@ export default function DashboardPage() {
 
       if (response.success && response.data) {
         // Handle both array format and paginated format
-        const accountsData = Array.isArray(response.data) 
-          ? response.data 
+        const accountsData = Array.isArray(response.data)
+          ? response.data
           : (response.data as any).items || response.data
         setAccounts(accountsData as any)
       } else {

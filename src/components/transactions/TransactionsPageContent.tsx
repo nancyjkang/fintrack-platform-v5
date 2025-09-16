@@ -7,7 +7,7 @@ import TransactionsFilters from './TransactionsFilters';
 import TransactionsList from './TransactionsList';
 import TransactionsSummary from './TransactionsSummary';
 import TransactionForm from './TransactionForm';
-import { getCurrentDate, addDays, subtractDays, toUTCDateString } from '@/lib/utils/date-utils';
+import { getCurrentDate, getCurrentUTCDate, addDays, subtractDays, toUTCDateString, createUTCDate } from '@/lib/utils/date-utils';
 
 interface Transaction {
   id: number;
@@ -79,23 +79,22 @@ export default function TransactionsPageContent() {
         const yesterday = subtractDays(today, 1);
         return { fromDate: toUTCDateString(yesterday), toDate: toUTCDateString(yesterday) };
       case 'this-week': {
-        const date = new Date();
-        const day = date.getDay();
-        const diff = date.getDate() - day;
-        const sunday = new Date(date.setDate(diff));
-        const saturday = new Date(date.setDate(diff + 6));
+        const today = getCurrentUTCDate();
+        const day = today.getDay();
+        const sunday = subtractDays(today, day);
+        const saturday = addDays(sunday, 6);
         return {
-          fromDate: sunday.toISOString().split('T')[0],
-          toDate: saturday.toISOString().split('T')[0]
+          fromDate: toUTCDateString(sunday),
+          toDate: toUTCDateString(saturday)
         };
       }
       case 'this-month': {
-        const date = new Date();
-        const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        const today = getCurrentUTCDate();
+        const firstDay = createUTCDate(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = createUTCDate(today.getFullYear(), today.getMonth() + 1, 0);
         return {
-          fromDate: firstDay.toISOString().split('T')[0],
-          toDate: lastDay.toISOString().split('T')[0]
+          fromDate: toUTCDateString(firstDay),
+          toDate: toUTCDateString(lastDay)
         };
       }
       case 'last-30-days':

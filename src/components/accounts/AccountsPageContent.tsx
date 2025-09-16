@@ -33,8 +33,8 @@ export function AccountsPageContent() {
       const response = await api.getAccounts()
       if (response.success && response.data) {
         // Handle both array format and paginated format
-        const accountsData = Array.isArray(response.data) 
-          ? response.data 
+        const accountsData = Array.isArray(response.data)
+          ? response.data
           : (response.data as any).items || response.data
         setAccounts(accountsData)
       } else {

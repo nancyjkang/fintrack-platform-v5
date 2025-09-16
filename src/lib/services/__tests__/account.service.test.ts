@@ -18,6 +18,7 @@ jest.mock('@/lib/prisma', () => ({
 
 import { AccountService } from '../account.service'
 import { prisma } from '@/lib/prisma'
+import { createUTCDate } from '@/lib/utils/date-utils'
 
 // Get the mocked prisma
 const mockPrisma = prisma as any
@@ -31,11 +32,11 @@ describe('AccountService', () => {
     type: 'CHECKING',
     net_worth_category: 'ASSET',
     balance: 1000.50,
-    balance_date: new Date('2025-01-01'),
+    balance_date: createUTCDate(2025, 0, 1),
     color: '#blue',
     is_active: true,
-    created_at: new Date('2025-01-01T00:00:00Z'),
-    updated_at: new Date('2025-01-01T00:00:00Z'),
+    created_at: createUTCDate(2025, 0, 1),
+    updated_at: createUTCDate(2025, 0, 1),
   }
 
   beforeEach(() => {
@@ -114,7 +115,7 @@ describe('AccountService', () => {
       name: 'New Account',
       type: 'SAVINGS',
       balance: 500.25,
-      balance_date: new Date('2025-01-01'),
+      balance_date: createUTCDate(2025, 0, 1),
       color: '#green',
       is_active: true
     }
@@ -136,7 +137,7 @@ describe('AccountService', () => {
           type: 'SAVINGS',
           net_worth_category: 'ASSET', // Should default to ASSET for SAVINGS
           balance: 500.25,
-          balance_date: new Date('2025-01-01'),
+          balance_date: createUTCDate(2025, 0, 1),
           color: '#green',
           is_active: true
         }
@@ -166,7 +167,7 @@ describe('AccountService', () => {
           type: 'SAVINGS',
           net_worth_category: 'ASSET', // Should default to ASSET for SAVINGS
           balance: 500.25,
-          balance_date: new Date('2025-01-01'),
+          balance_date: createUTCDate(2025, 0, 1),
           color: '#green',
           is_active: true // Should default to true
         }
@@ -190,7 +191,7 @@ describe('AccountService', () => {
       mockPrisma.account.update.mockResolvedValue({
         ...mockAccount,
         ...updateData,
-        updated_at: new Date('2025-01-01T00:00:00Z')
+        updated_at: createUTCDate(2025, 0, 1)
       })
 
       const result = await AccountService.updateAccount(1, mockTenantId, updateData)
@@ -337,7 +338,7 @@ describe('AccountService', () => {
           name: 'Credit Card',
           type: 'CREDIT_CARD',
           balance: -500,
-          balance_date: new Date('2025-01-01'),
+          balance_date: createUTCDate(2025, 0, 1),
           color: '#red'
         }
 
@@ -357,7 +358,7 @@ describe('AccountService', () => {
             type: 'CREDIT_CARD',
             net_worth_category: 'LIABILITY',
             balance: -500,
-            balance_date: new Date('2025-01-01'),
+            balance_date: createUTCDate(2025, 0, 1),
             color: '#red',
             is_active: true
           }
@@ -369,7 +370,7 @@ describe('AccountService', () => {
           name: 'Car Loan',
           type: 'LOAN',
           balance: -15000,
-          balance_date: new Date('2025-01-01'),
+          balance_date: createUTCDate(2025, 0, 1),
           color: '#orange'
         }
 
@@ -389,7 +390,7 @@ describe('AccountService', () => {
             type: 'LOAN',
             net_worth_category: 'LIABILITY',
             balance: -15000,
-            balance_date: new Date('2025-01-01'),
+            balance_date: createUTCDate(2025, 0, 1),
             color: '#orange',
             is_active: true
           }
@@ -401,7 +402,7 @@ describe('AccountService', () => {
           name: 'Checking',
           type: 'CHECKING',
           balance: 2000,
-          balance_date: new Date('2025-01-01'),
+          balance_date: createUTCDate(2025, 0, 1),
           color: '#blue'
         }
 
@@ -421,7 +422,7 @@ describe('AccountService', () => {
             type: 'CHECKING',
             net_worth_category: 'ASSET',
             balance: 2000,
-            balance_date: new Date('2025-01-01'),
+            balance_date: createUTCDate(2025, 0, 1),
             color: '#blue',
             is_active: true
           }
@@ -434,7 +435,7 @@ describe('AccountService', () => {
           type: 'CHECKING',
           net_worth_category: 'LIABILITY' as const,
           balance: -100,
-          balance_date: new Date('2025-01-01'),
+          balance_date: createUTCDate(2025, 0, 1),
           color: '#red'
         }
 
@@ -453,7 +454,7 @@ describe('AccountService', () => {
             type: 'CHECKING',
             net_worth_category: 'LIABILITY', // Explicit override
             balance: -100,
-            balance_date: new Date('2025-01-01'),
+            balance_date: createUTCDate(2025, 0, 1),
             color: '#red',
             is_active: true
           }
@@ -567,7 +568,7 @@ describe('AccountService', () => {
         tenant_id: mockTenantId,
         account_id: 1,
         balance: 1500,
-        anchor_date: new Date('2025-01-15'),
+        anchor_date: createUTCDate(2025, 0, 15),
         description: 'Reconciled balance on 2025-01-15'
       })
 
@@ -582,7 +583,7 @@ describe('AccountService', () => {
         account_id: 1,
         amount: 499.5, // 1500 - 1000.5
         description: 'Balance Adjustment',
-        date: new Date('2025-01-15'),
+        date: createUTCDate(2025, 0, 15),
         type: 'INCOME'
       }
       mockPrisma.transaction.create.mockResolvedValue(adjustmentTransaction)
@@ -639,7 +640,7 @@ describe('AccountService', () => {
         name: 'Test',
         type: 'CHECKING',
         balance: 100,
-        balance_date: new Date('2025-01-01T00:00:00Z'),
+        balance_date: createUTCDate(2025, 0, 1),
         color: '#blue'
       })).rejects.toThrow('Database connection failed')
     })

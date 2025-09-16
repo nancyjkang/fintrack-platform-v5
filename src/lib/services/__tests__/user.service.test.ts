@@ -22,6 +22,7 @@ jest.mock('@/lib/auth', () => ({
 
 import { UserService } from '../user.service'
 import { prisma } from '@/lib/prisma'
+import { createUTCDate } from '@/lib/utils/date-utils'
 import { hashPassword } from '@/lib/auth'
 
 // Get the mocked dependencies
@@ -47,15 +48,15 @@ describe('UserService', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         name: 'Test User',
-        created_at: new Date('2025-01-01T00:00:00Z'),
-        updated_at: new Date('2025-01-01T00:00:00Z'),
+        created_at: createUTCDate(2025, 0, 1),
+        updated_at: createUTCDate(2025, 0, 1),
       }
 
       const mockTenant = {
         id: 'tenant-456',
         name: 'Test Tenant',
-        created_at: new Date('2025-01-01T00:00:00Z'),
-        updated_at: new Date('2025-01-01T00:00:00Z'),
+        created_at: createUTCDate(2025, 0, 1),
+        updated_at: createUTCDate(2025, 0, 1),
       }
 
       const mockMembership = {
@@ -63,8 +64,8 @@ describe('UserService', () => {
         user_id: 'user-123',
         tenant_id: 'tenant-456',
         role: 'OWNER',
-        created_at: new Date('2025-01-01T00:00:00Z'),
-        updated_at: new Date('2025-01-01T00:00:00Z'),
+        created_at: createUTCDate(2025, 0, 1),
+        updated_at: createUTCDate(2025, 0, 1),
       }
 
       // Mock dependencies
@@ -99,8 +100,8 @@ describe('UserService', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         name: 'Existing User',
-        created_at: new Date('2025-01-01T00:00:00Z'),
-        updated_at: new Date('2025-01-01T00:00:00Z'),
+        created_at: createUTCDate(2025, 0, 1),
+        updated_at: createUTCDate(2025, 0, 1),
       }
 
       mockPrisma.user.findUnique.mockResolvedValue(existingUser)

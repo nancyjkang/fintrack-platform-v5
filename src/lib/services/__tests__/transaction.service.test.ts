@@ -21,6 +21,7 @@ jest.mock('@/lib/prisma', () => ({
 
 import { TransactionService } from '../transaction.service'
 import { prisma } from '@/lib/prisma'
+import { createUTCDate } from '@/lib/utils/date-utils'
 
 // Get the mocked prisma
 const mockPrisma = prisma as any
@@ -34,22 +35,22 @@ describe('TransactionService', () => {
     category_id: 1,
     amount: 100.50,
     description: 'Test transaction',
-    date: new Date('2025-01-01'),
+    date: createUTCDate(2025, 0, 1),
     type: 'EXPENSE' as const,
     is_recurring: false,
-    created_at: new Date('2025-01-01T00:00:00Z'),
-    updated_at: new Date('2025-01-01T00:00:00Z'),
+    created_at: createUTCDate(2025, 0, 1),
+    updated_at: createUTCDate(2025, 0, 1),
     account: {
       id: 1,
       name: 'Test Account',
       type: 'CHECKING',
       balance: 1000,
-      balance_date: new Date('2025-01-01T00:00:00Z'),
+      balance_date: createUTCDate(2025, 0, 1),
       color: '#blue',
       is_active: true,
       tenant_id: mockTenantId,
-      created_at: new Date('2025-01-01T00:00:00Z'),
-      updated_at: new Date('2025-01-01T00:00:00Z'),
+      created_at: createUTCDate(2025, 0, 1),
+      updated_at: createUTCDate(2025, 0, 1),
     },
     category: {
       id: 1,
@@ -57,8 +58,8 @@ describe('TransactionService', () => {
       type: 'EXPENSE',
       color: '#red',
       tenant_id: mockTenantId,
-      created_at: new Date('2025-01-01T00:00:00Z'),
-      updated_at: new Date('2025-01-01T00:00:00Z'),
+      created_at: createUTCDate(2025, 0, 1),
+      updated_at: createUTCDate(2025, 0, 1),
     }
   }
 
@@ -89,8 +90,8 @@ describe('TransactionService', () => {
         category_id: 2,
         type: 'INCOME' as const,
         is_recurring: true,
-        date_from: new Date('2025-01-01'),
-        date_to: new Date('2025-01-31'),
+        date_from: createUTCDate(2025, 0, 1),
+        date_to: createUTCDate(2025, 0, 31),
         search: 'salary'
       }
 
@@ -161,7 +162,7 @@ describe('TransactionService', () => {
       category_id: 1,
       amount: 100.50,
       description: 'Test transaction',
-      date: new Date('2025-01-01'),
+      date: createUTCDate(2025, 0, 1),
       type: 'EXPENSE' as const,
       is_recurring: false
     }
@@ -174,11 +175,11 @@ describe('TransactionService', () => {
         name: 'Test Account',
         type: 'CHECKING',
         balance: 1000,
-        balance_date: new Date('2025-01-01T00:00:00Z'),
+        balance_date: createUTCDate(2025, 0, 1),
         color: '#blue',
         is_active: true,
-        created_at: new Date('2025-01-01T00:00:00Z'),
-        updated_at: new Date('2025-01-01T00:00:00Z'),
+        created_at: createUTCDate(2025, 0, 1),
+        updated_at: createUTCDate(2025, 0, 1),
       })
 
       // Mock category validation
@@ -188,8 +189,8 @@ describe('TransactionService', () => {
         name: 'Test Category',
         type: 'EXPENSE',
         color: '#red',
-        created_at: new Date('2025-01-01T00:00:00Z'),
-        updated_at: new Date('2025-01-01T00:00:00Z'),
+        created_at: createUTCDate(2025, 0, 1),
+        updated_at: createUTCDate(2025, 0, 1),
       })
 
       mockPrisma.transaction.create.mockResolvedValue(mockTransactionWithRelations)
@@ -204,7 +205,7 @@ describe('TransactionService', () => {
           category_id: 1,
           amount: 100.50,
           description: 'Test transaction',
-          date: new Date('2025-01-01'),
+          date: createUTCDate(2025, 0, 1),
           type: 'EXPENSE',
           is_recurring: false
         },
@@ -246,7 +247,7 @@ describe('TransactionService', () => {
           category_id: undefined,
           amount: 100.50,
           description: 'Test transaction',
-          date: new Date('2025-01-01'),
+          date: createUTCDate(2025, 0, 1),
           type: 'EXPENSE',
           is_recurring: false
         },
@@ -270,7 +271,7 @@ describe('TransactionService', () => {
       mockPrisma.transaction.update.mockResolvedValue({
         ...mockTransactionWithRelations,
         ...updateData,
-        updated_at: new Date('2025-01-01T00:00:00Z')
+        updated_at: createUTCDate(2025, 0, 1)
       })
 
       const result = await TransactionService.updateTransaction(1, mockTenantId, updateData)
@@ -384,7 +385,7 @@ describe('TransactionService', () => {
         account_id: 1,
         amount: 100,
         description: 'Test',
-        date: new Date('2025-01-01T00:00:00Z'),
+        date: createUTCDate(2025, 0, 1),
         type: 'EXPENSE'
       })).rejects.toThrow('Database connection failed')
     })

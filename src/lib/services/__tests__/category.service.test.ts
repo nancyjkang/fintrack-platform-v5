@@ -18,6 +18,7 @@ jest.mock('@/lib/prisma', () => ({
 
 import { CategoryService } from '../category.service'
 import { prisma } from '@/lib/prisma'
+import { createUTCDate } from '@/lib/utils/date-utils'
 
 // Get the mocked prisma
 const mockPrisma = prisma as any
@@ -32,8 +33,8 @@ describe('CategoryService', () => {
     name: 'Test Category',
     type: 'EXPENSE',
     color: '#red',
-    created_at: new Date('2025-01-01T00:00:00Z'),
-    updated_at: new Date('2025-01-01T00:00:00Z'),
+    created_at: createUTCDate(2025, 0, 1),
+    updated_at: createUTCDate(2025, 0, 1),
   }
 
   beforeEach(() => {
@@ -176,7 +177,7 @@ describe('CategoryService', () => {
       mockPrisma.category.update.mockResolvedValue({
         ...mockCategory,
         ...updateData,
-        updated_at: new Date('2025-01-01T00:00:00Z')
+        updated_at: createUTCDate(2025, 0, 1)
       })
 
       const result = await categoryService.updateCategory(mockTenantId, 1, updateData)

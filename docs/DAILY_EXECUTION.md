@@ -97,12 +97,8 @@
 - ✅ [Another completed task]
 
 ### 🔄 In Progress
-- in filters, make it 2 rows:
-row 1: search box, date range, start date, end date
-row 2: account, type, category, recurring vs not.
-
-Have the start and end date populated when date range is selected, but editable.
-
+- seed data criteria need to be clear
+- date range where start/end date is not set: Last week,last month, this quarter, last quarter, this half, last half
 
 
 
