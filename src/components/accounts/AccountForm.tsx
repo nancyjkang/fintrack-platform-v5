@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Save, Building } from 'lucide-react'
 import { api } from '@/lib/client/api'
+import { getCurrentDate } from '@/lib/utils/date-utils'
 
 interface Account {
   id: number
@@ -48,7 +49,7 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
     type: 'CHECKING',
     net_worth_category: 'ASSET',
     balance: 0,
-    balance_date: new Date().toISOString().split('T')[0],
+    balance_date: getCurrentDate(),
     color: '#3B82F6', // Default blue color
     is_active: true
   })

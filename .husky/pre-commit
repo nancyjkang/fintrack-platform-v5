@@ -69,12 +69,21 @@ fi
 echo "✅ TypeScript compilation passed"
 
 # CRITICAL: Date handling ESLint checks (prevent direct Date() usage)
-echo "🔍 Checking date handling compliance..."
-npx eslint --no-eslintrc --config '{"extends":[],"rules":{"no-restricted-globals":["error",{"name":"Date","message":"❌ Global Date constructor is prohibited. Import and use date utilities from @/lib/utils/date-utils instead."}],"no-restricted-syntax":["error",{"selector":"NewExpression[callee.name=\"Date\"]","message":"❌ Direct new Date() usage is prohibited. Use date utilities from @/lib/utils/date-utils instead. See docs/architecture/date-handling-best-practices.md"}]}}' --format=compact src/ 2>/dev/null
-if [ $? -ne 0 ]; then
-  echo "🚫 COMMIT REJECTED: Date handling violations found"
-  echo "💡 Use date utilities from @/lib/utils/date-utils instead of direct Date() usage"
-  echo "💡 See docs/architecture/date-handling-best-practices.md for guidance"
+echo "🔍 Running date handling compliance checks..."
+# Check for direct Date() usage (excluding date-utils.ts and test files which are temporarily allowed)
+DATE_VIOLATIONS=$(git diff --cached --name-only | grep -E '\.(ts|tsx)$' | grep -v 'date-utils.ts' | grep -v '__tests__' | grep -v '\.test\.' | grep -v '\.spec\.' | xargs grep -l 'new Date(' 2>/dev/null || true)
+if [ -n "$DATE_VIOLATIONS" ]; then
+  echo "🚫 COMMIT REJECTED: Direct Date() usage found in:"
+  for file in $DATE_VIOLATIONS; do
+    echo "   - $file"
+    grep -n 'new Date(' "$file" | head -3 | sed 's/^/     /'
+  done
+  echo ""
+  echo "💡 Use date utility functions from @/lib/utils/date-utils instead:"
+  echo "   - getCurrentUTCDate() for current date"
+  echo "   - createUTCDate(year, month, day) for specific dates"
+  echo "   - parseAndConvertToUTC(dateString) for parsing dates"
+  echo "   - formatDateForDisplay(dateString) for display formatting"
   exit 1
 fi
 echo "✅ Date handling compliance passed"

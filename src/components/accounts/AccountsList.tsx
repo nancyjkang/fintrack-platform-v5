@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Building, Edit, Trash2, MoreHorizontal, Eye, EyeOff } from 'lucide-react'
+import { formatDateForDisplay } from '@/lib/utils/date-utils'
 
 interface Account {
   id: number
@@ -33,13 +34,9 @@ export function AccountsList({ accounts, onEdit, onDelete }: AccountsListProps) 
     }).format(amount)
   }
 
-  // Format date
+  // Format date - use date utils instead of direct Date usage
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    return formatDateForDisplay(dateString)
   }
 
   // Get account type badge color

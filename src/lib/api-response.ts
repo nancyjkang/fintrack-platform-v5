@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { toISOString, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -12,7 +12,7 @@ export interface ApiResponse<T = any> {
 export interface ApiError {
   code: string
   message: string
-  details?: any
+  details?: unknown
 }
 
 /**
@@ -86,13 +86,15 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
 /**
  * Validate request body against schema
  */
-export function validateRequestBody<T>(body: any, requiredFields: (keyof T)[]): T {
+export function validateRequestBody<T>(body: unknown, requiredFields: (keyof T)[]): T {
   if (!body || typeof body !== 'object') {
     throw new Error('Request body is required')
   }
 
+  const typedBody = body as Record<string, unknown>
   for (const field of requiredFields) {
-    if (!(field in body) || body[field] === undefined || body[field] === null) {
+    const fieldKey = String(field)
+    if (!(fieldKey in typedBody) || typedBody[fieldKey] === undefined || typedBody[fieldKey] === null) {
       throw new Error(`Field '${String(field)}' is required`)
     }
   }

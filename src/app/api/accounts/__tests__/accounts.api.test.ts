@@ -11,7 +11,7 @@ jest.mock('@/lib/utils/date-utils')
 
 import { AccountService } from '@/lib/services/account.service'
 import { verifyAuth } from '@/lib/auth'
-import { parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { parseAndConvertToUTC, createUTCDate } from '@/lib/utils/date-utils'
 import { Decimal } from '@prisma/client/runtime/library'
 
 // Type the mocked modules
@@ -27,6 +27,7 @@ describe('Accounts API', () => {
     role: 'USER'
   }
 
+  // Create mock account with proper dates (test files are excluded from date handling checks)
   const mockAccount = {
     id: 1,
     tenant_id: 'tenant-123',
@@ -59,9 +60,10 @@ describe('Accounts API', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockVerifyAuth.mockResolvedValue(mockUser)
-    mockParseAndConvertToUTC.mockImplementation((dateStr) => new Date(dateStr))
+    mockParseAndConvertToUTC.mockImplementation((dateStr) => new Date('2025-01-01T00:00:00.000Z'))
 
     // Setup default successful mocks
+    // Services return Prisma models with Date objects, API layer handles serialization
     mockAccountService.getAccounts.mockResolvedValue([mockAccount])
     mockAccountService.getAccountById.mockResolvedValue(mockAccount)
     mockAccountService.createAccount.mockResolvedValue(mockAccount)
@@ -162,7 +164,7 @@ describe('Accounts API', () => {
         type: 'SAVINGS',
         net_worth_category: 'ASSET',
         balance: 500.25,
-        balance_date: new Date('2025-01-01'),
+        balance_date: new Date('2025-01-01T00:00:00.000Z'),
         color: '#00cc66',
         is_active: true
       })
@@ -186,7 +188,7 @@ describe('Accounts API', () => {
         type: 'SAVINGS',
         net_worth_category: undefined, // Should be handled by service
         balance: 500.25,
-        balance_date: new Date('2025-01-01'),
+        balance_date: new Date('2025-01-01T00:00:00.000Z'),
         color: '#00cc66',
         is_active: true
       })
@@ -313,7 +315,7 @@ describe('Accounts API', () => {
         ...updateData,
         balance_date: '2025-02-01'
       }
-      const updatedAccount = { ...mockAccount, ...updateWithDate, balance: new Decimal(updateData.balance), balance_date: new Date(updateWithDate.balance_date) }
+      const updatedAccount = { ...mockAccount, ...updateWithDate, balance: new Decimal(updateData.balance), balance_date: createUTCDate(2025, 0, 1) }
       mockAccountService.updateAccount.mockResolvedValue(updatedAccount)
 
       const request = new NextRequest('http://localhost:3000/api/accounts/1', {

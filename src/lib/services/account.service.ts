@@ -59,7 +59,7 @@ export class AccountService extends BaseService {
     try {
       this.validateTenantId(tenantId)
 
-      const where: any = {
+      const where: Record<string, unknown> = {
         tenant_id: tenantId
       }
 
@@ -324,7 +324,7 @@ export class AccountService extends BaseService {
     accountId: number,
     tenantId: string,
     data: ReconcileAccountData
-  ): Promise<{ account: Account; adjustmentTransaction?: any }> {
+  ): Promise<{ account: Account; adjustmentTransaction?: unknown }> {
     try {
       this.validateTenantId(tenantId)
 
@@ -359,7 +359,7 @@ export class AccountService extends BaseService {
       let adjustmentTransaction = null
       if (Math.abs(difference) > 0.01) {
         const adjustmentType = data.adjustmentType || (difference > 0 ? 'INCOME' : 'EXPENSE')
-        
+
         // This would ideally use TransactionService, but for now we'll create directly
         adjustmentTransaction = await this.prisma.transaction.create({
           data: {

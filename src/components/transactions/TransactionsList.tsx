@@ -74,6 +74,8 @@ export default function TransactionsList({
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
+  // const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   // Fetch transactions based on filters
   const fetchTransactions = useCallback(async () => {
@@ -186,11 +188,13 @@ export default function TransactionsList({
 
   // Bulk action handlers
   const handleBulkUpdateClick = useCallback(() => {
-    setShowBulkUpdateModal(true);
+    // setShowBulkUpdateModal(true);
+    console.log('Bulk update clicked - feature not implemented yet');
   }, []);
 
   const handleBulkDeleteClick = useCallback(() => {
-    setShowBulkDeleteDialog(true);
+    // setShowBulkDeleteDialog(true);
+    console.log('Bulk delete clicked - feature not implemented yet');
   }, []);
 
   // Helper functions - use data from transaction relations

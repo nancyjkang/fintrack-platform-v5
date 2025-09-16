@@ -94,11 +94,11 @@ export async function PUT(
     // Convert date string to Date object if provided
     const processedUpdateData = { ...updateData }
     if (processedUpdateData.balance_date) {
-      (processedUpdateData as any).balance_date = parseAndConvertToUTC(processedUpdateData.balance_date)
+      processedUpdateData.balance_date = parseAndConvertToUTC(processedUpdateData.balance_date)
     }
 
     // Update account
-    const account = await AccountService.updateAccount(accountId, tenantId, processedUpdateData as any)
+    const account = await AccountService.updateAccount(accountId, tenantId, processedUpdateData)
 
     return NextResponse.json({
       success: true,

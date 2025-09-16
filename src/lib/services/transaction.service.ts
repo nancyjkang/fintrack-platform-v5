@@ -56,7 +56,7 @@ export class TransactionService extends BaseService {
     try {
       this.validateTenantId(tenantId)
 
-      const where: any = {
+      const where: Record<string, unknown> = {
         tenant_id: tenantId
       }
 

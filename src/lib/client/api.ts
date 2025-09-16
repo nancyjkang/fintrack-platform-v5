@@ -3,7 +3,7 @@
  */
 import { getCurrentDate, toUTCDateString } from '@/lib/utils/date-utils'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -20,8 +20,7 @@ export interface User {
   id: string
   email: string
   emailVerified: boolean
-  // eslint-disable-next-line no-restricted-globals
-  lastLogin?: Date
+  lastLogin?: string
 }
 
 export interface Tenant {
@@ -91,7 +90,7 @@ class ApiClient {
       }
 
       return data
-    } catch (error) {
+    } catch {
       return {
         success: false,
         error: 'Network error occurred',
@@ -217,7 +216,7 @@ class ApiClient {
     if (filters?.type) params.append('type', filters.type)
     if (filters?.is_active !== undefined) params.append('is_active', filters.is_active.toString())
     if (filters?.search) params.append('search', filters.search)
-    
+
     const queryString = params.toString()
     return this.request(`/accounts${queryString ? `?${queryString}` : ''}`)
   }
@@ -246,7 +245,7 @@ class ApiClient {
     balance_date: string // YYYY-MM-DD format
     color: string
     is_active?: boolean
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     return this.request('/accounts', {
       method: 'POST',
       body: JSON.stringify(data)
@@ -261,14 +260,14 @@ class ApiClient {
     balance_date?: string // YYYY-MM-DD format
     color?: string
     is_active?: boolean
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     return this.request(`/accounts/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     })
   }
 
-  async deleteAccount(id: number): Promise<ApiResponse<any>> {
+  async deleteAccount(id: number): Promise<ApiResponse<unknown>> {
     return this.request(`/accounts/${id}`, {
       method: 'DELETE'
     })
@@ -279,8 +278,8 @@ class ApiClient {
     reconcileDate: string // YYYY-MM-DD format
     adjustmentType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   }): Promise<ApiResponse<{
-    account: any
-    adjustmentTransaction?: any
+    account: unknown
+    adjustmentTransaction?: unknown
     message: string
   }>> {
     return this.request(`/accounts/${id}/reconcile`, {
@@ -364,9 +363,9 @@ class ApiClient {
     amount: number
     description: string
     type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
-    date: Date
+    date: string
     is_recurring: boolean
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     return this.request('/transactions', {
       method: 'POST',
       body: JSON.stringify(data)
@@ -379,16 +378,16 @@ class ApiClient {
     amount?: number
     description?: string
     type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
-    date?: Date
+    date?: string
     is_recurring?: boolean
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     return this.request(`/transactions/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     })
   }
 
-  async deleteTransaction(id: number): Promise<ApiResponse<any>> {
+  async deleteTransaction(id: number): Promise<ApiResponse<unknown>> {
     return this.request(`/transactions/${id}`, {
       method: 'DELETE'
     })
@@ -475,7 +474,7 @@ class ApiClient {
     })
   }
 
-  async deleteCategory(id: number): Promise<ApiResponse<any>> {
+  async deleteCategory(id: number): Promise<ApiResponse<unknown>> {
     return this.request(`/categories/${id}`, {
       method: 'DELETE'
     })

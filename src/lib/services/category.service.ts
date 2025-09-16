@@ -36,7 +36,7 @@ export class CategoryService extends BaseService {
     tenantId: string,
     filters?: CategoryFilters
   ): Promise<Category[]> {
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       tenant_id: tenantId
     }
 
@@ -187,7 +187,7 @@ export class CategoryService extends BaseService {
     tenantId: string,
     categoryIds?: number[]
   ): Promise<CategoryUsageStats[]> {
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       account: {
         tenant_id: tenantId
       }

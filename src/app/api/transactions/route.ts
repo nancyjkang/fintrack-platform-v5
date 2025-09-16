@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const { page, limit, account_id, category_id, type, is_recurring, search, date_from, date_to } = querySchema.parse(queryParams)
 
     // Build filters
-    const filters: any = {}
+    const filters: Record<string, unknown> = {}
     if (account_id) filters.account_id = account_id
     if (category_id) filters.category_id = category_id
     if (type) filters.type = type

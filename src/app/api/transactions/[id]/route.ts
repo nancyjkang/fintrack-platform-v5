@@ -81,7 +81,7 @@ export async function PUT(
     const validatedData = updateTransactionSchema.parse(body)
 
     // Prepare update data
-    const updateData: any = {}
+    const updateData: Record<string, unknown> = {}
     if (validatedData.account_id !== undefined) updateData.account_id = validatedData.account_id
     if (validatedData.category_id !== undefined) updateData.category_id = validatedData.category_id
     if (validatedData.amount !== undefined) updateData.amount = validatedData.amount
