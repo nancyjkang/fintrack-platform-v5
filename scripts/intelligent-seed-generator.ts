@@ -27,6 +27,7 @@ interface SeedConfig {
     initialBalance: number
     type: string
     color: string
+    anchorDate: string
   }>
   patterns: {
     transactionFrequency: string
@@ -370,6 +371,46 @@ async function generateSeedData() {
       accountRecords[key] = account
     }
     console.log(`✅ Created ${Object.keys(accountRecords).length} accounts`)
+
+    // Create balance anchors for each account
+    console.log('⚓ Creating balance anchors...')
+    for (const [key, accountConfig] of Object.entries(config.accounts)) {
+      const account = accountRecords[key]
+      if (!account) continue
+
+      // Parse the anchor date (could be "endDate", "startDate", or a specific date)
+      let anchorDate: Date
+      if (accountConfig.anchorDate === 'endDate') {
+        anchorDate = endDate
+      } else if (accountConfig.anchorDate === 'startDate') {
+        anchorDate = startDate
+      } else {
+        anchorDate = parseIntelligentDate(accountConfig.anchorDate)
+      }
+
+      // Check if anchor already exists
+      const existingAnchor = await prisma.accountBalanceAnchor.findFirst({
+        where: {
+          account_id: account.id,
+          anchor_date: anchorDate
+        }
+      })
+
+      if (!existingAnchor) {
+        await prisma.accountBalanceAnchor.create({
+          data: {
+            account_id: account.id,
+            tenant_id: tenant.id,
+            balance: accountConfig.initialBalance,
+            anchor_date: anchorDate,
+            description: `Initial balance anchor for ${accountConfig.name}`
+          }
+        })
+      }
+
+      console.log(`  ⚓ Created anchor for ${accountConfig.name}: $${accountConfig.initialBalance} on ${anchorDate.toISOString().split('T')[0]}`)
+    }
+    console.log(`✅ Created balance anchors for all accounts`)
 
     // Generate transactions
     console.log('🎲 Generating transactions...')

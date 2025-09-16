@@ -66,25 +66,29 @@
       "name": "Main Checking",
       "initialBalance": 3200,
       "type": "CHECKING",
-      "color": "#3B82F6"
+      "color": "#3B82F6",
+      "anchorDate": "endDate"
     },
     "savings": {
       "name": "High-Yield Savings",
       "initialBalance": 8500,
       "type": "SAVINGS",
-      "color": "#10B981"
+      "color": "#10B981",
+      "anchorDate": "endDate"
     },
     "credit": {
       "name": "Chase Sapphire",
       "initialBalance": -1200,
       "type": "CREDIT",
-      "color": "#EF4444"
+      "color": "#EF4444",
+      "anchorDate": "endDate"
     },
     "investment": {
       "name": "Roth IRA",
       "initialBalance": 12000,
       "type": "INVESTMENT",
-      "color": "#8B5CF6"
+      "color": "#8B5CF6",
+      "anchorDate": "endDate"
     }
   },
   "patterns": {
