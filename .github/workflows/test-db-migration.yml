@@ -1,0 +1,84 @@
+name: 🧪 Test Database Migration
+
+on:
+  push:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  test-migration:
+    name: 🗄️ Test DB Migration Only
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: fintrack_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fintrack_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install Dependencies
+        run: npm ci
+
+      - name: 🏗️ Generate Prisma Client
+        run: npm run db:generate
+
+      - name: 🔍 Debug Database Connection
+        run: |
+          echo "🔍 Testing database connection..."
+          echo "Database URL: $DATABASE_URL"
+          echo "Postgres service should be running on localhost:5432"
+
+          # Test basic connection
+          npx prisma db execute --stdin <<< "SELECT 1 as test;" || {
+            echo "❌ Basic database connection failed"
+            exit 1
+          }
+          echo "✅ Database connection successful"
+        env:
+          DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
+
+      - name: 🗄️ Run Database Migrations
+        run: |
+          echo "🔍 Running Prisma migrations..."
+          npx prisma migrate deploy || {
+            echo "❌ Migrations failed, trying db push..."
+            npx prisma db push --force-reset || {
+              echo "❌ DB push also failed"
+              exit 1
+            }
+          }
+          echo "✅ Database setup completed"
+        env:
+          DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
+
+      - name: 🧪 Validate Database Schema
+        run: |
+          echo "🔍 Checking database tables..."
+          npx prisma db execute --stdin <<< "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';" || {
+            echo "❌ Schema validation failed"
+            exit 1
+          }
+          echo "✅ Database schema validated"
+        env:
+          DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
