@@ -10,10 +10,61 @@ import AccountTransactionsTable from '@/components/balance-history/AccountTransa
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { api } from '@/lib/client/api';
-import { getCurrentUTCDate, subtractDays } from '@/lib/utils/date-utils';
+import { getCurrentUTCDate, subtractDays, parseAndConvertToUTC } from '@/lib/utils/date-utils';
 import type { BalanceHistoryData, BalanceSummary, BalanceHistoryFilters as FilterType } from '@/types/balance-history';
 import type { Transaction } from '@prisma/client';
 // Using API endpoints for all balance calculations
+
+/**
+ * Derive daily balance history from transactions with running balances
+ * This ensures the chart uses the same corrected balance calculation as the transactions table
+ */
+function deriveBalanceHistoryFromTransactions(
+  transactions: (Transaction & { balance: number })[]
+): BalanceHistoryData[] {
+  if (transactions.length === 0) return [];
+
+  // Group transactions by date and calculate daily aggregates
+  const dailyData = new Map<string, {
+    date: string;
+    balance: number;
+    netAmount: number;
+    transactionCount: number;
+  }>();
+
+  // Group transactions by date
+  // Since transactions come sorted desc by date, the FIRST transaction for each date has the final balance
+  for (const transaction of transactions) {
+    const dateString = transaction.date.toString().split('T')[0]; // Get YYYY-MM-DD
+    const amount = Number(transaction.amount);
+
+    if (!dailyData.has(dateString)) {
+      // First transaction for this date - use its balance as the final balance
+      dailyData.set(dateString, {
+        date: dateString,
+        balance: transaction.balance, // This is the final balance for this date
+        netAmount: amount,
+        transactionCount: 1
+      });
+    } else {
+      // Additional transactions for same date - only update netAmount, keep the balance from first transaction
+      const existing = dailyData.get(dateString)!;
+      existing.netAmount += amount;
+      existing.transactionCount += 1;
+      // Don't update balance - keep the final balance from the first transaction we saw for this date
+    }
+  }
+
+  // Convert to array and sort by date, adding required calculationMethod
+  return Array.from(dailyData.values())
+    .map(item => ({
+      date: item.date,
+      balance: item.balance,
+      netAmount: item.netAmount,
+      calculationMethod: 'anchor-forward' as const // Since we're using anchor-based transactions
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 
 // Account response interface for API data - matches actual API response
 interface AccountResponse {
@@ -152,20 +203,9 @@ export default function BalanceHistoryPage() {
         // Transactions already have running balances calculated using balance anchors
         setTransactions(transactions);
 
-        // Also fetch balance history for the chart
-        const historyResponse = await fetch(`/api/accounts/${filters.accountId}/balance-history?startDate=${filters.startDate}&endDate=${filters.endDate}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          if (historyData.success) {
-            setBalanceHistory(historyData.data || []);
-          }
-        }
+        // Derive balance history from transactions for chart consistency
+        const balanceHistoryFromTransactions = deriveBalanceHistoryFromTransactions(transactions);
+        setBalanceHistory(balanceHistoryFromTransactions);
       } else {
         setTransactions([]);
         setBalanceHistory([]);
