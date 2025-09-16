@@ -30,6 +30,34 @@ jobs:
       - name: 🏗️ Generate Prisma Client
         run: npm run db:generate
 
+      - name: 🗄️ Apply Database Migrations (Staging)
+        run: |
+          echo "🔍 Applying database migrations to staging..."
+          npx prisma migrate deploy || {
+            echo "❌ Staging migrations failed, trying db push..."
+            npx prisma db push --force-reset || {
+              echo "❌ Staging DB push also failed"
+              exit 1
+            }
+          }
+          echo "✅ Staging database migrations completed"
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+
+      - name: 🗄️ Apply Database Migrations (Production)
+        run: |
+          echo "🔍 Applying database migrations to production..."
+          npx prisma migrate deploy || {
+            echo "❌ Production migrations failed, trying db push..."
+            npx prisma db push --force-reset || {
+              echo "❌ Production DB push also failed"
+              exit 1
+            }
+          }
+          echo "✅ Production database migrations completed"
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
       - name: 🏗️ Build Application
         run: npm run build
         env:
