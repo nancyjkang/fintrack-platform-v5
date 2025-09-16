@@ -6,11 +6,14 @@ import AppLayout from '@/components/layout/AppLayout';
 import { BalanceHistoryFilters } from '@/components/balance-history/BalanceHistoryFilters';
 import { BalanceHistorySummary } from '@/components/balance-history/BalanceHistorySummary';
 import { AccountBalanceChart } from '@/components/balance-history/AccountBalanceChart';
-import { BalanceHistoryTable } from '@/components/balance-history/BalanceHistoryTable';
+import AccountTransactionsTable from '@/components/balance-history/AccountTransactionsTable';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { api } from '@/lib/client/api';
+import { getCurrentUTCDate, subtractDays } from '@/lib/utils/date-utils';
 import type { BalanceHistoryData, BalanceSummary, BalanceHistoryFilters as FilterType } from '@/types/balance-history';
+import type { Transaction } from '@prisma/client';
+// Using API endpoints for all balance calculations
 
 // Account response interface for API data - matches actual API response
 interface AccountResponse {
@@ -32,6 +35,7 @@ export default function BalanceHistoryPage() {
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [balanceHistory, setBalanceHistory] = useState<BalanceHistoryData[]>([]);
   const [balanceSummary, setBalanceSummary] = useState<BalanceSummary | null>(null);
+  const [transactions, setTransactions] = useState<Array<Transaction & { balance: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,9 +43,8 @@ export default function BalanceHistoryPage() {
 
   // Filter state - default to last 30 days
   const [filters, setFilters] = useState<FilterType>(() => {
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const today = getCurrentUTCDate();
+    const thirtyDaysAgo = subtractDays(today, 30);
 
     return {
       accountId: null,
@@ -68,12 +71,18 @@ export default function BalanceHistoryPage() {
   const loadAccounts = async () => {
     try {
       const response = await api.getAccounts();
+
       if (response.success && response.data) {
-        setAccounts(response.data);
+        // Handle both array format and paginated format
+        const accountsData = Array.isArray(response.data)
+          ? response.data
+          : (response.data as any).items || response.data
+
+        setAccounts(accountsData);
 
         // Auto-select first account if available
-        if (response.data.length > 0 && !filters.accountId) {
-          setFilters(prev => ({ ...prev, accountId: response.data[0].id }));
+        if (accountsData.length > 0 && !filters.accountId) {
+          setFilters(prev => ({ ...prev, accountId: accountsData[0].id }));
         }
       }
     } catch (error) {
@@ -83,7 +92,7 @@ export default function BalanceHistoryPage() {
   };
 
   /**
-   * Load balance history and summary data
+   * Load balance history, summary data, and transactions
    */
   const loadBalanceData = async () => {
     if (!filters.accountId) return;
@@ -92,49 +101,82 @@ export default function BalanceHistoryPage() {
       setLoading(true);
       setError(null);
 
-      // Load both balance history and summary in parallel using fetch
-      const [historyResponse, summaryResponse] = await Promise.all([
-        fetch(`/api/accounts/${filters.accountId}/balance-history?startDate=${filters.startDate}&endDate=${filters.endDate}`, {
+      // Get auth token for requests
+      const accessToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      if (!accessToken) {
+        throw new Error('Authentication required');
+      }
+      // Load summary and transactions in parallel
+      // Note: We'll derive the balance history from transactions for consistency
+      const [summaryResponse, transactionsResponse] = await Promise.all([
+        fetch(`/api/accounts/${filters.accountId}/balance-summary?startDate=${filters.startDate}&endDate=${filters.endDate}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         }),
-        fetch(`/api/accounts/${filters.accountId}/balance-summary?startDate=${filters.startDate}&endDate=${filters.endDate}`, {
+        fetch(`/api/accounts/${filters.accountId}/transactions-with-balances?startDate=${filters.startDate}&endDate=${filters.endDate}&sortOrder=desc&limit=1000`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         })
       ]);
 
-      // Parse JSON responses
-      const historyData = await historyResponse.json();
-      const summaryData = await summaryResponse.json();
-
-      // Handle responses
-      if (!historyResponse.ok) {
-        throw new Error(`Failed to load balance history: ${historyResponse.statusText}`);
-      }
+      // Check for HTTP errors
       if (!summaryResponse.ok) {
         throw new Error(`Failed to load balance summary: ${summaryResponse.statusText}`);
       }
-
-      if (!historyData.success) {
-        throw new Error(historyData.error || 'Failed to load balance history');
+      if (!transactionsResponse.ok) {
+        throw new Error(`Failed to load transactions: ${transactionsResponse.statusText}`);
       }
+
+      // Parse JSON responses
+      const summaryData = await summaryResponse.json();
+      const transactionsData = await transactionsResponse.json();
+
+      // Check for API errors
       if (!summaryData.success) {
         throw new Error(summaryData.error || 'Failed to load balance summary');
       }
+      if (!transactionsData.success) {
+        throw new Error(transactionsData.error || 'Failed to load transactions');
+      }
 
-      setBalanceHistory(historyData.data || []);
       setBalanceSummary(summaryData.data || null);
+
+      // Set transactions directly - they already have correct running balances from balance anchors
+      if (transactionsData.data?.transactions && transactionsData.data.transactions.length > 0) {
+        const transactions = transactionsData.data.transactions;
+
+        // Transactions already have running balances calculated using balance anchors
+        setTransactions(transactions);
+
+        // Also fetch balance history for the chart
+        const historyResponse = await fetch(`/api/accounts/${filters.accountId}/balance-history?startDate=${filters.startDate}&endDate=${filters.endDate}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          if (historyData.success) {
+            setBalanceHistory(historyData.data || []);
+          }
+        }
+      } else {
+        setTransactions([]);
+        setBalanceHistory([]);
+      }
 
     } catch (error: any) {
       console.error('Failed to load balance data:', error);
       setError(`API Error: ${error.message}`);
       setBalanceHistory([]);
       setBalanceSummary(null);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -275,13 +317,11 @@ export default function BalanceHistoryPage() {
               />
             </div>
 
-            {/* Balance History Table - v4.1 style card */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Daily Balance Details</h2>
-              </div>
-              <BalanceHistoryTable data={balanceHistory} />
-            </div>
+            {/* Account Transactions Table */}
+            <AccountTransactionsTable
+              transactions={transactions}
+              loading={loading}
+            />
           </>
         )}
 

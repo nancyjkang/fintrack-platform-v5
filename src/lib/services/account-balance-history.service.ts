@@ -8,7 +8,7 @@ import {
   BalanceCalculationResult,
   DailyBalanceData
 } from '@/types/balance-history'
-import { getCurrentUTCDate, toUTCDateString, createUTCDate, parseDateStringForDB } from '@/lib/utils/date-utils'
+import { getCurrentUTCDate, toUTCDateString, createUTCDate, parseDateStringForDB, parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 /**
  * Account Balance History Service
@@ -108,9 +108,22 @@ export class AccountBalanceHistoryService extends BaseService {
     }
 
     // Sort transactions by date ascending for calculation
-    const sortedTransactions = [...transactions].sort((a, b) =>
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    // For transactions on the same date, sort by ID (deterministic) then description (readable)
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      const dateA = parseAndConvertToUTC(a.date.toString()).getTime();
+      const dateB = parseAndConvertToUTC(b.date.toString()).getTime();
+
+      if (dateA !== dateB) {
+        return dateA - dateB; // Primary: sort by date
+      }
+
+      if (a.id !== b.id) {
+        return a.id - b.id; // Secondary: sort by ID (deterministic)
+      }
+
+      // Tertiary: sort by description (for human readability)
+      return (a.description || '').localeCompare(b.description || '');
+    });
 
     // Step 1: Find the latest balance anchor for this account
     const latestAnchor = await this.findLatestBalanceAnchor(accountId, tenantId);
@@ -157,9 +170,22 @@ export class AccountBalanceHistoryService extends BaseService {
     // For now, we use the provided currentAccountBalance parameter
 
     // Sort transactions by date ascending for calculation
-    const sortedTransactions = [...transactions].sort((a, b) =>
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    // For transactions on the same date, sort by ID (deterministic) then description (readable)
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      const dateA = parseAndConvertToUTC(a.date.toString()).getTime();
+      const dateB = parseAndConvertToUTC(b.date.toString()).getTime();
+
+      if (dateA !== dateB) {
+        return dateA - dateB; // Primary: sort by date
+      }
+
+      if (a.id !== b.id) {
+        return a.id - b.id; // Secondary: sort by ID (deterministic)
+      }
+
+      // Tertiary: sort by description (for human readability)
+      return (a.description || '').localeCompare(b.description || '');
+    });
 
     // Calculate the balance before the first transaction by working backwards
     // currentBalance = startingBalance + sum(all_transaction_impacts)
@@ -193,7 +219,7 @@ export class AccountBalanceHistoryService extends BaseService {
 
     // Return sorted by date descending (newest first)
     return transactionsWithBalance.sort((a, b) =>
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+      parseAndConvertToUTC(b.date.toString()).getTime() - parseAndConvertToUTC(a.date.toString()).getTime()
     );
   }
 
@@ -241,9 +267,12 @@ export class AccountBalanceHistoryService extends BaseService {
     const anchorDate = anchor.anchor_date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
     const anchorBalance = Number(anchor.balance);
 
+
     // Separate transactions into pre-anchor and post-anchor
-    const preAnchorTransactions = transactions.filter(t => t.date < anchorDate);
-    const postAnchorTransactions = transactions.filter(t => t.date >= anchorDate);
+    const anchorDateObj = parseAndConvertToUTC(anchorDate);
+    const preAnchorTransactions = transactions.filter(t => parseAndConvertToUTC(t.date.toString()) < anchorDateObj);
+    const postAnchorTransactions = transactions.filter(t => parseAndConvertToUTC(t.date.toString()) >= anchorDateObj);
+
 
     const transactionsWithBalance: Array<Transaction & { balance: number }> = [];
 
@@ -271,6 +300,7 @@ export class AccountBalanceHistoryService extends BaseService {
 
     // Calculate post-anchor balances (working forward from anchor)
     let runningBalance = anchorBalance;
+
     for (const transaction of postAnchorTransactions) {
       const impact = this.getTransactionBalanceImpact(transaction);
       runningBalance += impact;
@@ -283,8 +313,57 @@ export class AccountBalanceHistoryService extends BaseService {
 
     // Return sorted by date descending (newest first)
     return transactionsWithBalance.sort((a, b) =>
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+      parseAndConvertToUTC(b.date.toString()).getTime() - parseAndConvertToUTC(a.date.toString()).getTime()
     );
+  }
+
+  /**
+   * Sync account balance with latest calculated balance from anchors and transactions
+   * This ensures accounts.balance === latest_anchor.balance + sum(transactions_after_latest_anchor)
+   *
+   * @param tenantId - Tenant ID for data isolation
+   * @param accountId - Account ID to sync balance for
+   * @returns Promise<{ oldBalance: number, newBalance: number, updated: boolean }>
+   */
+  public async syncAccountBalance(
+    tenantId: string,
+    accountId: number
+  ): Promise<{ oldBalance: number, newBalance: number, updated: boolean }> {
+    try {
+      // Get current account balance
+      const account = await this.validateAccountAccess(tenantId, accountId);
+      const oldBalance = Number(account.balance);
+
+      // Calculate the correct balance using our anchor-based method
+      const currentDate = getCurrentUTCDate();
+      const currentDateString = currentDate.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+      const calculatedBalance = await this.calculateBalanceAtDate(tenantId, accountId, currentDateString);
+      const newBalance = calculatedBalance.balance;
+
+      // Check if update is needed
+      if (Math.abs(oldBalance - newBalance) < 0.01) {
+        console.log(`✅ [syncAccountBalance] Account ${accountId} balance is already in sync: $${oldBalance}`);
+        return { oldBalance, newBalance, updated: false };
+      }
+
+      // Update the account balance
+      await AccountBalanceHistoryService.prisma.account.update({
+        where: {
+          id: accountId,
+          tenant_id: tenantId
+        },
+        data: {
+          balance: newBalance
+        }
+      });
+
+      console.log(`🔄 [syncAccountBalance] Account ${accountId} balance updated: $${oldBalance} → $${newBalance}`);
+      return { oldBalance, newBalance, updated: true };
+
+    } catch (error) {
+      console.error(`❌ [syncAccountBalance] Failed to sync account ${accountId}:`, error);
+      throw new Error(`Failed to sync account balance: ${error}`);
+    }
   }
 
   /**
