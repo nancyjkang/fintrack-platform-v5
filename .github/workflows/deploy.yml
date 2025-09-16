@@ -13,8 +13,8 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  deploy:
-    name: 🚀 Deploy
+  quality-and-deploy:
+    name: 🔍 Quality Checks & 🚀 Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -32,6 +32,20 @@ jobs:
 
       - name: 🏗️ Generate Prisma Client
         run: npm run db:generate
+
+      - name: 🔍 TypeScript Type Check
+        run: npm run type-check
+
+      - name: 🧹 ESLint Check
+        run: npm run lint
+
+      - name: 🧪 Run Tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret' }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-nextauth-secret' }}
 
       - name: 🏗️ Build Application
         run: npm run build
