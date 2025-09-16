@@ -1,6 +1,7 @@
 name: 🚀 FinTrack v5 CI/CD Pipeline
 
-# Temporarily disabled for testing
+# Disabled - replaced by deploy.yml workflow
+# Database migrations are now handled manually via release scripts
 # on:
 #   push:
 #     branches: [ main, develop ]

@@ -1,5 +1,8 @@
 name: 🚀 Deploy to Vercel
 
+# Note: Database migrations are handled manually via release scripts
+# See docs/releases/v5.0.0/ for database deployment procedures
+
 on:
   push:
     branches: [main]
@@ -29,20 +32,6 @@ jobs:
 
       - name: 🏗️ Generate Prisma Client
         run: npm run db:generate
-
-      - name: 🗄️ Apply Database Migrations
-        run: |
-          echo "🔍 Applying database migrations to staging database..."
-          npx prisma migrate deploy || {
-            echo "❌ Migrations failed, trying db push..."
-            npx prisma db push --force-reset || {
-              echo "❌ DB push also failed"
-              exit 1
-            }
-          }
-          echo "✅ Database migrations completed"
-        env:
-          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
 
       - name: 🏗️ Build Application
         run: npm run build

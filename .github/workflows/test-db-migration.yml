@@ -1,8 +1,9 @@
 name: 🧪 Test Database Migration
 
-on:
-  push:
-    branches: [main]
+# Disabled - database migrations are now handled manually
+# on:
+#   push:
+#     branches: [main]
 
 env:
   NODE_VERSION: '20'
