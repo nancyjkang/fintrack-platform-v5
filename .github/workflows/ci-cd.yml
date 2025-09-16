@@ -57,8 +57,9 @@ jobs:
         run: npm run type-check
 
       - name: 🧪 Run Tests
-        run: npm run test:coverage
+        run: npm run test -- --maxWorkers=2 --forceExit
         env:
+          NODE_ENV: test
           DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
           JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
           NEXTAUTH_SECRET: test-nextauth-secret-for-ci-testing-only
@@ -67,6 +68,7 @@ jobs:
       - name: 🏗️ Build Application
         run: npm run build
         env:
+          NODE_ENV: production
           DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
           JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
           NEXTAUTH_SECRET: test-nextauth-secret-for-ci-testing-only
