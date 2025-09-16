@@ -23,29 +23,16 @@ interface Transaction {
     id: number;
     name: string;
     type: string;
+    color?: string;
   };
   category?: {
     id: number;
     name: string;
     type: string;
+    color?: string;
   };
 }
 
-interface Account {
-  id: number;
-  name: string;
-  type: string;
-  balance: number;
-  color: string;
-  is_active: boolean;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  type: string;
-  color: string;
-}
 
 interface Filters {
   description: string;
@@ -72,8 +59,6 @@ export default function TransactionsList({
   refreshTrigger
 }: TransactionsListProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedTransactions, setSelectedTransactions] = useState<Set<number>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -103,6 +88,7 @@ export default function TransactionsList({
 
       if (response.success) {
         const transactionsData = response.data?.transactions || [];
+
         // Convert date strings to Date objects and amounts to numbers
         const processedTransactions = transactionsData.map(t => ({
           ...t,
@@ -126,40 +112,7 @@ export default function TransactionsList({
     }
   }, [filters, onTransactionsChange]);
 
-  // Fetch accounts and categories
-  const fetchAccountsAndCategories = useCallback(async () => {
-    try {
-      const [accountsResponse, categoriesResponse] = await Promise.all([
-        api.getAccounts(),
-        api.getCategories()
-      ]);
-
-      if (accountsResponse.success && accountsResponse.data) {
-        // Map API response to Account interface
-        const mappedAccounts = accountsResponse.data.map(item => ({
-          id: item.id.toString(),
-          name: item.name,
-          type: item.type,
-          balance: item.balance,
-          color: item.color,
-          is_active: true // Assume active since it's returned by API
-        }));
-        setAccounts(mappedAccounts as any);
-      }
-
-      if (categoriesResponse.success && categoriesResponse.data?.categories) {
-        setCategories(categoriesResponse.data.categories);
-      }
-    } catch (err) {
-      console.error('Error fetching accounts/categories:', err);
-    }
-  }, []);
-
   // Effects
-  useEffect(() => {
-    fetchAccountsAndCategories();
-  }, [fetchAccountsAndCategories]);
-
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions, refreshTrigger]);
@@ -235,27 +188,44 @@ export default function TransactionsList({
     setShowBulkDeleteDialog(true);
   }, []);
 
-  // Helper functions
-  const getAccountName = (accountId: number) => {
-    const account = accounts.find(a => a.id === accountId);
-    return account?.name || 'Unknown Account';
+  // Helper functions - use data from transaction relations
+  const getAccountName = (transaction: Transaction) => {
+    return transaction.account?.name || 'Unknown Account';
   };
 
-  const getAccountColor = (accountId: number) => {
-    const account = accounts.find(a => a.id === accountId);
-    return account?.color || '#6B7280'; // Default gray color
+  const getAccountColor = (transaction: Transaction) => {
+    return transaction.account?.color || '#6B7280'; // Default gray color
   };
 
-  const getCategoryName = (categoryId?: number) => {
-    if (!categoryId) return 'Uncategorized';
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name || 'Unknown Category';
+  const getCategoryName = (transaction: Transaction) => {
+    if (!transaction.category_id) return 'Uncategorized';
+    return transaction.category?.name || 'Unknown Category';
   };
 
-  const getCategoryColor = (categoryId?: number) => {
-    if (!categoryId) return '#6B7280'; // Default gray color
-    const category = categories.find(c => c.id === categoryId);
-    return category?.color || '#6B7280';
+  const getCategoryColor = (transaction: Transaction) => {
+    if (!transaction.category_id) return '#6B7280'; // Default gray color
+    return transaction.category?.color || '#6B7280';
+  };
+
+  // Helper function to determine if a color is light or dark
+  const isLightColor = (hexColor: string) => {
+    // Remove # if present
+    const hex = hexColor.replace('#', '');
+
+    // Convert to RGB
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+
+    // Calculate luminance (0-255, higher = lighter)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+
+    // Return true if light (luminance > 128)
+    return luminance > 128;
+  };
+
+  const getTextColor = (backgroundColor: string) => {
+    return isLightColor(backgroundColor) ? '#000000' : '#FFFFFF';
   };
 
   // Selection state calculations
@@ -404,10 +374,10 @@ export default function TransactionsList({
                 key={transaction.id}
                 className={`hover:bg-gray-50 ${selectedTransactions.has(transaction.id) ? 'bg-blue-50' : ''}`}
                 style={{
-                  borderLeft: `3px solid ${getAccountColor(transaction.account_id)}`,
+                  borderLeft: `3px solid ${getAccountColor(transaction)}`,
                   backgroundColor: selectedTransactions.has(transaction.id)
                     ? 'rgba(59, 130, 246, 0.05)' // Blue tint for selected
-                    : `${getAccountColor(transaction.account_id)}08` // Account color with 3% opacity
+                    : `${getAccountColor(transaction)}08` // Account color with 3% opacity
                 }}
               >
                 {/* Checkbox */}
@@ -437,23 +407,30 @@ export default function TransactionsList({
                   </div>
                 </td>
 
-                {/* Category/Type - Combined column */}
-                <td className="px-6 py-3 text-sm">
-                  <div className="space-y-1">
-                    <div className="text-gray-900 font-medium">
-                      {getCategoryName(transaction.category_id)}
-                    </div>
-                    <div>
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        transaction.type === 'INCOME'
-                          ? 'bg-green-100 text-green-800'
-                          : transaction.type === 'EXPENSE'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
+                {/* Category/Type - Combined column (v4.1 format) */}
+                <td className="px-6 py-3 whitespace-nowrap">
+                  <div className="flex items-center">
+                    {transaction.category_id ? (
+                      <span
+                        className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
+                        style={{
+                          backgroundColor: getCategoryColor(transaction),
+                          color: getTextColor(getCategoryColor(transaction))
+                        }}
+                      >
+                        {getCategoryName(transaction)}
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                          transaction.type === 'INCOME' ? 'bg-green-100 text-green-800' :
+                          transaction.type === 'EXPENSE' ? 'bg-red-100 text-red-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}
+                      >
                         {transaction.type}
                       </span>
-                    </div>
+                    )}
                   </div>
                 </td>
 
@@ -462,9 +439,9 @@ export default function TransactionsList({
                   <div className="flex items-center">
                     <div
                       className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
-                      style={{ backgroundColor: getAccountColor(transaction.account_id) }}
+                      style={{ backgroundColor: getAccountColor(transaction) }}
                     />
-                    {getAccountName(transaction.account_id)}
+                    {getAccountName(transaction)}
                   </div>
                 </td>
 

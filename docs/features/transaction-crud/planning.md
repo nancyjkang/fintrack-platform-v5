@@ -84,6 +84,18 @@ Users can create, view, edit, and delete their financial transactions. This enab
 - ❌ **Current**: `All transactions | Recurring only | One-time only`
 - ✅ **v4.1 Required**: `Recurring vs not | Recurring only | One-time only`
 
+#### **Category Filter Behavior:**
+- ✅ **COMPLETED**: Categories dropdown filters based on selected transaction type
+- **Logic**: When type is selected (INCOME/EXPENSE/TRANSFER), only show categories matching that type
+- **UX**: Clear category selection when type changes to prevent invalid combinations
+- **Placeholder**: Update to "All [type] categories" when type is selected
+
+#### **Category/Type Display Format:**
+- ✅ **COMPLETED**: Match v4.1 single badge format exactly
+- **Logic**: Show category name (if exists) OR transaction type (if no category) - never both
+- **Category badge**: Uses category color with dynamic text color (black/white based on luminance)
+- **Type badge**: Uses type-specific colors (green/red/blue) when no category assigned
+
 ### **3. TransactionForm - MEDIUM PRIORITY**
 
 #### **Field Order Changes:**
@@ -101,13 +113,18 @@ Users can create, view, edit, and delete their financial transactions. This enab
 - **Single account transfers**: Support external account transfers
 - **Transfer descriptions**: Auto-generate "Transfer to/from [Account Name]"
 
-### **4. TransactionsSummary - LOW PRIORITY**
+### **4. TransactionsSummary - COMPLETED**
 
 #### **Content Changes:**
-- **Show filter details**: Display active filters as text summary
-- **Net value calculation**: Show income - expenses
-- **Filter summary**: "Date: X to Y, Account: Z, Type: W" format
-- **Simpler layout**: Less card-based, more text-based summary
+- ✅ **COMPLETED**: Show filter details as text summary
+- ✅ **COMPLETED**: Net value calculation (income - expenses)
+- ✅ **COMPLETED**: Filter summary in "Date: X to Y, Account: Z, Type: W" format
+- ✅ **COMPLETED**: Simpler text-based layout (not card-based)
+
+#### **Summary Stats Order:**
+- ✅ **COMPLETED**: Transactions count → Income → Expenses → **Transfers** → Net
+- ✅ **COMPLETED**: Added transfers total after expenses (always visible)
+- ✅ **COMPLETED**: Removed recurring transaction stats entirely
 
 ### **5. Page Routes & API Consistency - HIGH PRIORITY**
 
@@ -321,14 +338,17 @@ Users can create, view, edit, and delete their financial transactions. This enab
 - **Date Utils Integration**: 2 hours - ✅ Complete
 
 ### **Remaining Work (v4.1 Alignment)**
+- ✅ **COMPLETED**: TransactionsFilters Update - Category filtering, type-based filtering
+- ✅ **COMPLETED**: Category/Type Display - Single badge format matching v4.1
+- ✅ **COMPLETED**: Dynamic Text Color - Black/white text based on background luminance
+- ✅ **COMPLETED**: TransactionsSummary Update - Transfers added, recurring removed
 - **TransactionsList Restructure**: 4 hours - Column reorder, bulk selection, styling
-- **TransactionsFilters Update**: 2 hours - Layout, date ranges, labels
 - **TransactionForm Restructure**: 3 hours - Field order, transfer logic, validation
-- **TransactionsSummary Update**: 1 hour - Filter details, simpler layout
 - **Testing & Polish**: 2 hours - Verify exact v4.1 match
 
-**Total Remaining Time**: 12 hours (1.5 days)
-**Total Project Time**: 56 hours (7 days)
+**Completed Additional Work**: 6 hours - UI improvements and v4.1 alignment
+**Total Remaining Time**: 9 hours (1.1 days)
+**Total Project Time**: 62 hours (7.75 days)
 
 ---
 

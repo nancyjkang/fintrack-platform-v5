@@ -54,16 +54,12 @@ export default function TransactionsSummary({ transactions, filters }: Transacti
     // Calculate net value (income - expenses)
     const netValue = income - expenses;
 
-    // Count recurring transactions
-    const recurringCount = transactions.filter(t => t.is_recurring).length;
-
     return {
       totalTransactions,
       income,
       expenses,
       transfers,
-      netValue,
-      recurringCount
+      netValue
     };
   }, [transactions]);
 
@@ -100,32 +96,32 @@ export default function TransactionsSummary({ transactions, filters }: Transacti
   // Generate filter summary text - v4.1 style
   const getFilterSummary = () => {
     const parts = [];
-    
+
     if (filters.dateRange) {
       parts.push(`Date: ${getDateRangeLabel()}`);
     }
-    
+
     if (filters.account) {
       parts.push(`Account: Selected account`);
     }
-    
+
     if (filters.type) {
       parts.push(`Type: ${filters.type}`);
     }
-    
+
     if (filters.category) {
       parts.push(`Category: Selected category`);
     }
-    
+
     if (filters.recurring) {
       const recurringLabel = filters.recurring === 'true' ? 'Recurring only' : 'One-time only';
       parts.push(`Recurring: ${recurringLabel}`);
     }
-    
+
     if (filters.description) {
       parts.push(`Search: "${filters.description}"`);
     }
-    
+
     return parts.length > 0 ? parts.join(', ') : 'No filters applied';
   };
 
@@ -145,19 +141,29 @@ export default function TransactionsSummary({ transactions, filters }: Transacti
           <span className="text-gray-600">Transactions:</span>
           <span className="font-semibold text-gray-900">{summary.totalTransactions}</span>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-green-500" />
           <span className="text-gray-600">Income:</span>
           <span className="font-semibold text-green-700">{formatCurrency(summary.income)}</span>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <TrendingDown className="w-4 h-4 text-red-500" />
           <span className="text-gray-600">Expenses:</span>
           <span className="font-semibold text-red-700">{formatCurrency(summary.expenses)}</span>
         </div>
-        
+
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 flex items-center justify-center">
+            <div className="w-3 h-3 border border-purple-500 rounded-full flex items-center justify-center">
+              <div className="w-1 h-1 bg-purple-500 rounded-full"></div>
+            </div>
+          </div>
+          <span className="text-gray-600">Transfers:</span>
+          <span className="font-semibold text-purple-700">{formatCurrency(summary.transfers)}</span>
+        </div>
+
         <div className="flex items-center gap-2">
           <DollarSign className={`w-4 h-4 ${summary.netValue >= 0 ? 'text-blue-500' : 'text-orange-500'}`} />
           <span className="text-gray-600">Net:</span>
@@ -165,25 +171,6 @@ export default function TransactionsSummary({ transactions, filters }: Transacti
             {formatCurrency(summary.netValue)}
           </span>
         </div>
-
-        {summary.transfers > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 flex items-center justify-center">
-              <div className="w-3 h-3 border border-purple-500 rounded-full flex items-center justify-center">
-                <div className="w-1 h-1 bg-purple-500 rounded-full"></div>
-              </div>
-            </div>
-            <span className="text-gray-600">Transfers:</span>
-            <span className="font-semibold text-purple-700">{formatCurrency(summary.transfers)}</span>
-          </div>
-        )}
-
-        {summary.recurringCount > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600">Recurring:</span>
-            <span className="font-semibold text-blue-700">{summary.recurringCount}</span>
-          </div>
-        )}
       </div>
     </div>
   );

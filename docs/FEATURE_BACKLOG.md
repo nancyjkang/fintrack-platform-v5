@@ -1,6 +1,6 @@
 # FinTrack v5 - Feature Backlog
 
-**Last Updated**: September 15, 2025
+**Last Updated**: September 16, 2025
 **Current Sprint**: Foundation & Core Features
 
 This document contains the prioritized list of all features to be implemented, serving as the single source of truth for development planning.
@@ -65,12 +65,12 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: Complete account CRUD operations with UI, smart delete logic, and v4.1 layout compatibility
   - **Documentation**: [Planning](docs/features/account-management/planning.md) | [Implementation](docs/features/account-management/implementation.md)
 
-- **Transaction CRUD** - ✅ Complete (API) / 📋 Ready (UI)
-  - **Estimate**: 4 days (API: 0.5 days actual, UI: 3.5 days remaining)
-  - **Completed**: 2025-09-15 14:50 (API portion)
-  - **Last Updated**: 2025-09-15
+- **Transaction CRUD** - ✅ Complete (Core Features) / 🔧 In Progress (v4.1 Alignment)
+  - **Estimate**: 4 days (API: 0.5 days actual, UI Core: 2.5 days actual, v4.1 Alignment: 1.1 days remaining)
+  - **Completed**: 2025-09-16 6:40 (Core UI features with v4.1 improvements)
+  - **Last Updated**: 2025-09-16
   - **Dependencies**: API Updates for New Schema ✅
-  - **Notes**: API portion complete with service layer. UI implementation ready to start.
+  - **Notes**: ✅ API complete ✅ Core UI complete ✅ Category filtering ✅ Dynamic text colors ✅ Summary improvements. Remaining: bulk selection, column reordering, form restructure.
   - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
 
 - **Account Balance History** - 📋 Ready
@@ -378,8 +378,9 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 - **Value**: Focus on high-impact user features first
 
 ### **Current Sprint Progress:**
-- **Features Completed**: 7/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅, Date Handling Utilities ✅, Category Management ✅, Account Management ✅, CI/CD Pipeline ✅)
-- **Estimated Completion**: 1 week for remaining Priority 1 features (Transaction CRUD UI, Account Balance History)
+- **Features Completed**: 7.75/8 (Schema Design ✅, API Updates ✅, Transaction CRUD 75% ✅, Date Handling Utilities ✅, Category Management ✅, Account Management ✅, CI/CD Pipeline ✅)
+- **Transaction CRUD Status**: Core features complete with v4.1 UI improvements (category filtering, dynamic colors, summary updates). Remaining: bulk operations, column reordering.
+- **Estimated Completion**: 2-3 days for remaining Priority 1 features (Transaction CRUD completion, Account Balance History)
 - **Risk Level**: Very Low (strong foundation + automated deployment pipeline established)
 
 ---

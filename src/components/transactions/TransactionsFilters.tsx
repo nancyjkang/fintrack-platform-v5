@@ -73,22 +73,24 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
     const fetchData = async () => {
       try {
         const [accountsResponse, categoriesResponse] = await Promise.all([
-          fetch('/api/accounts'),
-          fetch('/api/categories')
+          api.getAccounts(),
+          api.getCategories()
         ]);
 
-        if (accountsResponse.ok) {
-          const accountsData = await accountsResponse.json();
-          if (accountsData.success) {
-            setAccounts(accountsData.data || []);
-          }
+        if (accountsResponse.success && accountsResponse.data) {
+          // Handle both array and paginated response formats
+          const accountsData = Array.isArray(accountsResponse.data)
+            ? accountsResponse.data
+            : (accountsResponse.data as any).items || accountsResponse.data;
+          setAccounts(accountsData);
         }
 
-        if (categoriesResponse.ok) {
-          const categoriesData = await categoriesResponse.json();
-          if (categoriesData.success) {
-            setCategories(categoriesData.data || []);
-          }
+        if (categoriesResponse.success && categoriesResponse.data) {
+          // Handle both array and paginated response formats
+          const categoriesData = Array.isArray(categoriesResponse.data)
+            ? categoriesResponse.data
+            : (categoriesResponse.data as any).categories || categoriesResponse.data;
+          setCategories(categoriesData);
         }
       } catch (err) {
         console.error('Error fetching filter data:', err);
@@ -102,6 +104,11 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
   const handleInputChange = (field: keyof Filters, value: string) => {
     const updates: Partial<Filters> = { [field]: value };
+
+    // Clear category when type changes (since categories are type-specific)
+    if (field === 'type') {
+      updates.category = '';
+    }
 
     // Auto-populate start and end dates when date range is selected
     if (field === 'dateRange') {
@@ -225,6 +232,12 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
     });
   };
 
+  // Filter categories based on selected type
+  const filteredCategories = categories.filter(category => {
+    if (!filters.type) return true; // Show all categories if no type selected
+    return category.type === filters.type;
+  });
+
   const isCustomDateRange = filters.dateRange === 'custom';
   const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
     if (key === 'dateRange') return value !== 'this-month'; // Default is this-month
@@ -333,8 +346,10 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
             className={`w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${!filters.category ? 'text-gray-500' : 'text-gray-900'}`}
             disabled={loading}
           >
-            <option value="">All categories</option>
-            {categories.map(category => (
+            <option value="">
+              {filters.type ? `All ${filters.type.toLowerCase()} categories` : 'All categories'}
+            </option>
+            {filteredCategories.map(category => (
               <option key={category.id} value={category.id.toString()}>
                 {category.name}
               </option>
