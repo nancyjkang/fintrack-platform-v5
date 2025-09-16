@@ -51,27 +51,19 @@ jobs:
         run: npm run db:generate
 
       - name: 🔍 Lint Code
-        run: |
-          echo "Temporarily skipping linting in CI - will fix linting errors separately"
-          echo "Linting has many date utility violations that need to be addressed"
-        # TODO: Fix linting errors and re-enable
-        # run: npm run lint
+        run: npm run lint
 
       - name: 🎯 Type Check
         run: npm run type-check
 
       - name: 🧪 Run Tests
-        run: |
-          echo "Temporarily skipping tests in CI - will debug separately"
-          echo "Tests pass locally, focusing on deployment pipeline first"
-        # TODO: Re-enable tests once CI environment is properly configured
-        # run: npm run test -- --maxWorkers=2 --forceExit
-        # env:
-        #   NODE_ENV: test
-        #   DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
-        #   JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
-        #   NEXTAUTH_SECRET: test-nextauth-secret-for-ci-testing-only
-        #   NEXTAUTH_URL: http://localhost:3000
+        run: npm run test -- --maxWorkers=2 --forceExit
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+          NEXTAUTH_SECRET: test-nextauth-secret-for-ci-testing-only
+          NEXTAUTH_URL: http://localhost:3000
 
       - name: 🏗️ Build Application
         run: npm run build
