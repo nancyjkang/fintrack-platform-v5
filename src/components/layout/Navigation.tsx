@@ -22,7 +22,8 @@ import {
   Upload,
   Sliders,
   Target,
-  CreditCard
+  Bell,
+  Check
 } from 'lucide-react';
 import styles from './Navigation.module.css';
 import { useAuth } from '@/lib/client/auth-context';
@@ -33,7 +34,6 @@ const DEV_TOOLS_AUTHORIZED_USERS = ['nancyjkang@gmail.com'];
 // Navigation items for v5 (updated from v4)
 const getNavigationItems = (userEmail?: string) => {
   const baseItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
     {
       name: 'Transactions',
       href: null, // Make non-clickable
@@ -53,28 +53,6 @@ const getNavigationItems = (userEmail?: string) => {
           name: 'Import Transactions',
           href: '/transactions/import',
           icon: Upload
-        }
-      ]
-    },
-    {
-      name: 'Accounts',
-      href: '/accounts',
-      icon: CreditCard,
-      submenu: [
-        {
-          name: 'View Accounts',
-          href: '/accounts',
-          icon: Eye
-        },
-        {
-          name: 'Add Account',
-          href: '/accounts/add',
-          icon: Plus
-        },
-        {
-          name: 'Balance History',
-          href: '/accounts/balance-history',
-          icon: TrendingUp
         }
       ]
     },
@@ -114,6 +92,23 @@ const getNavigationItems = (userEmail?: string) => {
           name: 'Add Goal',
           href: '/goals/add',
           icon: Plus
+        }
+      ]
+    },
+    {
+      name: 'Notifications',
+      href: null, // Make non-clickable
+      icon: Bell,
+      submenu: [
+        {
+          name: 'View Notifications',
+          href: '/notifications',
+          icon: Eye
+        },
+        {
+          name: 'Notification Settings',
+          href: '/settings/notifications',
+          icon: Settings
         }
       ]
     },
@@ -331,7 +326,7 @@ export default function Navigation() {
         <div className={styles.header}>
           {/* Logo and main navigation */}
           <div className={styles.leftSection}>
-            <Link href="/dashboard" className={styles.logo}>
+            <Link href="/transactions" className={styles.logo}>
               FinTrack v5
             </Link>
 
