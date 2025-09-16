@@ -68,6 +68,17 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ TypeScript compilation passed"
 
+# CRITICAL: Date handling ESLint checks (prevent direct Date() usage)
+echo "🔍 Checking date handling compliance..."
+npx eslint --no-eslintrc --config '{"extends":[],"rules":{"no-restricted-globals":["error",{"name":"Date","message":"❌ Global Date constructor is prohibited. Import and use date utilities from @/lib/utils/date-utils instead."}],"no-restricted-syntax":["error",{"selector":"NewExpression[callee.name=\"Date\"]","message":"❌ Direct new Date() usage is prohibited. Use date utilities from @/lib/utils/date-utils instead. See docs/architecture/date-handling-best-practices.md"}]}}' --format=compact src/ 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo "🚫 COMMIT REJECTED: Date handling violations found"
+  echo "💡 Use date utilities from @/lib/utils/date-utils instead of direct Date() usage"
+  echo "💡 See docs/architecture/date-handling-best-practices.md for guidance"
+  exit 1
+fi
+echo "✅ Date handling compliance passed"
+
 # Build check moved to pre-push hook for faster commits
 
 # CRITICAL: Test suite check (ensures all tests pass)

@@ -33,6 +33,14 @@ interface Category {
   color: string;
 }
 
+interface PaginatedAccountsResponse {
+  items: Account[];
+}
+
+interface PaginatedCategoriesResponse {
+  categories: Category[];
+}
+
 interface TransactionsFiltersProps {
   filters: Filters;
   onFilterChange: (filters: Partial<Filters>) => void;
@@ -81,7 +89,7 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
           // Handle both array and paginated response formats
           const accountsData = Array.isArray(accountsResponse.data)
             ? accountsResponse.data
-            : (accountsResponse.data as any).items || accountsResponse.data;
+            : (accountsResponse.data as PaginatedAccountsResponse).items || accountsResponse.data;
           setAccounts(accountsData);
         }
 
@@ -89,7 +97,7 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
           // Handle both array and paginated response formats
           const categoriesData = Array.isArray(categoriesResponse.data)
             ? categoriesResponse.data
-            : (categoriesResponse.data as any).categories || categoriesResponse.data;
+            : (categoriesResponse.data as PaginatedCategoriesResponse).categories || categoriesResponse.data;
           setCategories(categoriesData);
         }
       } catch (err) {
@@ -112,7 +120,7 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
     // Auto-populate start and end dates when date range is selected
     if (field === 'dateRange') {
-      const today = new Date();
+      const today = getCurrentDate();
       let fromDate = '';
       let toDate = '';
 
@@ -124,41 +132,37 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
         switch (value) {
           case 'this-week': {
             // Get start of week (Sunday)
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay());
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            const startOfWeek = subtractDays(today, today.getDay());
+            const endOfWeek = addDays(startOfWeek, 6);
             fromDate = toUTCDateString(startOfWeek);
             toDate = toUTCDateString(endOfWeek);
             break;
           }
           case 'last-week': {
             // Get start of last week (Sunday)
-            const lastWeekStart = new Date(today);
-            lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
-            const lastWeekEnd = new Date(lastWeekStart);
-            lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+            const lastWeekStart = subtractDays(today, today.getDay() + 7);
+            const lastWeekEnd = addDays(lastWeekStart, 6);
             fromDate = toUTCDateString(lastWeekStart);
             toDate = toUTCDateString(lastWeekEnd);
             break;
           }
           case 'this-month': {
-            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            const startOfMonth = createUTCDate(today.getFullYear(), today.getMonth(), 1);
+            const endOfMonth = createUTCDate(today.getFullYear(), today.getMonth() + 1, 0);
             fromDate = toUTCDateString(startOfMonth);
             toDate = toUTCDateString(endOfMonth);
             break;
           }
           case 'last-month': {
-            const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-            const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+            const lastMonthStart = createUTCDate(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastMonthEnd = createUTCDate(today.getFullYear(), today.getMonth(), 0);
             fromDate = toUTCDateString(lastMonthStart);
             toDate = toUTCDateString(lastMonthEnd);
             break;
           }
           case 'this-quarter': {
-            const quarterStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
-            const quarterEnd = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3 + 3, 0);
+            const quarterStart = createUTCDate(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
+            const quarterEnd = createUTCDate(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3 + 3, 0);
             fromDate = toUTCDateString(quarterStart);
             toDate = toUTCDateString(quarterEnd);
             break;
@@ -169,13 +173,13 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
             if (currentQuarter === 0) {
               // Current quarter is Q1, so last quarter is Q4 of previous year
-              lastQuarterStart = new Date(today.getFullYear() - 1, 9, 1); // October 1st
-              lastQuarterEnd = new Date(today.getFullYear() - 1, 11, 31); // December 31st
+              lastQuarterStart = createUTCDate(today.getFullYear() - 1, 9, 1); // October 1st
+              lastQuarterEnd = createUTCDate(today.getFullYear() - 1, 11, 31); // December 31st
             } else {
               // Last quarter is in the same year
               const lastQuarterStartMonth = (currentQuarter - 1) * 3;
-              lastQuarterStart = new Date(today.getFullYear(), lastQuarterStartMonth, 1);
-              lastQuarterEnd = new Date(today.getFullYear(), lastQuarterStartMonth + 3, 0);
+              lastQuarterStart = createUTCDate(today.getFullYear(), lastQuarterStartMonth, 1);
+              lastQuarterEnd = createUTCDate(today.getFullYear(), lastQuarterStartMonth + 3, 0);
             }
 
             fromDate = toUTCDateString(lastQuarterStart);
@@ -183,8 +187,8 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
             break;
           }
           case 'this-half': {
-            const halfStart = new Date(today.getFullYear(), today.getMonth() < 6 ? 0 : 6, 1);
-            const halfEnd = new Date(today.getFullYear(), today.getMonth() < 6 ? 6 : 12, 0);
+            const halfStart = createUTCDate(today.getFullYear(), today.getMonth() < 6 ? 0 : 6, 1);
+            const halfEnd = createUTCDate(today.getFullYear(), today.getMonth() < 6 ? 6 : 12, 0);
             fromDate = toUTCDateString(halfStart);
             toDate = toUTCDateString(halfEnd);
             break;
@@ -195,12 +199,12 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
             if (currentHalf === 1) {
               // Current is first half, so last half is second half of previous year
-              lastHalfStart = new Date(today.getFullYear() - 1, 6, 1); // July 1st
-              lastHalfEnd = new Date(today.getFullYear() - 1, 12, 0); // December 31st
+              lastHalfStart = createUTCDate(today.getFullYear() - 1, 6, 1); // July 1st
+              lastHalfEnd = createUTCDate(today.getFullYear() - 1, 12, 0); // December 31st
             } else {
               // Current is second half, so last half is first half of current year
-              lastHalfStart = new Date(today.getFullYear(), 0, 1); // January 1st
-              lastHalfEnd = new Date(today.getFullYear(), 6, 0); // June 30th
+              lastHalfStart = createUTCDate(today.getFullYear(), 0, 1); // January 1st
+              lastHalfEnd = createUTCDate(today.getFullYear(), 6, 0); // June 30th
             }
 
             fromDate = toUTCDateString(lastHalfStart);
@@ -219,29 +223,10 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
     onFilterChange(updates);
   };
 
-  const handleClearFilters = () => {
-    onFilterChange({
-      description: '',
-      dateRange: 'this-month',
-      fromDate: '',
-      toDate: '',
-      account: '',
-      type: '',
-      category: '',
-      recurring: ''
-    });
-  };
-
   // Filter categories based on selected type
   const filteredCategories = categories.filter(category => {
     if (!filters.type) return true; // Show all categories if no type selected
     return category.type === filters.type;
-  });
-
-  const isCustomDateRange = filters.dateRange === 'custom';
-  const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
-    if (key === 'dateRange') return value !== 'this-month'; // Default is this-month
-    return value !== '';
   });
 
   return (

@@ -10,11 +10,11 @@ interface Transaction {
   category_id?: number;
   amount: number;
   description: string;
-  date: Date;
+  date: string;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   is_recurring: boolean;
-  created_at: Date;
-  updated_at: Date;
+  created_at: string;
+  updated_at: string;
   tenant_id: number;
 }
 

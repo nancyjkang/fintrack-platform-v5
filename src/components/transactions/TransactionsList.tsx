@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Edit, Trash2, RotateCcw, FileText } from 'lucide-react';
-import { formatDateForDisplay, getCurrentDate } from '@/lib/utils/date-utils';
+import { formatDateForDisplay } from '@/lib/utils/date-utils';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { api } from '@/lib/client/api';
 
@@ -12,11 +12,11 @@ interface Transaction {
   category_id?: number;
   amount: number;
   description: string;
-  date: Date;
+  date: string;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   is_recurring: boolean;
-  created_at: Date;
-  updated_at: Date;
+  created_at: string;
+  updated_at: string;
   tenant_id: number;
   // Relations
   account?: {
@@ -52,6 +52,16 @@ interface TransactionsListProps {
   refreshTrigger?: number;
 }
 
+interface TransactionQueryParams {
+  search?: string;
+  account_id?: string;
+  type?: string;
+  category_id?: string;
+  is_recurring?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
 export default function TransactionsList({
   filters,
   onEditTransaction,
@@ -62,8 +72,6 @@ export default function TransactionsList({
   const [selectedTransactions, setSelectedTransactions] = useState<Set<number>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-  const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
-  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,7 +82,7 @@ export default function TransactionsList({
       setError(null);
 
       // Build query parameters
-      const params: any = {};
+      const params: TransactionQueryParams = {};
 
       if (filters.description) params.search = filters.description;
       if (filters.account) params.account_id = filters.account;
@@ -89,13 +97,10 @@ export default function TransactionsList({
       if (response.success) {
         const transactionsData = response.data?.transactions || [];
 
-        // Convert date strings to Date objects and amounts to numbers
+        // Convert amounts to numbers (keep dates as strings)
         const processedTransactions = transactionsData.map(t => ({
           ...t,
-          amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount,
-          date: new Date(t.date),
-          created_at: new Date(t.created_at),
-          updated_at: new Date(t.updated_at)
+          amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount
         }));
         setTransactions(processedTransactions);
         onTransactionsChange?.(processedTransactions);
