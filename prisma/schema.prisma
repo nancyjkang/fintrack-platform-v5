@@ -1,7 +1,3 @@
-// FinTrack v5 Database Schema
-// Based on v4.1 structure with multi-tenant support
-// Fresh start approach - no migration complexity
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,37 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// MULTI-TENANT FOUNDATION
-// ============================================================================
-
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  password   String
-  name       String?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  // Multi-tenant relationships
+  id          String       @id @default(cuid())
+  email       String       @unique
+  password    String
+  name        String?
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
   memberships Membership[]
 
   @@map("users")
 }
 
 model Tenant {
-  id         String   @id @default(cuid())
-  name       String
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  // Tenant data relationships
-  memberships     Membership[]
+  id              String                 @id @default(cuid())
+  name            String
+  created_at      DateTime               @default(now())
+  updated_at      DateTime               @updatedAt
+  balance_anchors AccountBalanceAnchor[]
   accounts        Account[]
   categories      Category[]
-  transactions    Transaction[]
+  memberships     Membership[]
   spending_goals  SpendingGoal[]
-  balance_anchors AccountBalanceAnchor[]
+  transactions    Transaction[]
 
   @@map("tenants")
 }
@@ -50,78 +38,64 @@ model Membership {
   id        String @id @default(cuid())
   user_id   String
   tenant_id String
-  role      String @default("member") // member, admin, owner
-
-  // Relationships
-  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  role      String @default("member")
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, tenant_id])
   @@map("memberships")
 }
 
-// ============================================================================
-// CORE DATA MODELS (Based on v4.1 structure)
-// ============================================================================
-
 model Account {
-  id                  Int      @id @default(autoincrement())
-  tenant_id           String
-  name                String
-  type                String   // CHECKING, SAVINGS, CREDIT_CARD, INVESTMENT, LOAN, TRADITIONAL_RETIREMENT, ROTH_RETIREMENT
-  net_worth_category  String   // ASSET, LIABILITY, EXCLUDED
-  balance             Decimal  @db.Decimal(12, 2)
-  balance_date        DateTime
-  color               String
-  is_active           Boolean  @default(true)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
+  id                 Int                    @id @default(autoincrement())
+  tenant_id          String
+  name               String
+  type               String
+  balance            Decimal                @db.Decimal(12, 2)
+  balance_date       DateTime
+  color              String
+  is_active          Boolean                @default(true)
+  created_at         DateTime               @default(now())
+  updated_at         DateTime               @updatedAt
+  net_worth_category String
+  balance_anchors    AccountBalanceAnchor[]
+  tenant             Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  transactions       Transaction[]
 
-  // Relationships
-  tenant          Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  transactions    Transaction[]
-  balance_anchors AccountBalanceAnchor[]
-
-  // Unique constraints
   @@unique([tenant_id, name])
   @@map("accounts")
 }
 
 model Category {
-  id         Int      @id @default(autoincrement())
-  tenant_id  String
-  name       String
-  type       String   // INCOME, EXPENSE, TRANSFER
-  color      String
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  // Relationships
+  id           Int           @id @default(autoincrement())
+  tenant_id    String
+  name         String
+  type         String
+  color        String
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
   tenant       Tenant        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
-  // Unique constraints
   @@unique([tenant_id, name, type])
   @@map("categories")
 }
 
 model Transaction {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   tenant_id    String
   account_id   Int
   category_id  Int?
-  amount       Decimal  @db.Decimal(12, 2)
+  amount       Decimal   @db.Decimal(12, 2)
   description  String
   date         DateTime
-  type         String   // INCOME, EXPENSE, TRANSFER
-  is_recurring Boolean  @default(false)
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-
-  // Relationships
-  tenant   Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  account  Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  type         String
+  is_recurring Boolean   @default(false)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  account      Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  category     Category? @relation(fields: [category_id], references: [id])
+  tenant       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@map("transactions")
 }
@@ -134,10 +108,8 @@ model AccountBalanceAnchor {
   anchor_date DateTime
   description String?
   created_at  DateTime @default(now())
-
-  // Relationships
-  tenant  Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  account     Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@map("account_balance_anchors")
 }
@@ -146,33 +118,21 @@ model SpendingGoal {
   id                        String   @id @default(cuid())
   tenant_id                 String
   name                      String
-  goal_type                 String   // maximum, minimum
+  goal_type                 String
   target_amount             Decimal  @db.Decimal(12, 2)
-  timeframe                 String   // monthly, quarterly, bi-annual, annual
+  timeframe                 String
   start_date                DateTime
   end_date                  DateTime
-  status                    String   @default("active") // active, cancelled, expired
+  status                    String   @default("active")
   alert_warning_threshold   Int      @default(80)
   alert_critical_threshold  Int      @default(90)
-
-  // Criteria (simplified approach - arrays instead of separate tables)
   criteria_category_ids     Int[]    @default([])
   criteria_account_ids      Int[]    @default([])
   criteria_recurring        Boolean?
-  criteria_transaction_type String   // INCOME, EXPENSE, TRANSFER
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  // Relationships
-  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  criteria_transaction_type String
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+  tenant                    Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@map("spending_goals")
 }
-
-// ============================================================================
-// INDEXES FOR PERFORMANCE
-// ============================================================================
-
-// Tenant isolation indexes (critical for performance)
-// These will be added after basic schema is working

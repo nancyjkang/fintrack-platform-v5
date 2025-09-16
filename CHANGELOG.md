@@ -1,4 +1,27 @@
-# Changelog
+# FinTrack v5 - Changelog
+
+## v5.0.1 - 2025-09-16
+
+**Status**: 🟡 Ready for Deployment
+
+### ✨ New Features
+- Intelligent seed generation with configurable parameters
+- Direct Vercel CLI deployment workflow
+- Enhanced transaction management UI
+
+### 🐛 Bug Fixes  
+- Resolved TypeScript compilation errors in CI/CD
+- Fixed date handling consistency across components
+- Improved Prisma type compatibility
+
+### 🔧 Technical Improvements
+- Enhanced code quality with ESLint rules
+- Improved test reliability and coverage
+- Comprehensive deployment documentation
+
+**Live Demo**: [URL will be updated after deployment]
+
+---
 
 All notable changes to FinTrack v5 will be documented in this file.
 
