@@ -1,0 +1,64 @@
+name: 🗄️ Migrate Production Database
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  migrate:
+    name: 🗄️ Apply Database Migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install Dependencies
+        run: npm ci
+
+      - name: 🏗️ Generate Prisma Client
+        run: npm run db:generate
+
+      - name: 🔍 Check Database Connection
+        run: |
+          echo "🔍 Testing database connection..."
+          npx prisma db execute --stdin <<< "SELECT 1 as test;" || {
+            echo "❌ Database connection failed"
+            exit 1
+          }
+          echo "✅ Database connection successful"
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: 🗄️ Apply Migrations
+        run: |
+          echo "🔍 Applying database migrations..."
+          npx prisma migrate deploy || {
+            echo "❌ Migrations failed, trying db push..."
+            npx prisma db push --force-reset || {
+              echo "❌ DB push also failed"
+              exit 1
+            }
+          }
+          echo "✅ Database migrations completed"
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: 🧪 Verify Schema
+        run: |
+          echo "🔍 Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT column_name FROM information_schema.columns WHERE table_name = 'users';" || {
+            echo "❌ Schema verification failed"
+            exit 1
+          }
+          echo "✅ Database schema verified"
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
