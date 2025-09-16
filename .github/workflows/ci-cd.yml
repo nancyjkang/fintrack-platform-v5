@@ -60,11 +60,17 @@ jobs:
         run: npm run test:coverage
         env:
           DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+          NEXTAUTH_SECRET: test-nextauth-secret-for-ci-testing-only
+          NEXTAUTH_URL: http://localhost:3000
 
       - name: 🏗️ Build Application
         run: npm run build
         env:
           DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+          NEXTAUTH_SECRET: test-nextauth-secret-for-ci-testing-only
+          NEXTAUTH_URL: http://localhost:3000
 
       - name: 📊 Upload Coverage Reports
         uses: codecov/codecov-action@v3
