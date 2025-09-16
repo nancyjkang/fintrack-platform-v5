@@ -4,6 +4,14 @@
 
 The Intelligent Seed Generation feature creates realistic financial data for testing and demonstration purposes. Unlike static seed files, this system generates dynamic, configurable data based on user-specified parameters.
 
+**Status**: ✅ **COMPLETED** (September 16, 2025)
+
+## 📚 **Documentation**
+
+- **[Usage Guide](./USAGE_GUIDE.md)** - Complete guide on how to regenerate seed data
+- **[Planning Document](./planning.md)** - Feature requirements and implementation details
+- **[Configuration File](../../../prisma/seed-config.json)** - JSON configuration for seed generation
+
 ## Features
 
 ### 🎯 **Configurable Parameters**
@@ -30,17 +38,17 @@ interface SeedConfig {
     startDate: Date;
     endDate: Date;
   };
-  
+
   // Categories to include (from default-categories.ts)
   categories: {
     income: string[];      // e.g., ['Salary', 'Side Hustle']
     expenses: string[];    // e.g., ['Food & Dining', 'Bills & Utilities']
     transfers: string[];   // e.g., ['Credit Card Payment', 'Roth IRA']
   };
-  
+
   // Account configuration
   accounts: AccountConfig[];
-  
+
   // User/tenant information
   user: {
     email: string;
@@ -58,7 +66,7 @@ interface AccountConfig {
   netWorthCategory: 'ASSET' | 'LIABILITY' | 'EXCLUDED';
   initialBalance: number;
   color: string;
-  
+
   // Transaction generation rules
   transactionRules?: {
     primarySpendingAccount?: boolean;  // Main account for expenses
