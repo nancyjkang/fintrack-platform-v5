@@ -73,6 +73,14 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: ✅ API complete ✅ Core UI complete ✅ Category filtering ✅ Dynamic text colors ✅ Summary improvements. Remaining: bulk selection, column reordering, form restructure.
   - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
 
+- **Vercel CLI Deployment System** - ✅ Complete
+  - **Estimate**: 1 day | **Actual**: 1 day
+  - **Completed**: 2025-09-16 15:00
+  - **Last Updated**: 2025-09-16
+  - **Dependencies**: None
+  - **Notes**: **DEPLOYMENT INFRASTRUCTURE** ✅ 3-step deployment process (pre-deploy → release → deploy) based on proven v4.1 workflow. Replaces GitHub Actions complexity with direct Vercel CLI for immediate feedback and clear error messages.
+  - **Documentation**: [Vercel CLI Guide](docs/deployment/VERCEL_CLI_DEPLOYMENT.md)
+
 - **Account Balance History** - 📋 Ready
   - **Estimate**: 2 days
   - **Dependencies**: Account Management
@@ -123,6 +131,12 @@ This document contains the prioritized list of all features to be implemented, s
   - **Estimate**: 1 day
   - **Dependencies**: None
   - **Notes**: Complete auth flow
+
+- **Intelligent Seed Generation** - 📋 Planned
+  - **Estimate**: 2.5 days
+  - **Dependencies**: None (uses existing schema)
+  - **Notes**: Configurable realistic financial data generation for testing/demos
+  - **Planning**: [docs/features/intelligent-seed-generation/planning.md](features/intelligent-seed-generation/planning.md)
 
 ---
 

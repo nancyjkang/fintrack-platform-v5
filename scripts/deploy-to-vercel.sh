@@ -1,164 +1,173 @@
 #!/bin/bash
 
-# FinTrack v5 Deployment Script for Vercel
-# Handles production and preview deployments with proper validation
+# FinTrack v5 - Production Deployment Script
+# STEP 3 of 3-step deployment process  
+# Based on proven v4.1 deployment workflow
 
 set -e  # Exit on any error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+echo "🚀 STEP 3: Deploy to Production"
+echo "==============================="
+echo ""
 
-# Configuration
-PROJECT_NAME="fintrack-platform-v5"
-VERCEL_ORG="fintrack"  # Update with your Vercel org
-
-# Parse command line arguments
-PREVIEW_MODE=false
-FORCE_DEPLOY=false
-
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    --preview)
-      PREVIEW_MODE=true
-      shift
-      ;;
-    --force)
-      FORCE_DEPLOY=true
-      shift
-      ;;
-    *)
-      echo -e "${RED}Unknown option: $1${NC}"
-      exit 1
-      ;;
-  esac
-done
-
-echo -e "${BLUE}🚀 FinTrack v5 Deployment Script${NC}"
-echo "=================================="
-
-# Check if Vercel CLI is installed
-if ! command -v vercel &> /dev/null; then
-    echo -e "${RED}❌ Vercel CLI is not installed${NC}"
-    echo "Install it with: npm install -g vercel"
+# Check if we're in the right directory
+if [ ! -f "package.json" ]; then
+    echo "❌ Error: Not in project root directory"
     exit 1
 fi
 
-# Check if we're logged in to Vercel
-if ! vercel whoami &> /dev/null; then
-    echo -e "${RED}❌ Not logged in to Vercel${NC}"
-    echo "Login with: vercel login"
-    exit 1
-fi
-
-# Get current version from package.json
+# Get version from package.json
 VERSION=$(node -p "require('./package.json').version")
-echo -e "${BLUE}📦 Version: ${VERSION}${NC}"
+RELEASE_DIR="docs/releases/v$VERSION"
 
-# Pre-deployment checks (skip if force deploy)
-if [ "$FORCE_DEPLOY" = false ]; then
-    echo -e "${YELLOW}🔍 Running pre-deployment checks...${NC}"
-
-    # Run CI checks
-    npm run ci-check
-
-    # Check git status
-    node scripts/check-git-status.js
-
-    # Create backup
-    npm run backup-data
-
-    # Validate data integrity
-    npm run validate-data
-
-    echo -e "${GREEN}✅ Pre-deployment checks passed${NC}"
-else
-    echo -e "${YELLOW}⚠️  Skipping pre-deployment checks (force deploy)${NC}"
-fi
-
-# Generate release documentation
-npm run generate-release
-
-# Deploy based on mode
-if [ "$PREVIEW_MODE" = true ]; then
-    echo -e "${YELLOW}🔄 Deploying preview build...${NC}"
-    vercel --yes
-    DEPLOYMENT_URL=$(vercel ls --meta | head -n 1 | awk '{print $2}')
-else
-    echo -e "${GREEN}🚀 Deploying to production...${NC}"
-    vercel --prod --yes
-    DEPLOYMENT_URL="https://${PROJECT_NAME}.vercel.app"
-fi
-
-# Wait for deployment to be ready
-echo -e "${BLUE}⏳ Waiting for deployment to be ready...${NC}"
-sleep 10
-
-# Basic health check
-echo -e "${BLUE}🏥 Running health checks...${NC}"
-if curl -f -s "${DEPLOYMENT_URL}/api/health" > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Health check passed${NC}"
-else
-    echo -e "${YELLOW}⚠️  Health check endpoint not available (this is normal for new deployments)${NC}"
-fi
-
-# Test basic pages
-if curl -f -s "${DEPLOYMENT_URL}" > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Homepage accessible${NC}"
-else
-    echo -e "${RED}❌ Homepage not accessible${NC}"
+# Verify previous steps completed
+if [ ! -d "$RELEASE_DIR" ]; then
+    echo "❌ Error: Release documentation not found"
+    echo "💡 Run 'npm run release' first (STEP 2)"
     exit 1
 fi
 
-# Create git tag for production deployments
-if [ "$PREVIEW_MODE" = false ]; then
-    TAG_NAME="v${VERSION}"
-    if git tag -l | grep -q "^${TAG_NAME}$"; then
-        echo -e "${YELLOW}⚠️  Tag ${TAG_NAME} already exists${NC}"
-    else
-        git tag "${TAG_NAME}"
-        echo -e "${GREEN}✅ Created git tag: ${TAG_NAME}${NC}"
+echo "📦 Deploying FinTrack v$VERSION to production"
+echo "🔗 Target: https://fintrack-platform-v5.vercel.app"
+echo ""
 
-        # Push tag to remote
-        if git remote | grep -q origin; then
-            git push origin "${TAG_NAME}"
-            echo -e "${GREEN}✅ Pushed tag to remote${NC}"
-        fi
-    fi
+# Final confirmation
+read -p "🚨 Deploy to PRODUCTION? This will update the live site. (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "❌ Production deployment cancelled"
+    exit 1
 fi
 
-# Success message
-echo ""
-echo -e "${GREEN}🎉 Deployment successful!${NC}"
-echo -e "${BLUE}🌐 URL: ${DEPLOYMENT_URL}${NC}"
-echo -e "${BLUE}📝 Version: ${VERSION}${NC}"
+# Final git status check
+echo "🔍 Final git status check..."
+if [ -n "$(git status --porcelain)" ]; then
+    echo "❌ Error: Uncommitted changes detected"
+    echo "💡 Commit all changes before deployment"
+    git status --short
+    exit 1
+fi
+echo "  ✅ Git working directory is clean"
 
-if [ "$PREVIEW_MODE" = true ]; then
-    echo -e "${YELLOW}📋 This is a preview deployment${NC}"
-else
-    echo -e "${GREEN}🚀 This is a production deployment${NC}"
+# Final build check
+echo "🔍 Final production build check..."
+if ! npm run build > /dev/null 2>&1; then
+    echo "❌ Error: Production build failed"
+    echo "💡 Run 'npm run build' to see detailed errors"
+    exit 1
+fi
+echo "  ✅ Production build successful"
+
+# Create release tag
+TIMESTAMP=$(date +%s)
+RELEASE_TAG="v$VERSION-$TIMESTAMP"
+echo "🏷️  Creating release tag: $RELEASE_TAG"
+git tag -a "$RELEASE_TAG" -m "Release v$VERSION - $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  ✅ Release tag created: $RELEASE_TAG"
+
+# Deploy to Vercel
+echo "🚀 Deploying to Vercel production..."
+DEPLOY_OUTPUT=$(vercel --prod 2>&1)
+DEPLOY_EXIT_CODE=$?
+
+if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+    echo "❌ Error: Vercel deployment failed"
+    echo "$DEPLOY_OUTPUT"
+    echo ""
+    echo "🧹 Cleaning up failed deployment..."
+    git tag -d "$RELEASE_TAG" 2>/dev/null || true
+    exit 1
 fi
 
+# Extract deployment URL from Vercel output
+DEPLOY_URL=$(echo "$DEPLOY_OUTPUT" | grep -E "https://.*\.vercel\.app" | tail -1 | sed 's/.*\(https:\/\/[^[:space:]]*\).*/\1/')
+
+if [ -z "$DEPLOY_URL" ]; then
+    echo "⚠️  Warning: Could not extract deployment URL from Vercel output"
+    DEPLOY_URL="https://fintrack-platform-v5.vercel.app"
+fi
+
+echo "  ✅ Deployment successful!"
+echo "  🔗 Live URL: $DEPLOY_URL"
+
+# Update documentation with deployment URL
+echo "📝 Updating documentation with deployment URL..."
+
+# Update main CHANGELOG.md
+sed -i.bak "s|\[URL will be updated after deployment\]|$DEPLOY_URL|g" CHANGELOG.md
+rm CHANGELOG.md.bak
+
+# Update release CHANGELOG.md
+sed -i.bak "s|\[URL will be updated after deployment\]|$DEPLOY_URL|g" "$RELEASE_DIR/CHANGELOG.md"
+rm "$RELEASE_DIR/CHANGELOG.md.bak"
+
+# Update deployment notes
+sed -i.bak "s|\[Will be updated during deployment\]|$(date '+%Y-%m-%d %H:%M:%S UTC')|g" "$RELEASE_DIR/DEPLOYMENT_NOTES.md"
+sed -i.bak "s|\[Will be created during deployment\]|$RELEASE_TAG|g" "$RELEASE_DIR/DEPLOYMENT_NOTES.md"
+rm "$RELEASE_DIR/DEPLOYMENT_NOTES.md.bak"
+
+# Create/update deployment log
+DEPLOYMENT_LOG="docs/deployment/DEPLOYMENT_LOG.md"
+mkdir -p "docs/deployment"
+
+if [ ! -f "$DEPLOYMENT_LOG" ]; then
+    echo "# FinTrack v5 - Deployment History" > "$DEPLOYMENT_LOG"
+    echo "" >> "$DEPLOYMENT_LOG"
+fi
+
+# Add this deployment to the log
+cat > temp_deployment.md << EOF
+## v$VERSION - $(date '+%Y-%m-%d')
+- **Deployed**: $(date '+%Y-%m-%d %H:%M:%S UTC')
+- **Live URL**: $DEPLOY_URL
+- **Git Tag**: $RELEASE_TAG
+- **Git Commit**: $(git rev-parse --short HEAD)
+- **Status**: ✅ DEPLOYED SUCCESSFULLY
+- **Rollback Command**: \`vercel rollback --previous\`
+
+EOF
+
+# Prepend to deployment log (after header)
+head -2 "$DEPLOYMENT_LOG" > temp_header.md
+cat temp_deployment.md >> temp_header.md
+tail -n +3 "$DEPLOYMENT_LOG" >> temp_header.md
+mv temp_header.md "$DEPLOYMENT_LOG"
+rm temp_deployment.md
+
+echo "  ✅ Documentation updated with deployment URL"
+
+# Commit documentation updates
+echo "📝 Committing documentation updates..."
+git add CHANGELOG.md "$RELEASE_DIR/" "$DEPLOYMENT_LOG"
+git commit -m "docs: update deployment URLs for v$VERSION
+
+- Live URL: $DEPLOY_URL
+- Release tag: $RELEASE_TAG
+- Deployment: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+
+# Push release tag and documentation updates
+echo "📤 Pushing release tag and documentation..."
+git push origin main
+git push origin "$RELEASE_TAG"
+
 echo ""
-echo "Next steps:"
-echo "1. Test the deployment thoroughly"
-echo "2. Monitor logs and performance"
-echo "3. Update documentation if needed"
-
-# Save deployment info
-DEPLOYMENT_INFO="{
-  \"version\": \"${VERSION}\",
-  \"url\": \"${DEPLOYMENT_URL}\",
-  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
-  \"preview\": ${PREVIEW_MODE},
-  \"commit\": \"$(git rev-parse HEAD)\"
-}"
-
-mkdir -p deployments
-echo "${DEPLOYMENT_INFO}" > "deployments/latest.json"
-echo "${DEPLOYMENT_INFO}" > "deployments/deployment-${VERSION}.json"
-
-echo -e "${GREEN}✅ Deployment info saved to deployments/latest.json${NC}"
+echo "🎉 DEPLOYMENT COMPLETE!"
+echo "======================"
+echo ""
+echo "📊 Deployment Summary:"
+echo "   📦 Version: v$VERSION"
+echo "   🔗 Live URL: $DEPLOY_URL"
+echo "   🏷️  Release Tag: $RELEASE_TAG"
+echo "   📝 Documentation: Updated automatically"
+echo "   ⏰ Deployed: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+echo ""
+echo "🧪 Next Steps:"
+echo "   1. Test the live application: $DEPLOY_URL"
+echo "   2. Verify all functionality works"
+echo "   3. Monitor for any issues"
+echo ""
+echo "🛡️  Rollback Commands (if needed):"
+echo "   Quick rollback: vercel rollback --previous"
+echo "   Git rollback: git reset --hard $RELEASE_TAG~1 && vercel --prod --force"
+echo ""
+echo "📋 Deployment completed successfully! 🚀"
