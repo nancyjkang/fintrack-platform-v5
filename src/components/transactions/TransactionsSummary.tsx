@@ -51,8 +51,9 @@ export default function TransactionsSummary({ transactions, filters }: Transacti
       .filter(t => t.type === 'TRANSFER')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    // Calculate net value (income - expenses)
-    const netValue = income - expenses;
+    // Calculate net value (income + expenses + transfers)
+    // Note: expenses are negative, transfers can be positive or negative
+    const netValue = income + expenses + transfers;
 
     return {
       totalTransactions,

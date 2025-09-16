@@ -303,11 +303,8 @@ export class AccountService extends BaseService {
         // the MVP accounting system's calculateAccountBalance() function
         const currentBalance = Number(account.balance)
 
-        if (account.net_worth_category === 'ASSET') {
-          totalNetWorth += currentBalance // Add assets
-        } else if (account.net_worth_category === 'LIABILITY') {
-          totalNetWorth -= Math.abs(currentBalance) // Subtract liabilities
-        }
+        // Add balance as-is: assets are positive, liabilities are negative
+        totalNetWorth += currentBalance
       }
 
       return totalNetWorth

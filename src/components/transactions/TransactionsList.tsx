@@ -246,14 +246,16 @@ export default function TransactionsList({
     const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(Math.abs(amount));
+    }).format(amount); // Display amount as-is from database
 
     if (type === 'INCOME') {
-      return <span className="text-green-600 font-medium">+{formatted}</span>;
+      return <span className="text-green-600 font-medium">{formatted}</span>;
     } else if (type === 'EXPENSE') {
-      return <span className="text-red-600 font-medium">-{formatted}</span>;
+      return <span className="text-red-600 font-medium">{formatted}</span>;
     } else {
-      return <span className="text-blue-600 font-medium">{formatted}</span>;
+      // TRANSFER: show amount as-is with appropriate color based on sign
+      const isPositive = amount > 0;
+      return <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>{formatted}</span>;
     }
   };
 

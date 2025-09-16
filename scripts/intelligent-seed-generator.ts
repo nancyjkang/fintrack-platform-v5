@@ -87,7 +87,7 @@ function parseIntelligentDate(dateStr: string): Date {
         return isNegative ? subtractDays(today, num) : addDays(today, num)
       case 'month':
       case 'months':
-        const monthDate = createUTCDate(today.getFullYear(), today.getMonth(), today.getDate())
+        const monthDate = createUTCDate(today.getFullYear(), today.getMonth(), today.getDate())!
         monthDate.setMonth(monthDate.getMonth() + (isNegative ? -num : num))
         return monthDate
       case 'year':
@@ -173,9 +173,10 @@ function generateTransactionAmount(
 
   // Apply category type multiplier
   let amount = baseAmount
-  if (categoryType === 'EXPENSE' || categoryType === 'TRANSFER') {
-    amount = -Math.abs(amount) // Ensure expenses and transfers are negative
+  if (categoryType === 'EXPENSE') {
+    amount = -amount // Ensure expenses are negative (amount is always positive from baseAmount)
   }
+  // Note: TRANSFER amounts are handled separately in paired transactions
 
   // Round to 2 decimal places
   return Math.round(amount * 100) / 100
@@ -220,8 +221,9 @@ function generateTransactions(
     const dailyTransactionCount = Math.floor(Math.random() * 6)
 
     for (let i = 0; i < dailyTransactionCount; i++) {
-      // Pick a random category
-      const category = config.categories[Math.floor(Math.random() * config.categories.length)]
+      // Pick a random category (exclude TRANSFER categories - they're handled separately)
+      const nonTransferCategories = config.categories.filter(cat => cat.type !== 'TRANSFER')
+      const category = nonTransferCategories[Math.floor(Math.random() * nonTransferCategories.length)]
       const categoryRecord = categories[category.name]
 
       if (!categoryRecord) continue
@@ -411,13 +413,16 @@ async function generateSeedData() {
 
           const transferId = `transfer-${Date.now()}-${Math.random()}`
 
+          // Find the appropriate category for this transfer type
+          const categoryId = categoryRecords[transferConfig.name]?.id || categoryRecords['Credit Card Payment']?.id
+
           // Create paired transactions
           await prisma.transaction.createMany({
             data: [
               {
                 tenant_id: tenant.id,
                 account_id: fromAccount.id,
-                category_id: categoryRecords['System Transfer']?.id || categoryRecords['Credit Card Payment']?.id,
+                category_id: categoryId,
                 amount: -transferAmount,
                 description: transferConfig.description,
                 date: createUTCDate(transferDate.getFullYear(), transferDate.getMonth(), transferDate.getDate()),
@@ -427,7 +432,7 @@ async function generateSeedData() {
               {
                 tenant_id: tenant.id,
                 account_id: toAccount.id,
-                category_id: categoryRecords['System Transfer']?.id || categoryRecords['Credit Card Payment']?.id,
+                category_id: categoryId,
                 amount: transferAmount,
                 description: transferConfig.description,
                 date: createUTCDate(transferDate.getFullYear(), transferDate.getMonth(), transferDate.getDate()),

@@ -68,6 +68,16 @@ Users can create, view, edit, and delete their financial transactions. This enab
 - **Selected row styling** with blue tint
 - **Bulk action header** when items selected
 
+#### **Amount Display Requirements:**
+- ✅ **CRITICAL**: Display amount **exactly as stored in database** (preserve sign)
+- **No Math.abs()**: Never strip the sign from amounts
+- **Transfer Logic**: For TRANSFER type transactions:
+  - **Positive amounts**: Display in green (money coming in)
+  - **Negative amounts**: Display in red (money going out)
+  - **Both sides visible**: Users must see both debit (-$500) and credit (+$500) transactions
+- **Database Values**: Amount field contains the actual signed value (-1126.32 or +1126.32)
+- **UI Formatting**: Use `Intl.NumberFormat` with original amount, not `Math.abs(amount)`
+
 ### **2. TransactionsFilters - MEDIUM PRIORITY**
 
 #### **Layout Changes:**
