@@ -85,14 +85,38 @@ jobs:
 
       - name: 🧪 Run Tests
         run: |
-          echo "🔍 Starting test execution with detailed output..."
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          echo "Environment variables:"
-          echo "  NODE_ENV: $NODE_ENV"
-          echo "  DATABASE_URL: $DATABASE_URL"
-          echo "Running tests with verbose output..."
-          npm run test -- --maxWorkers=2 --forceExit --verbose --no-coverage
+          echo "🔍 MAXIMUM DEBUG: Starting test execution..."
+          echo "=== ENVIRONMENT ==="
+          echo "Node: $(node --version)"
+          echo "NPM: $(npm --version)"
+          echo "PWD: $(pwd)"
+          echo "USER: $(whoami)"
+          
+          echo "=== ENV VARS ==="
+          echo "NODE_ENV: $NODE_ENV"
+          echo "DATABASE_URL: $DATABASE_URL"
+          echo "JWT_SECRET: ${JWT_SECRET:0:10}..."
+          
+          echo "=== FILES ==="
+          echo "package.json: $(test -f package.json && echo 'EXISTS' || echo 'MISSING')"
+          echo "jest.config.js: $(test -f jest.config.js && echo 'EXISTS' || echo 'MISSING')"
+          
+          echo "=== JEST CONFIG ==="
+          cat jest.config.js 2>/dev/null || echo "No jest config found"
+          
+          echo "=== RUNNING TESTS ==="
+          set -x
+          npm run test -- --maxWorkers=1 --forceExit --verbose --no-coverage --runInBand 2>&1 || {
+            EXIT_CODE=$?
+            echo "❌ TESTS FAILED WITH EXIT CODE: $EXIT_CODE"
+            echo "=== EMERGENCY DEBUG ==="
+            echo "Running simple health test..."
+            npm run test -- src/__tests__/health.test.ts --verbose 2>&1 || true
+            echo "=== PROCESS INFO ==="
+            ps aux | head -20 || true
+            exit $EXIT_CODE
+          }
+          set +x
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
