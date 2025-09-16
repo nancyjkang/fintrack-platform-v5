@@ -50,14 +50,49 @@ jobs:
       - name: 🏗️ Generate Prisma Client
         run: npm run db:generate
 
+      - name: 🔍 Debug Environment
+        run: |
+          echo "🔍 Environment debugging information:"
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Working directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo "Package.json scripts:"
+          cat package.json | grep -A 20 '"scripts"' || true
+          echo "Jest config:"
+          cat jest.config.js || echo "No jest.config.js found"
+          echo "TypeScript config:"
+          cat tsconfig.json | head -20 || echo "No tsconfig.json found"
+
       - name: 🔍 Lint Code
-        run: npm run lint
+        run: |
+          echo "🔍 Running ESLint with detailed output..."
+          npm run lint || {
+            echo "❌ Linting failed. Here are the details:"
+            npm run lint --verbose 2>&1 || true
+            exit 1
+          }
 
       - name: 🎯 Type Check
-        run: npm run type-check
+        run: |
+          echo "🔍 Running TypeScript compilation check..."
+          npm run type-check || {
+            echo "❌ TypeScript compilation failed. Here are the details:"
+            npx tsc --noEmit --listFiles --extendedDiagnostics 2>&1 || true
+            exit 1
+          }
 
       - name: 🧪 Run Tests
-        run: npm run test -- --maxWorkers=2 --forceExit
+        run: |
+          echo "🔍 Starting test execution with detailed output..."
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Environment variables:"
+          echo "  NODE_ENV: $NODE_ENV"
+          echo "  DATABASE_URL: $DATABASE_URL"
+          echo "Running tests with verbose output..."
+          npm run test -- --maxWorkers=2 --forceExit --verbose --no-coverage
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
