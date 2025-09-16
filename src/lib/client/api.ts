@@ -194,6 +194,10 @@ class ApiClient {
     return response
   }
 
+  async getCurrentUser(): Promise<ApiResponse<{ user: User; tenant: Tenant }>> {
+    return this.request<{ user: User; tenant: Tenant }>('/auth/me')
+  }
+
   // Account methods
   async getAccounts(filters?: {
     type?: string

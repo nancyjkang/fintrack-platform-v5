@@ -33,21 +33,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (api.isAuthenticated()) {
         // Try to fetch user data to verify token is still valid
         try {
-          const response = await api.getAccounts()
-          if (response.success) {
-            // Token is valid, but we need user data
-            // For now, we'll assume the user is authenticated
-            // In a real app, you'd have a /me endpoint
-            setUser({
-              id: 'current-user',
-              email: 'user@example.com',
-              emailVerified: true
-            })
-            setTenant({
-              id: 'current-tenant',
-              name: 'User Finances',
-              type: 'PERSONAL'
-            })
+          const response = await api.getCurrentUser()
+          if (response.success && response.data) {
+            // Token is valid and we have real user data
+            setUser(response.data.user)
+            setTenant(response.data.tenant)
           } else {
             // Token is invalid, clear it
             await api.logout()
