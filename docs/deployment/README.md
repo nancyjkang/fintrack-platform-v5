@@ -4,12 +4,13 @@ This directory contains all deployment-related documentation including CI/CD wor
 
 ## 🚀 Deployment Guides
 
-### **[CI_CD_WORKFLOW.md](./CI_CD_WORKFLOW.md)**
-**Complete CI/CD pipeline documentation**
-- GitHub Actions workflow configuration
-- Pre-commit, commit-msg, and pre-push hooks
-- Automated testing and deployment
-- Release management and versioning
+### **[CI/CD Pipeline Documentation](../features/ci-cd-pipeline/)**
+**Complete CI/CD pipeline documentation** *(Updated Location)*
+- **[Implementation Guide](../features/ci-cd-pipeline/implementation.md)** - Complete setup + best practices
+- **[Execution Log](../features/ci-cd-pipeline/execution-log.md)** - Real-world deployment experience
+- **[Planning Document](../features/ci-cd-pipeline/planning.md)** - Original requirements
+
+*Note: Old `CI_CD_WORKFLOW.md` has been [deprecated](./CI_CD_WORKFLOW_DEPRECATED.md) and consolidated.*
 
 ### **[DATABASE_DEPLOYMENT_GUIDE.md](./DATABASE_DEPLOYMENT_GUIDE.md)**
 **Database deployment strategies and best practices**
