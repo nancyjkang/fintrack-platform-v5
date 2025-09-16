@@ -23,8 +23,10 @@ export default function ReportsPage() {
         icon={BarChart3}
         title="No reports available"
         description="Generate detailed financial reports and insights once you have accounts and transactions."
-        actionLabel="Generate Your First Report"
-        onAction={handleGenerateReport}
+        action={{
+          label: "Generate Your First Report",
+          onClick: handleGenerateReport
+        }}
       />
     </div>
   )

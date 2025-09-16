@@ -41,14 +41,6 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: Phase 2 of database rebuild - service layer architecture + API updates + comprehensive unit tests
   - **Documentation**: [Planning](docs/features/api-updates-for-new-schema/planning.md) | [Implementation](docs/features/api-updates-for-new-schema/implementation.md) | [Execution Log](docs/features/api-updates-for-new-schema/execution-log.md)
 
-- **Transaction CRUD** - ✅ Complete (API) / 📋 Ready (UI)
-  - **Estimate**: 4 days (API: 0.5 days actual, UI: 3.5 days remaining)
-  - **Completed**: 2025-09-15 14:50 (API portion)
-  - **Last Updated**: 2025-09-15
-  - **Dependencies**: API Updates for New Schema ✅
-  - **Notes**: API portion complete with service layer. UI implementation ready to start.
-  - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
-
 - **Date Handling Utilities** - ✅ Complete
   - **Estimate**: 2 days | **Actual**: 2 days
   - **Completed**: 2025-09-15
@@ -57,25 +49,41 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: **CRITICAL FOUNDATION** ✅ **COMPLETED** - Comprehensive timezone-safe date utilities implemented. Zero date violations remaining in codebase. ESLint rules active.
   - **Documentation**: [Planning](docs/features/date-handling-utilities/planning.md) | [Best Practices](docs/architecture/date-handling-best-practices.md)
 
-- **Account Management UI** - 📋 Ready
-  - **Estimate**: 3 days
-  - **Dependencies**: Transaction CRUD
-  - **Notes**: Complete account views and forms
-
 - **Category Management** - ✅ Complete
   - **Estimate**: 2 days | **Actual**: 1 day
-  - **Completed**: 2025-01-15
+  - **Completed**: 2025-01-15 17:45
   - **Last Updated**: 2025-01-15
   - **Dependencies**: Transaction CRUD (paused to implement this first)
   - **Notes**: Complete category CRUD operations with merge functionality, smart defaults, and transaction count display
   - **Documentation**: [Planning](docs/features/category-management/planning.md) | [Implementation](docs/features/category-management/implementation.md)
 
+- **Account Management** - ✅ Complete
+  - **Estimate**: 3 days (actual: 2 days)
+  - **Completed**: 2025-01-16
+  - **Last Updated**: 2025-01-16
+  - **Dependencies**: API Updates for New Schema ✅
+  - **Notes**: Complete account CRUD operations with UI, smart delete logic, and v4.1 layout compatibility
+  - **Documentation**: [Planning](docs/features/account-management/planning.md) | [Implementation](docs/features/account-management/implementation.md)
+
+- **Transaction CRUD** - ✅ Complete (API) / 📋 Ready (UI)
+  - **Estimate**: 4 days (API: 0.5 days actual, UI: 3.5 days remaining)
+  - **Completed**: 2025-09-15 14:50 (API portion)
+  - **Last Updated**: 2025-09-15
+  - **Dependencies**: API Updates for New Schema ✅
+  - **Notes**: API portion complete with service layer. UI implementation ready to start.
+  - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
+
+- **Account Balance History** - 📋 Ready
+  - **Estimate**: 2 days
+  - **Dependencies**: Account Management
+  - **Notes**: Charts and balance tracking
+
+### **⚡ Priority 2: Important Features (Next Up)**
+
 - **CSV Import System** - 📋 Ready
   - **Estimate**: 5 days
   - **Dependencies**: Transaction CRUD, Categories
   - **Notes**: File upload, parsing, duplicate detection
-
-### **⚡ Priority 2: Important Features (Next Up)**
 
 - **Transaction Filtering** - 📋 Ready
   - **Estimate**: 3 days
@@ -87,10 +95,7 @@ This document contains the prioritized list of all features to be implemented, s
   - **Dependencies**: Transaction CRUD, Filtering
   - **Notes**: Bulk edit, delete, categorize
 
-- **Account Balance History** - 📋 Ready
-  - **Estimate**: 2 days
-  - **Dependencies**: Account Management
-  - **Notes**: Charts and balance tracking
+
 
 - **Recurring Transactions** - 📋 Ready
   - **Estimate**: 4 days
@@ -360,9 +365,9 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 - **Value**: Focus on high-impact user features first
 
 ### **Current Sprint Progress:**
-- **Features Completed**: 5/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅, Date Handling Utilities ✅, Category Management ✅)
-- **Estimated Completion**: 1 week for remaining Priority 1 features
-- **Risk Level**: Very Low (strong foundation + date safety established, category dependencies resolved)
+- **Features Completed**: 6/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅, Date Handling Utilities ✅, Category Management ✅, Account Management ✅)
+- **Estimated Completion**: 1 week for remaining Priority 1 features (Transaction CRUD UI, Account Balance History)
+- **Risk Level**: Very Low (strong foundation + date safety established, category and account management complete)
 
 ---
 

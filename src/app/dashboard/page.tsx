@@ -38,7 +38,7 @@ export default function DashboardPage() {
       const response = await api.getAccounts()
 
       if (response.success && response.data) {
-        setAccounts(response.data.items)
+        setAccounts(response.data)
       } else {
         setError(response.error || 'Failed to load accounts')
       }
@@ -157,8 +157,10 @@ export default function DashboardPage() {
           icon={Building}
           title="No accounts yet"
           description="Get started by adding your first financial account to track your money and transactions."
-          actionLabel="Add Your First Account"
-          onAction={handleAddAccount}
+          action={{
+            label: "Add Your First Account",
+            onClick: handleAddAccount
+          }}
         />
       ) : filteredAccounts.length === 0 ? (
         <div className="text-center py-12">

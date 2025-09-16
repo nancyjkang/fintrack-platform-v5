@@ -29,12 +29,13 @@ describe('AccountService', () => {
     tenant_id: mockTenantId,
     name: 'Test Account',
     type: 'CHECKING',
+    net_worth_category: 'ASSET',
     balance: 1000.50,
     balance_date: new Date('2025-01-01'),
     color: '#blue',
     is_active: true,
-    created_at: new Date(),
-    updated_at: new Date(),
+    created_at: new Date('2025-01-01T00:00:00Z'),
+    updated_at: new Date('2025-01-01T00:00:00Z'),
   }
 
   beforeEach(() => {
@@ -133,6 +134,7 @@ describe('AccountService', () => {
           tenant_id: mockTenantId,
           name: 'New Account',
           type: 'SAVINGS',
+          net_worth_category: 'ASSET', // Should default to ASSET for SAVINGS
           balance: 500.25,
           balance_date: new Date('2025-01-01'),
           color: '#green',
@@ -162,6 +164,7 @@ describe('AccountService', () => {
           tenant_id: mockTenantId,
           name: 'New Account',
           type: 'SAVINGS',
+          net_worth_category: 'ASSET', // Should default to ASSET for SAVINGS
           balance: 500.25,
           balance_date: new Date('2025-01-01'),
           color: '#green',
@@ -187,7 +190,7 @@ describe('AccountService', () => {
       mockPrisma.account.update.mockResolvedValue({
         ...mockAccount,
         ...updateData,
-        updated_at: new Date()
+        updated_at: new Date('2025-01-01T00:00:00Z')
       })
 
       const result = await AccountService.updateAccount(1, mockTenantId, updateData)
@@ -327,6 +330,300 @@ describe('AccountService', () => {
     })
   })
 
+  describe('net worth category functionality', () => {
+    describe('getDefaultNetWorthCategory', () => {
+      it('should return LIABILITY for credit card accounts', async () => {
+        const creditCardData = {
+          name: 'Credit Card',
+          type: 'CREDIT_CARD',
+          balance: -500,
+          balance_date: new Date('2025-01-01'),
+          color: '#red'
+        }
+
+        mockPrisma.account.findFirst.mockResolvedValue(null)
+        mockPrisma.account.create.mockResolvedValue({
+          ...mockAccount,
+          ...creditCardData,
+          net_worth_category: 'LIABILITY'
+        })
+
+        await AccountService.createAccount(mockTenantId, creditCardData)
+
+        expect(mockPrisma.account.create).toHaveBeenCalledWith({
+          data: {
+            tenant_id: mockTenantId,
+            name: 'Credit Card',
+            type: 'CREDIT_CARD',
+            net_worth_category: 'LIABILITY',
+            balance: -500,
+            balance_date: new Date('2025-01-01'),
+            color: '#red',
+            is_active: true
+          }
+        })
+      })
+
+      it('should return LIABILITY for loan accounts', async () => {
+        const loanData = {
+          name: 'Car Loan',
+          type: 'LOAN',
+          balance: -15000,
+          balance_date: new Date('2025-01-01'),
+          color: '#orange'
+        }
+
+        mockPrisma.account.findFirst.mockResolvedValue(null)
+        mockPrisma.account.create.mockResolvedValue({
+          ...mockAccount,
+          ...loanData,
+          net_worth_category: 'LIABILITY'
+        })
+
+        await AccountService.createAccount(mockTenantId, loanData)
+
+        expect(mockPrisma.account.create).toHaveBeenCalledWith({
+          data: {
+            tenant_id: mockTenantId,
+            name: 'Car Loan',
+            type: 'LOAN',
+            net_worth_category: 'LIABILITY',
+            balance: -15000,
+            balance_date: new Date('2025-01-01'),
+            color: '#orange',
+            is_active: true
+          }
+        })
+      })
+
+      it('should return ASSET for checking accounts', async () => {
+        const checkingData = {
+          name: 'Checking',
+          type: 'CHECKING',
+          balance: 2000,
+          balance_date: new Date('2025-01-01'),
+          color: '#blue'
+        }
+
+        mockPrisma.account.findFirst.mockResolvedValue(null)
+        mockPrisma.account.create.mockResolvedValue({
+          ...mockAccount,
+          ...checkingData,
+          net_worth_category: 'ASSET'
+        })
+
+        await AccountService.createAccount(mockTenantId, checkingData)
+
+        expect(mockPrisma.account.create).toHaveBeenCalledWith({
+          data: {
+            tenant_id: mockTenantId,
+            name: 'Checking',
+            type: 'CHECKING',
+            net_worth_category: 'ASSET',
+            balance: 2000,
+            balance_date: new Date('2025-01-01'),
+            color: '#blue',
+            is_active: true
+          }
+        })
+      })
+
+      it('should allow explicit net_worth_category override', async () => {
+        const checkingAsLiabilityData = {
+          name: 'Overdraft Account',
+          type: 'CHECKING',
+          net_worth_category: 'LIABILITY' as const,
+          balance: -100,
+          balance_date: new Date('2025-01-01'),
+          color: '#red'
+        }
+
+        mockPrisma.account.findFirst.mockResolvedValue(null)
+        mockPrisma.account.create.mockResolvedValue({
+          ...mockAccount,
+          ...checkingAsLiabilityData
+        })
+
+        await AccountService.createAccount(mockTenantId, checkingAsLiabilityData)
+
+        expect(mockPrisma.account.create).toHaveBeenCalledWith({
+          data: {
+            tenant_id: mockTenantId,
+            name: 'Overdraft Account',
+            type: 'CHECKING',
+            net_worth_category: 'LIABILITY', // Explicit override
+            balance: -100,
+            balance_date: new Date('2025-01-01'),
+            color: '#red',
+            is_active: true
+          }
+        })
+      })
+    })
+
+    describe('getAccountsByNetWorthCategory', () => {
+      it('should return accounts filtered by net worth category', async () => {
+        const assetAccounts = [
+          { ...mockAccount, id: 1, name: 'Checking', net_worth_category: 'ASSET' },
+          { ...mockAccount, id: 2, name: 'Savings', net_worth_category: 'ASSET' }
+        ]
+        const allAccounts = [
+          ...assetAccounts,
+          { ...mockAccount, id: 3, name: 'Credit Card', net_worth_category: 'LIABILITY' }
+        ]
+
+        mockPrisma.account.findMany.mockResolvedValue(allAccounts)
+
+        const result = await AccountService.getAccountsByNetWorthCategory('ASSET', mockTenantId)
+
+        expect(result).toEqual(assetAccounts)
+      })
+    })
+
+    describe('calculateNetWorth', () => {
+      it('should calculate net worth correctly with mixed account types', async () => {
+        const accounts = [
+          { ...mockAccount, id: 1, balance: 5000, net_worth_category: 'ASSET' },
+          { ...mockAccount, id: 2, balance: 10000, net_worth_category: 'ASSET' },
+          { ...mockAccount, id: 3, balance: -2000, net_worth_category: 'LIABILITY' },
+          { ...mockAccount, id: 4, balance: 1000, net_worth_category: 'EXCLUDED' }
+        ]
+
+        mockPrisma.account.findMany.mockResolvedValue(accounts)
+
+        const result = await AccountService.calculateNetWorth(mockTenantId)
+
+        // Assets: 5000 + 10000 = 15000
+        // Liabilities: 2000 (absolute value)
+        // Excluded: ignored
+        // Net Worth: 15000 - 2000 = 13000
+        expect(result).toBe(13000)
+      })
+
+      it('should handle negative liability balances correctly', async () => {
+        const accounts = [
+          { ...mockAccount, id: 1, balance: 10000, net_worth_category: 'ASSET' },
+          { ...mockAccount, id: 2, balance: -3000, net_worth_category: 'LIABILITY' } // Negative balance
+        ]
+
+        mockPrisma.account.findMany.mockResolvedValue(accounts)
+
+        const result = await AccountService.calculateNetWorth(mockTenantId)
+
+        // Assets: 10000
+        // Liabilities: 3000 (absolute value of -3000)
+        // Net Worth: 10000 - 3000 = 7000
+        expect(result).toBe(7000)
+      })
+
+      it('should exclude accounts marked as EXCLUDED', async () => {
+        const accounts = [
+          { ...mockAccount, id: 1, balance: 5000, net_worth_category: 'ASSET' },
+          { ...mockAccount, id: 2, balance: 100000, net_worth_category: 'EXCLUDED' } // Large excluded amount
+        ]
+
+        mockPrisma.account.findMany.mockResolvedValue(accounts)
+
+        const result = await AccountService.calculateNetWorth(mockTenantId)
+
+        expect(result).toBe(5000) // Only the asset account
+      })
+
+      it('should return 0 for empty account list', async () => {
+        mockPrisma.account.findMany.mockResolvedValue([])
+
+        const result = await AccountService.calculateNetWorth(mockTenantId)
+
+        expect(result).toBe(0)
+      })
+    })
+  })
+
+  describe('reconcileAccount', () => {
+    beforeEach(() => {
+      // Mock the additional dependencies for reconcileAccount
+      mockPrisma.accountBalanceAnchor = {
+        create: jest.fn()
+      }
+      mockPrisma.transaction = {
+        ...mockPrisma.transaction,
+        create: jest.fn()
+      }
+    })
+
+    it('should reconcile account with adjustment transaction', async () => {
+      const reconcileData = {
+        newBalance: 1500,
+        reconcileDate: '2025-01-15',
+        adjustmentType: 'INCOME' as const
+      }
+
+      // Mock existing account
+      mockPrisma.account.findFirst.mockResolvedValue(mockAccount)
+
+      // Mock balance anchor creation
+      mockPrisma.accountBalanceAnchor.create.mockResolvedValue({
+        id: 1,
+        tenant_id: mockTenantId,
+        account_id: 1,
+        balance: 1500,
+        anchor_date: new Date('2025-01-15'),
+        description: 'Reconciled balance on 2025-01-15'
+      })
+
+      // Mock account update
+      const updatedAccount = { ...mockAccount, balance: 1500 }
+      mockPrisma.account.update.mockResolvedValue(updatedAccount)
+
+      // Mock adjustment transaction creation
+      const adjustmentTransaction = {
+        id: 1,
+        tenant_id: mockTenantId,
+        account_id: 1,
+        amount: 499.5, // 1500 - 1000.5
+        description: 'Balance Adjustment',
+        date: new Date('2025-01-15'),
+        type: 'INCOME'
+      }
+      mockPrisma.transaction.create.mockResolvedValue(adjustmentTransaction)
+
+      const result = await AccountService.reconcileAccount(1, mockTenantId, reconcileData)
+
+      expect(result.account).toEqual(updatedAccount)
+      expect(result.adjustmentTransaction).toEqual(adjustmentTransaction)
+      expect(mockPrisma.accountBalanceAnchor.create).toHaveBeenCalled()
+      expect(mockPrisma.transaction.create).toHaveBeenCalledWith({
+        data: {
+          tenant_id: mockTenantId,
+          account_id: 1,
+          amount: 499.5,
+          description: 'Balance Adjustment',
+          date: expect.any(Date),
+          type: 'INCOME',
+          category_id: null
+        }
+      })
+    })
+
+    it('should reconcile account without adjustment for small differences', async () => {
+      const reconcileData = {
+        newBalance: 1000.51, // Only 1 cent difference
+        reconcileDate: '2025-01-15'
+      }
+
+      mockPrisma.account.findFirst.mockResolvedValue(mockAccount)
+      mockPrisma.accountBalanceAnchor.create.mockResolvedValue({})
+      const updatedAccount = { ...mockAccount, balance: 1000.51 }
+      mockPrisma.account.update.mockResolvedValue(updatedAccount)
+
+      const result = await AccountService.reconcileAccount(1, mockTenantId, reconcileData)
+
+      expect(result.account).toEqual(updatedAccount)
+      expect(result.adjustmentTransaction).toBeNull()
+      expect(mockPrisma.transaction.create).not.toHaveBeenCalled()
+    })
+  })
+
   describe('error handling', () => {
     it('should handle database errors in getAccounts', async () => {
       mockPrisma.account.findMany.mockRejectedValue(new Error('Database connection failed'))
@@ -342,7 +639,7 @@ describe('AccountService', () => {
         name: 'Test',
         type: 'CHECKING',
         balance: 100,
-        balance_date: new Date(),
+        balance_date: new Date('2025-01-01T00:00:00Z'),
         color: '#blue'
       })).rejects.toThrow('Database connection failed')
     })

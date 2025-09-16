@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           // Network error or token invalid
+          console.log('Auth check failed:', error)
           await api.logout()
         }
       }
