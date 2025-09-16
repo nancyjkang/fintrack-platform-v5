@@ -3,7 +3,7 @@
 **Created**: 2025-09-16
 **Estimated Start**: 2025-09-16
 **Priority**: High (Priority 1)
-**Status**: 🔧 **IN PROGRESS** - Backend Complete, Frontend Next
+**Status**: 🔧 **IN PROGRESS** - Backend Needs Update for Individual Transaction Display
 
 ---
 
@@ -31,7 +31,7 @@ Create a comprehensive Account Balance History feature that allows users to visu
 ✓ No lint errors
 ```
 
-### **🎯 Next Phase:** Frontend implementation with Recharts integration
+### **🎯 Next Phase:** Update backend to return individual transactions for table display
 
 ## 👥 **User Impact**
 
@@ -164,6 +164,16 @@ interface BalanceHistoryData {
   };
 }
 
+interface TransactionWithBalance {
+  id: number;
+  date: string;           // YYYY-MM-DD format
+  description: string;    // Transaction description
+  amount: number;         // Transaction amount (signed)
+  balance: number;        // Account balance after this transaction
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+  category?: string;      // Transaction category
+}
+
 interface BalanceSummary {
   startingBalance: number;
   endingBalance: number;
@@ -209,6 +219,18 @@ export class AccountBalanceHistoryService extends BaseService {
     // 4. For each date, calculate balance using MVP accounting methods
     // 5. Calculate daily net amounts
     // 6. Return sorted chronologically
+  }
+
+  /**
+   * Calculate running balance for each transaction in a list
+   */
+  async calculateRunningBalances(
+    transactions: Transaction[],
+    accountId: number
+  ): Promise<TransactionWithBalance[]> {
+    // 1. Sort transactions by date ascending for calculation
+    // 2. Calculate balance after each transaction using MVP accounting methods
+    // 3. Return with running balances, sorted by date descending (newest first)
   }
 
   /**
@@ -258,6 +280,11 @@ export async function GET(
   // Returns: BalanceHistoryData[]
 }
 
+// Use existing /api/transactions endpoint with accountId filter
+// GET /api/transactions?accountId={id}&startDate={startDate}&endDate={endDate}&sortBy=date&sortOrder=desc
+// Already supports: accountId, startDate, endDate, sorting
+// Returns: Transaction[] (with account, category, member relations)
+
 // src/app/api/accounts/[id]/balance-summary/route.ts
 export async function GET(
   request: Request,
@@ -306,9 +333,10 @@ export default function BalanceHistoryPage() {
           <AccountBalanceChart />
         </div>
 
-        {/* Balance History Table */}
+        {/* Account Transactions Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          {/* Table with Date, Balance, Net Change columns */}
+          {/* Table with Date, Description, Amount, Balance columns */}
+          {/* Shows ALL individual transactions in date descending order */}
         </div>
       </div>
     </AppLayout>
@@ -359,6 +387,33 @@ export default function AccountBalanceChart({ data, accountName, height = 400 })
 ```
 
 ### **Key Implementation Details**
+
+#### **Account Transactions Table Approach**
+
+The "Account Transactions" table shows **ALL individual transactions** for the selected account with:
+
+1. **Individual Transaction Structure**:
+   ```typescript
+   // Each row represents one transaction
+   {
+     date: '2024-01-15',           // Transaction date
+     description: 'Grocery Store', // Transaction description
+     amount: -125.50,              // Transaction amount (signed)
+     balance: 2874.50              // Account balance after this transaction
+   }
+   ```
+
+2. **Transaction Ordering**:
+   ```typescript
+   // Sort transactions by date descending (newest first)
+   transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+   ```
+
+3. **Table Columns**:
+   - **Date**: Formatted as "Jan 15, 2024"
+   - **Description**: Individual transaction description
+   - **Amount**: Transaction amount (positive/negative with trend icons)
+   - **Balance**: Account balance after this transaction
 
 #### **MVP Accounting System Compliance**
 
@@ -412,7 +467,7 @@ src/
 ├── components/
 │   └── balance-history/
 │       ├── AccountBalanceChart.tsx         # Chart component
-│       ├── BalanceHistoryTable.tsx        # Table component
+│       ├── AccountTransactionsTable.tsx   # Individual transactions table component
 │       ├── BalanceHistoryFilters.tsx      # Filters component
 │       └── BalanceSummaryCards.tsx        # Summary cards component
 ├── lib/
@@ -549,9 +604,10 @@ describe('Balance History Components', () => {
     it('should maintain data integrity in transformations')
   })
 
-  describe('BalanceHistoryTable', () => {
-    it('should display balance data with proper formatting')
-    it('should sort data chronologically')
+  describe('AccountTransactionsTable', () => {
+    it('should display individual transactions with proper formatting')
+    it('should sort transactions by date descending (newest first)')
+    it('should calculate running balances correctly')
     it('should handle pagination correctly')
     it('should preserve calculation precision')
   })
@@ -694,6 +750,18 @@ const mockTransactions = [
 - [ ] Chart combines balance line with daily change bars
 - [ ] Colors indicate positive/negative changes appropriately
 - [ ] Tooltips provide detailed information on hover
+
+#### **Story 4: View All Account Transactions**
+- **As a** user
+- **I want to** see all individual transactions for the selected account
+- **So that** I can review every transaction and its impact on my balance
+
+**Acceptance Criteria:**
+- [ ] Table shows ALL individual transactions for the account
+- [ ] Transactions are sorted by date descending (newest first)
+- [ ] Each row shows transaction description, amount, and running balance
+- [ ] Balance column shows account balance after each transaction
+- [ ] Table columns: Date, Description, Amount, Balance
 
 ### **Technical Acceptance Criteria**
 

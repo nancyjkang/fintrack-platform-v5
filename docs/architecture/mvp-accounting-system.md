@@ -13,6 +13,8 @@ The FinTrack v4 MVP implements a simplified but robust accounting system that en
 - **Data consistency** - Balance and transactions are always in sync
 - **Performance optimization** - O(1) balance lookup vs O(n) calculation
 
+**IMPORTANT**: The `accounts.balance` field should **always equal** the most recent balance anchor plus any transactions after that anchor date. This maintains consistency between the two balance tracking methods.
+
 ### 2. **TRANSFER Transaction Support**
 
 **FLEXIBLE TRANSFER DESIGN**: TRANSFER operations support multiple scenarios using the `TRANSFER` transaction type:
@@ -80,7 +82,7 @@ interface AccountBalanceAnchor {
 interface Transaction {
   id: number
   accountId: number
-  amount: number         // Can be positive or negative for TRANSFER type
+  amount: number         // CRITICAL: Amount storage rules below
   description: string
   date: string          // YYYY-MM-DD format
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
@@ -90,7 +92,56 @@ interface Transaction {
 }
 ```
 
-**Note**: TRANSFER operations use the `TRANSFER` type with positive/negative amounts. The `transferAccountId` field has been removed in favor of this simpler design.
+#### **CRITICAL RULE: Transaction Amount Storage**
+
+**Transaction amounts are stored based on their actual impact on account balance:**
+
+- **INCOME**: Always stored as **positive** (`+2500`) - money coming in
+- **EXPENSE**: **Usually negative** (`-800`) for purchases, **but can be positive** (`+50`) for refunds
+- **TRANSFER**: Stored with **correct sign** (`+500` incoming, `-500` outgoing)
+
+**Key Principle**: The `amount` field represents the **actual change to the account balance**, regardless of transaction type.
+
+#### **Examples of Correct Amount Storage**
+
+```typescript
+// INCOME transaction - salary deposit
+{
+  amount: 2500,    // Positive - increases account balance
+  type: 'INCOME',
+  description: 'Monthly salary'
+}
+
+// EXPENSE transaction - typical purchase
+{
+  amount: -85.50,  // Negative - decreases account balance
+  type: 'EXPENSE',
+  description: 'Grocery shopping'
+}
+
+// EXPENSE transaction - refund (exception case)
+{
+  amount: 25.00,   // Positive - increases account balance (money back)
+  type: 'EXPENSE',
+  description: 'Refund for returned item'
+}
+
+// TRANSFER transaction - money going out
+{
+  amount: -300,    // Negative - decreases source account balance
+  type: 'TRANSFER',
+  description: 'Transfer to savings'
+}
+
+// TRANSFER transaction - money coming in
+{
+  amount: 300,     // Positive - increases destination account balance
+  type: 'TRANSFER',
+  description: 'Transfer from checking'
+}
+```
+
+**Note**: This consistent sign-based storage eliminates the need for complex logic in balance calculations. The `getTransactionBalanceImpact()` function simply returns `transaction.amount` for all transaction types.
 
 ## TRANSFER Implementation
 
@@ -246,18 +297,56 @@ async function createAccountWithInitialBalance(accountData: {
 }
 ```
 
+## Balance Consistency Rules
+
+### **Fundamental Relationship**
+
+The system maintains **dual balance tracking** with strict consistency rules:
+
+```typescript
+// CRITICAL INVARIANT: These must always be equal
+accounts.balance === latest_anchor.balance + sum(transactions_after_latest_anchor)
+```
+
+### **Balance Update Rules**
+
+1. **Transaction Operations** (Create/Update/Delete):
+   - Update `accounts.balance` immediately
+   - Balance anchors remain unchanged
+   - Maintains: `balance = anchor + post-anchor transactions`
+
+2. **Reconciliation Operations**:
+   - Create new balance anchor with corrected balance
+   - Update `accounts.balance` to match the new anchor
+   - Both values become synchronized at the reconciliation point
+
+3. **Data Integrity Validation**:
+   - System should periodically verify: `accounts.balance === calculated_balance_from_anchors`
+   - Discrepancies indicate data corruption and require reconciliation
+
+### **Source of Truth Hierarchy**
+
+For balance calculations, use this priority order:
+
+1. **Primary**: Most recent balance anchor + post-anchor transactions
+2. **Secondary**: `accounts.balance` (should equal primary, used for performance)
+3. **Fallback**: Direct sum of all transactions (used for validation)
+
 ## Account Reconciliation
 
-Account reconciliation is the process of correcting account balances by setting a new anchor balance and anchor date. This overrides all older anchors and provides a fresh starting point for balance calculations.
+Account reconciliation is the process of correcting account balances by setting a new anchor balance and anchor date. This **synchronizes both the balance anchor and account balance** to the corrected amount.
 
 ### Reconciliation Process
 
 1. **User identifies discrepancy**: Account balance doesn't match actual bank/account balance
-2. **Set new anchor**: Create a new `AccountBalanceAnchor` with:
-   - Current actual balance from bank/account
+2. **Create new balance anchor**: Create a new `AccountBalanceAnchor` with:
+   - Corrected actual balance from bank/account
    - Current date as anchor date
-3. **Override old anchors**: The new anchor becomes the primary reference point
-4. **Recalculate balances**: All future balance calculations use the new anchor
+   - Description of the reconciliation
+3. **Update account balance**: Set `accounts.balance` to match the new anchor balance
+4. **Synchronization**: Both `accounts.balance` and the new anchor now have the same value
+5. **Override old anchors**: The new anchor becomes the primary reference point
+6. **Future calculations**: All subsequent balance calculations use the new synchronized values
 
 ### Implementation
 
@@ -500,26 +589,44 @@ async function calculateAccountBalance(accountId: string, asOfDate?: Date): Prom
 ### Transaction Impact on Balance
 ```typescript
 function getTransactionBalanceImpact(transaction: Transaction): number {
+  // SIMPLE RULE: Use transaction amount exactly as stored
+  // All amounts are stored with correct accounting signs:
+  // - INCOME: stored as positive (+2500)
+  // - EXPENSE: stored as negative (-800)
+  // - TRANSFER: stored with correct sign (±500)
+  return transaction.amount;
+}
+```
+
+#### **Why This Works**
+
+Since all transaction amounts are stored with their correct accounting signs, the balance calculation becomes trivial:
+
+- **INCOME** (`+2500`): Directly adds to balance → `balance += 2500`
+- **EXPENSE** (`-800`): Directly subtracts from balance → `balance += (-800)` = `balance -= 800`
+- **TRANSFER** (`±500`): Directly affects balance → `balance += amount`
+
+#### **Legacy Implementation (Deprecated)**
+
+The previous implementation used complex switch logic to manipulate amounts:
+
+```typescript
+// ❌ DEPRECATED - Don't use this approach
+function getTransactionBalanceImpact(transaction: Transaction): number {
   switch (transaction.type) {
     case 'INCOME':
-      return +transaction.amount  // Increases balance
+      return +transaction.amount  // Redundant positive
     case 'EXPENSE':
-      return -transaction.amount  // Decreases balance
+      return -transaction.amount  // Wrong - double negation if stored negative
     case 'TRANSFER':
-      // Check if this is a system adjustment transaction
-      const systemTransferCategory = categories.find(c => c.name === 'System Transfer');
-      if (systemTransferCategory && transaction.categoryId === systemTransferCategory.id) {
-        // System adjustment transaction - amount directly affects balance
-        return transaction.amount;
-      }
-      // Regular TRANSFER transactions: amount directly affects balance
-      // Positive amount = money coming in, negative amount = money going out
-      return transaction.amount;
+      return transaction.amount;  // Correct
     default:
       return 0
   }
 }
 ```
+
+This approach was error-prone because it assumed EXPENSE amounts were stored as positive values, requiring manual negation.
 
 ### Adjustment Transactions for Anchor Integrity
 
@@ -591,9 +698,12 @@ async function createTransactionWithAdjustment(transactionData: {
 ## Data Integrity Validation
 
 ### Validation Rules
+
 1. **Balance Consistency**: `sum(transaction_amounts) = calculated_balance`
-2. **Anchor Accuracy**: Anchor balance should match calculated balance at anchor date
-3. **Initial Transaction**: Every account with initial balance must have initial transaction
+2. **Anchor-Account Synchronization**: `accounts.balance === latest_anchor.balance + sum(transactions_after_latest_anchor)`
+3. **Anchor Accuracy**: Anchor balance should match calculated balance at anchor date
+4. **Initial Transaction**: Every account with initial balance must have initial transaction
+5. **Reconciliation Integrity**: After reconciliation, `accounts.balance` must equal the new anchor balance
 
 ### Validation Function
 ```typescript
@@ -615,6 +725,23 @@ async function validateAccountIntegrity(accountId: string): Promise<{
   // Check consistency
   if (Math.abs(calculatedBalance - transactionSum) > 0.01) {
     issues.push(`Balance mismatch: calculated=${calculatedBalance}, transaction_sum=${transactionSum}`)
+  }
+
+  // Check anchor-account synchronization
+  const account = await getAccount(accountId)
+  const latestAnchor = await findLatestBalanceAnchor(accountId)
+
+  if (latestAnchor) {
+    const postAnchorTransactions = await getTransactions({
+      accountId,
+      date: { gt: latestAnchor.anchorDate }
+    })
+    const postAnchorSum = postAnchorTransactions.reduce((sum, t) => sum + getTransactionBalanceImpact(t), 0)
+    const expectedBalance = latestAnchor.balance + postAnchorSum
+
+    if (Math.abs(account.balance - expectedBalance) > 0.01) {
+      issues.push(`Anchor-Account mismatch: account.balance=${account.balance}, expected=${expectedBalance}`)
+    }
   }
 
   // Check for initial balance transaction

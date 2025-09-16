@@ -203,6 +203,25 @@ export function parseAndConvertToUTC(dateString: string): Date {
 }
 
 /**
+ * Parse YYYY-MM-DD date string to Date object for database queries
+ * @param dateString - Date in YYYY-MM-DD format
+ * @param endOfDay - If true, set to end of day (23:59:59.999)
+ * @returns Date object in UTC
+ */
+export function parseDateStringForDB(dateString: string, endOfDay: boolean = false): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return createUTCDate(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0
+  );
+}
+
+/**
  * Format a date for user display
  * This function safely handles date strings and Date objects
  * and formats them for user consumption

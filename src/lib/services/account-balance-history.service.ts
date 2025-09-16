@@ -8,7 +8,7 @@ import {
   BalanceCalculationResult,
   DailyBalanceData
 } from '@/types/balance-history'
-import { getCurrentUTCDate, toUTCDateString, createUTCDate } from '@/lib/utils/date-utils'
+import { getCurrentUTCDate, toUTCDateString, createUTCDate, parseDateStringForDB } from '@/lib/utils/date-utils'
 
 /**
  * Account Balance History Service
@@ -33,7 +33,7 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns Promise<BalanceHistoryData[]> - Chronologically sorted balance history
    */
   public async getAccountBalanceHistory(
-    tenantId: number,
+    tenantId: string,
     accountId: number,
     startDate?: string,
     endDate?: string
@@ -86,6 +86,208 @@ export class AccountBalanceHistoryService extends BaseService {
   }
 
   /**
+   * Calculate running balance for each transaction using MVP accounting principles with balance anchors
+   *
+   * This method follows the MVP accounting hierarchy:
+   * 1. Primary: Latest balance anchor + post-anchor transactions
+   * 2. Secondary: Account balance (fallback)
+   * 3. Fallback: Direct transaction sum
+   *
+   * @param transactions - Array of transactions (will be sorted by date ascending for calculation)
+   * @param accountId - Account ID for balance calculation
+   * @param tenantId - Tenant ID for data isolation
+   * @returns Promise<Array<Transaction & { balance: number }>> - Transactions with running balances, sorted by date descending
+   */
+  public async calculateRunningBalancesFromAnchor(
+    transactions: Transaction[],
+    accountId: number,
+    tenantId: string
+  ): Promise<Array<Transaction & { balance: number }>> {
+    if (transactions.length === 0) {
+      return [];
+    }
+
+    // Sort transactions by date ascending for calculation
+    const sortedTransactions = [...transactions].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Step 1: Find the latest balance anchor for this account
+    const latestAnchor = await this.findLatestBalanceAnchor(accountId, tenantId);
+
+    if (latestAnchor) {
+      // Method 2: Anchor-based calculation (preferred)
+      return this.calculateFromAnchor(sortedTransactions, latestAnchor);
+    } else {
+      // Method 1: Fallback to account balance
+      const account = await this.validateAccountAccess(tenantId, accountId);
+      const currentAccountBalance = Number(account.balance);
+      return this.calculateFromAccountBalance(sortedTransactions, accountId, currentAccountBalance);
+    }
+  }
+
+  /**
+   * Legacy method: Calculate running balances from account balance (fallback method)
+   *
+   * This method works backwards from the current account balance to calculate historical balances.
+   * Used when no balance anchors are available.
+   *
+   * @param transactions - Array of transactions (will be sorted by date ascending for calculation)
+   * @param accountId - Account ID for balance calculation
+   * @param currentAccountBalance - Current account balance (source of truth)
+   * @returns Array<Transaction & { balance: number }> - Transactions with running balances, sorted by date descending
+   */
+  public calculateFromAccountBalance(
+    transactions: Transaction[],
+    accountId: number,
+    currentAccountBalance: number
+  ): Array<Transaction & { balance: number }> {
+    if (transactions.length === 0) {
+      return [];
+    }
+
+    // Use the provided account balance as the source of truth
+    // This method works backwards from the current account balance to calculate historical balances
+    //
+    // Note: In full MVP implementation with balance anchors, the logic would be:
+    // 1. Find latest balance anchor for this account
+    // 2. If anchor exists, calculate from anchor + post-anchor transactions
+    // 3. If no anchor, use direct transaction sum or account balance
+    //
+    // For now, we use the provided currentAccountBalance parameter
+
+    // Sort transactions by date ascending for calculation
+    const sortedTransactions = [...transactions].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Calculate the balance before the first transaction by working backwards
+    // currentBalance = startingBalance + sum(all_transaction_impacts)
+    // Therefore: startingBalance = currentBalance - sum(all_transaction_impacts)
+    let totalTransactionImpact = 0;
+    for (const transaction of sortedTransactions) {
+      totalTransactionImpact += this.getTransactionBalanceImpact(transaction);
+    }
+
+    const startingBalance = currentAccountBalance - totalTransactionImpact;
+
+    // Now calculate running balances forward from the starting balance
+    const transactionsWithBalance: Array<Transaction & { balance: number }> = [];
+    let runningBalance = startingBalance;
+
+    for (const transaction of sortedTransactions) {
+      const impact = this.getTransactionBalanceImpact(transaction);
+      runningBalance += impact;
+
+      transactionsWithBalance.push({
+        ...transaction,
+        balance: runningBalance
+      });
+    }
+
+    // Verify our calculation matches the account balance
+    const finalCalculatedBalance = transactionsWithBalance[transactionsWithBalance.length - 1]?.balance || startingBalance;
+    if (Math.abs(finalCalculatedBalance - currentAccountBalance) > 0.01) {
+      console.warn(`Balance calculation mismatch for account ${accountId}: calculated=${finalCalculatedBalance}, actual=${currentAccountBalance}`);
+    }
+
+    // Return sorted by date descending (newest first)
+    return transactionsWithBalance.sort((a, b) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }
+
+  /**
+   * Find the latest balance anchor for an account
+   *
+   * @param accountId - Account ID
+   * @param tenantId - Tenant ID
+   * @returns Promise<AccountBalanceAnchor | null> - Latest anchor or null if none exists
+   */
+  private async findLatestBalanceAnchor(
+    accountId: number,
+    tenantId: string
+  ): Promise<any | null> {
+    try {
+      const anchors = await prisma.accountBalanceAnchor.findMany({
+        where: {
+          account_id: accountId,
+          tenant_id: tenantId,
+        },
+        orderBy: {
+          anchor_date: 'desc'
+        },
+        take: 1
+      });
+
+      return anchors.length > 0 ? anchors[0] : null;
+    } catch (error) {
+      console.warn(`Failed to find balance anchor for account ${accountId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Calculate running balances from a balance anchor (MVP Method 2)
+   *
+   * @param transactions - Sorted transactions (ascending by date)
+   * @param anchor - Balance anchor to calculate from
+   * @returns Array<Transaction & { balance: number }> - Transactions with running balances
+   */
+  private calculateFromAnchor(
+    transactions: Transaction[],
+    anchor: any
+  ): Array<Transaction & { balance: number }> {
+    const anchorDate = anchor.anchor_date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+    const anchorBalance = Number(anchor.balance);
+
+    // Separate transactions into pre-anchor and post-anchor
+    const preAnchorTransactions = transactions.filter(t => t.date < anchorDate);
+    const postAnchorTransactions = transactions.filter(t => t.date >= anchorDate);
+
+    const transactionsWithBalance: Array<Transaction & { balance: number }> = [];
+
+    // Calculate pre-anchor balances (working backwards from anchor)
+    if (preAnchorTransactions.length > 0) {
+      // Calculate total impact of pre-anchor transactions
+      const preAnchorImpact = preAnchorTransactions.reduce((sum, t) =>
+        sum + this.getTransactionBalanceImpact(t), 0
+      );
+
+      // Starting balance = anchor balance - total pre-anchor impact
+      const startingBalance = anchorBalance - preAnchorImpact;
+      let runningBalance = startingBalance;
+
+      for (const transaction of preAnchorTransactions) {
+        const impact = this.getTransactionBalanceImpact(transaction);
+        runningBalance += impact;
+
+        transactionsWithBalance.push({
+          ...transaction,
+          balance: runningBalance
+        });
+      }
+    }
+
+    // Calculate post-anchor balances (working forward from anchor)
+    let runningBalance = anchorBalance;
+    for (const transaction of postAnchorTransactions) {
+      const impact = this.getTransactionBalanceImpact(transaction);
+      runningBalance += impact;
+
+      transactionsWithBalance.push({
+        ...transaction,
+        balance: runningBalance
+      });
+    }
+
+    // Return sorted by date descending (newest first)
+    return transactionsWithBalance.sort((a, b) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }
+
+  /**
    * Get balance summary statistics for an account
    *
    * @param tenantId - Tenant ID for data isolation
@@ -95,7 +297,7 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns Promise<BalanceSummary> - Summary statistics
    */
   public async getAccountBalanceSummary(
-    tenantId: number,
+    tenantId: string,
     accountId: number,
     startDate?: string,
     endDate?: string
@@ -167,7 +369,7 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns Promise<BalanceCalculationResult> - Balance with calculation metadata
    */
   private async calculateBalanceAtDate(
-    tenantId: number,
+    tenantId: string,
     accountId: number,
     targetDate: string
   ): Promise<BalanceCalculationResult> {
@@ -177,12 +379,15 @@ export class AccountBalanceHistoryService extends BaseService {
       // TODO: Implement balance anchor support when available
 
       // Method 1: Direct transaction sum
+      // Convert YYYY-MM-DD string to Date object for Prisma
+      const targetDateObj = parseDateStringForDB(targetDate, true);
+
       const transactions = await prisma.transaction.findMany({
         where: {
           tenant_id: tenantId,
           account_id: accountId,
           date: {
-            lte: targetDate
+            lte: targetDateObj
           }
         },
         orderBy: {
@@ -219,16 +424,11 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns number - Balance impact (positive or negative)
    */
   private getTransactionBalanceImpact(transaction: Transaction): number {
-    switch (transaction.type) {
-      case 'INCOME':
-        return Number(transaction.amount); // Positive impact
-      case 'EXPENSE':
-        return -Number(transaction.amount); // Negative impact
-      case 'TRANSFER':
-        return Number(transaction.amount); // Amount is already properly signed
-      default:
-        return 0;
-    }
+    // Use transaction amount exactly as stored in database
+    // INCOME: stored as positive (+2500)
+    // EXPENSE: stored as negative (-800)
+    // TRANSFER: stored with correct sign (±500)
+    return Number(transaction.amount);
   }
 
   /**
@@ -239,7 +439,17 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns number - Net amount for the day
    */
   private calculateDailyNetAmount(transactions: Transaction[], date: string): number {
-    const dailyTransactions = transactions.filter(t => t.date === date);
+    const dailyTransactions = transactions.filter(t => toUTCDateString(t.date) === date);
+
+    // Debug: Log transaction details for the first few days
+    if (dailyTransactions.length > 0) {
+      console.log(`🔍 [Daily Net Amount] Date: ${date}`);
+      dailyTransactions.forEach(t => {
+        const impact = this.getTransactionBalanceImpact(t);
+        console.log(`  - ${t.type}: $${t.amount} → Impact: $${impact} (${t.description?.substring(0, 30)}...)`);
+      });
+    }
+
     return dailyTransactions.reduce((sum, transaction) => {
       return sum + this.getTransactionBalanceImpact(transaction);
     }, 0);
@@ -253,7 +463,7 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns Promise<Account> - Account if valid
    * @throws Error if account not found or access denied
    */
-  private async validateAccountAccess(tenantId: number, accountId: number): Promise<Account> {
+  private async validateAccountAccess(tenantId: string, accountId: number): Promise<Account> {
     const account = await prisma.account.findFirst({
       where: {
         id: accountId,
@@ -280,14 +490,18 @@ export class AccountBalanceHistoryService extends BaseService {
     endDate: string;
   } {
     const today = getCurrentUTCDate();
-    const defaultStartDate = new Date(today);
-    defaultStartDate.setDate(today.getDate() - 30); // Last 30 days
+    const defaultStartDate = createUTCDate(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - 30
+    ); // Last 30 days
 
     return {
       startDate: startDate || toUTCDateString(defaultStartDate),
       endDate: endDate || toUTCDateString(today)
     };
   }
+
 
   /**
    * Get transactions in date range
@@ -299,18 +513,22 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns Promise<Transaction[]> - Transactions in range
    */
   private async getTransactionsInRange(
-    tenantId: number,
+    tenantId: string,
     accountId: number,
     startDate: string,
     endDate: string
   ): Promise<Transaction[]> {
+    // Convert YYYY-MM-DD strings to Date objects for Prisma
+    const startDateObj = parseDateStringForDB(startDate);
+    const endDateObj = parseDateStringForDB(endDate, true);
+
     return await prisma.transaction.findMany({
       where: {
         tenant_id: tenantId,
         account_id: accountId,
         date: {
-          gte: startDate,
-          lte: endDate
+          gte: startDateObj,
+          lte: endDateObj
         }
       },
       orderBy: [
@@ -330,18 +548,22 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns Promise<number> - Transaction count
    */
   private async getTransactionCount(
-    tenantId: number,
+    tenantId: string,
     accountId: number,
     startDate: string,
     endDate: string
   ): Promise<number> {
+    // Convert YYYY-MM-DD strings to Date objects for Prisma
+    const startDateObj = parseDateStringForDB(startDate);
+    const endDateObj = parseDateStringForDB(endDate, true);
+
     return await prisma.transaction.count({
       where: {
         tenant_id: tenantId,
         account_id: accountId,
         date: {
-          gte: startDate,
-          lte: endDate
+          gte: startDateObj,
+          lte: endDateObj
         }
       }
     });
@@ -354,7 +576,7 @@ export class AccountBalanceHistoryService extends BaseService {
    * @returns string[] - Sorted unique dates
    */
   private getUniqueDatesFromTransactions(transactions: Transaction[]): string[] {
-    const uniqueDates = new Set(transactions.map(t => t.date));
+    const uniqueDates = new Set(transactions.map(t => toUTCDateString(t.date)));
     return Array.from(uniqueDates).sort();
   }
 }
