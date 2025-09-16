@@ -19,7 +19,7 @@
 - Improved test reliability and coverage
 - Comprehensive deployment documentation
 
-**Live Demo**: [URL will be updated after deployment]
+**Live Demo**: https://fintrack-platform-v5-fbvapk98s-lumifin.vercel.appQueued
 
 ---
 
