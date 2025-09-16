@@ -5,6 +5,7 @@ import { Plus, Edit, Trash2, Calculator } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { AccountForm } from './AccountForm'
 import EmptyState from '@/components/ui/EmptyState'
+import { formatDateForDisplay } from '@/lib/utils/date-utils'
 
 interface Account {
   id: number
@@ -17,6 +18,7 @@ interface Account {
   is_active: boolean
   created_at: string
   updated_at: string
+  latest_anchor_date?: string | null
 }
 
 export function AccountsPageContent() {
@@ -285,6 +287,11 @@ export function AccountsPageContent() {
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Balance</div>
                       <div className={`text-lg font-semibold ${account.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                         {formatCurrency(account.balance)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {account.latest_anchor_date
+                          ? `as of ${formatDateForDisplay(account.latest_anchor_date)}`
+                          : `as of ${formatDateForDisplay(account.balance_date)}`}
                       </div>
                     </div>
                   </div>

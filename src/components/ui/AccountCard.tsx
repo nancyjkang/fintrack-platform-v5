@@ -1,4 +1,5 @@
 import { Building, TrendingUp, TrendingDown, MoreHorizontal } from 'lucide-react'
+import { formatDateForDisplay } from '@/lib/utils/date-utils'
 
 interface AccountCardProps {
   account: {
@@ -12,6 +13,8 @@ interface AccountCardProps {
     institution_name?: string
     color: string
     icon: string
+    latest_anchor_date?: string | null
+    balance_date?: string
   }
   onEdit?: (accountId: string) => void
   onDelete?: (accountId: string) => void
@@ -90,6 +93,13 @@ export default function AccountCard({ account, onEdit, onDelete }: AccountCardPr
               isPositive ? 'text-gray-900' : 'text-red-600'
             }`}>
               {formatCurrency(account.current_balance, account.currency)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {account.latest_anchor_date
+                ? `as of ${formatDateForDisplay(account.latest_anchor_date)}`
+                : account.balance_date
+                  ? `as of ${formatDateForDisplay(account.balance_date)}`
+                  : ''}
             </p>
           </div>
 

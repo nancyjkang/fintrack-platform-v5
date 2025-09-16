@@ -18,6 +18,8 @@ interface Account {
   institution_name?: string
   color: string
   icon: string
+  latest_anchor_date?: string | null
+  balance_date?: string
 }
 
 export default function DashboardPage() {
@@ -42,7 +44,17 @@ export default function DashboardPage() {
         const accountsData = Array.isArray(response.data)
           ? response.data
           : (response.data as any).items || response.data
-        setAccounts(accountsData as any)
+
+        // Map API response to Dashboard interface
+        const mappedAccounts = accountsData.map((account: any) => ({
+          ...account,
+          current_balance: account.balance, // Map balance to current_balance
+          subtype: account.type, // Map type to subtype for display
+          currency: 'USD', // Default currency
+          icon: 'building' // Default icon
+        }))
+
+        setAccounts(mappedAccounts)
       } else {
         setError(response.error || 'Failed to load accounts')
       }

@@ -37,6 +37,11 @@ describe('AccountService', () => {
     is_active: true,
     created_at: createUTCDate(2025, 0, 1),
     updated_at: createUTCDate(2025, 0, 1),
+    balance_anchors: [
+      {
+        anchor_date: createUTCDate(2025, 0, 1)
+      }
+    ]
   }
 
   beforeEach(() => {
@@ -49,10 +54,25 @@ describe('AccountService', () => {
 
       const result = await AccountService.getAccounts(mockTenantId)
 
-      expect(result).toEqual([mockAccount])
+      expect(result).toEqual([{
+        ...mockAccount,
+        latest_anchor_date: createUTCDate(2025, 0, 1),
+        balance_anchors: undefined
+      }])
       expect(mockPrisma.account.findMany).toHaveBeenCalledWith({
         where: { tenant_id: mockTenantId },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        include: {
+          balance_anchors: {
+            select: {
+              anchor_date: true
+            },
+            orderBy: {
+              anchor_date: 'desc'
+            },
+            take: 1
+          }
+        }
       })
     })
 
@@ -77,7 +97,18 @@ describe('AccountService', () => {
             mode: 'insensitive'
           }
         },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        include: {
+          balance_anchors: {
+            select: {
+              anchor_date: true
+            },
+            orderBy: {
+              anchor_date: 'desc'
+            },
+            take: 1
+          }
+        }
       })
     })
 
@@ -271,13 +302,28 @@ describe('AccountService', () => {
 
       const result = await AccountService.getAccountsByType('CHECKING', mockTenantId)
 
-      expect(result).toEqual([mockAccount])
+      expect(result).toEqual([{
+        ...mockAccount,
+        latest_anchor_date: createUTCDate(2025, 0, 1),
+        balance_anchors: undefined
+      }])
       expect(mockPrisma.account.findMany).toHaveBeenCalledWith({
         where: {
           tenant_id: mockTenantId,
           type: 'CHECKING'
         },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        include: {
+          balance_anchors: {
+            select: {
+              anchor_date: true
+            },
+            orderBy: {
+              anchor_date: 'desc'
+            },
+            take: 1
+          }
+        }
       })
     })
   })
@@ -288,13 +334,28 @@ describe('AccountService', () => {
 
       const result = await AccountService.getActiveAccounts(mockTenantId)
 
-      expect(result).toEqual([mockAccount])
+      expect(result).toEqual([{
+        ...mockAccount,
+        latest_anchor_date: createUTCDate(2025, 0, 1),
+        balance_anchors: undefined
+      }])
       expect(mockPrisma.account.findMany).toHaveBeenCalledWith({
         where: {
           tenant_id: mockTenantId,
           is_active: true
         },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        include: {
+          balance_anchors: {
+            select: {
+              anchor_date: true
+            },
+            orderBy: {
+              anchor_date: 'desc'
+            },
+            take: 1
+          }
+        }
       })
     })
   })
@@ -465,29 +526,32 @@ describe('AccountService', () => {
     describe('getAccountsByNetWorthCategory', () => {
       it('should return accounts filtered by net worth category', async () => {
         const assetAccounts = [
-          { ...mockAccount, id: 1, name: 'Checking', net_worth_category: 'ASSET' },
-          { ...mockAccount, id: 2, name: 'Savings', net_worth_category: 'ASSET' }
+          { ...mockAccount, id: 1, name: 'Checking', net_worth_category: 'ASSET', balance_anchors: [] },
+          { ...mockAccount, id: 2, name: 'Savings', net_worth_category: 'ASSET', balance_anchors: [] }
         ]
         const allAccounts = [
           ...assetAccounts,
-          { ...mockAccount, id: 3, name: 'Credit Card', net_worth_category: 'LIABILITY' }
+          { ...mockAccount, id: 3, name: 'Credit Card', net_worth_category: 'LIABILITY', balance_anchors: [] }
         ]
 
         mockPrisma.account.findMany.mockResolvedValue(allAccounts)
 
         const result = await AccountService.getAccountsByNetWorthCategory('ASSET', mockTenantId)
 
-        expect(result).toEqual(assetAccounts)
+        expect(result).toEqual([
+          { ...assetAccounts[0], latest_anchor_date: null, balance_anchors: undefined },
+          { ...assetAccounts[1], latest_anchor_date: null, balance_anchors: undefined }
+        ])
       })
     })
 
     describe('calculateNetWorth', () => {
       it('should calculate net worth correctly with mixed account types', async () => {
         const accounts = [
-          { ...mockAccount, id: 1, balance: 5000, net_worth_category: 'ASSET' },
-          { ...mockAccount, id: 2, balance: 10000, net_worth_category: 'ASSET' },
-          { ...mockAccount, id: 3, balance: -2000, net_worth_category: 'LIABILITY' },
-          { ...mockAccount, id: 4, balance: 1000, net_worth_category: 'EXCLUDED' }
+          { ...mockAccount, id: 1, balance: 5000, net_worth_category: 'ASSET', balance_anchors: [] },
+          { ...mockAccount, id: 2, balance: 10000, net_worth_category: 'ASSET', balance_anchors: [] },
+          { ...mockAccount, id: 3, balance: -2000, net_worth_category: 'LIABILITY', balance_anchors: [] },
+          { ...mockAccount, id: 4, balance: 1000, net_worth_category: 'EXCLUDED', balance_anchors: [] }
         ]
 
         mockPrisma.account.findMany.mockResolvedValue(accounts)
@@ -503,8 +567,8 @@ describe('AccountService', () => {
 
       it('should handle negative liability balances correctly', async () => {
         const accounts = [
-          { ...mockAccount, id: 1, balance: 10000, net_worth_category: 'ASSET' },
-          { ...mockAccount, id: 2, balance: -3000, net_worth_category: 'LIABILITY' } // Negative balance
+          { ...mockAccount, id: 1, balance: 10000, net_worth_category: 'ASSET', balance_anchors: [] },
+          { ...mockAccount, id: 2, balance: -3000, net_worth_category: 'LIABILITY', balance_anchors: [] } // Negative balance
         ]
 
         mockPrisma.account.findMany.mockResolvedValue(accounts)
@@ -519,8 +583,8 @@ describe('AccountService', () => {
 
       it('should exclude accounts marked as EXCLUDED', async () => {
         const accounts = [
-          { ...mockAccount, id: 1, balance: 5000, net_worth_category: 'ASSET' },
-          { ...mockAccount, id: 2, balance: 100000, net_worth_category: 'EXCLUDED' } // Large excluded amount
+          { ...mockAccount, id: 1, balance: 5000, net_worth_category: 'ASSET', balance_anchors: [] },
+          { ...mockAccount, id: 2, balance: 100000, net_worth_category: 'EXCLUDED', balance_anchors: [] } // Large excluded amount
         ]
 
         mockPrisma.account.findMany.mockResolvedValue(accounts)

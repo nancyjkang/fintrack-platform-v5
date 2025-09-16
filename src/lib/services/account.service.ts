@@ -55,7 +55,7 @@ export class AccountService extends BaseService {
   static async getAccounts(
     tenantId: string,
     filters?: AccountFilters
-  ): Promise<Account[]> {
+  ): Promise<(Account & { latest_anchor_date?: Date })[]> {
     try {
       this.validateTenantId(tenantId)
 
@@ -78,12 +78,28 @@ export class AccountService extends BaseService {
 
       const accounts = await this.prisma.account.findMany({
         where,
+        include: {
+          balance_anchors: {
+            orderBy: {
+              anchor_date: 'desc'
+            },
+            take: 1,
+            select: {
+              anchor_date: true
+            }
+          }
+        },
         orderBy: {
           name: 'asc'
         }
       })
 
-      return accounts
+      // Transform the result to include latest_anchor_date
+      return accounts.map(account => ({
+        ...account,
+        latest_anchor_date: account.balance_anchors[0]?.anchor_date || null,
+        balance_anchors: undefined // Remove the nested structure from the response
+      }))
     } catch (error) {
       return this.handleError(error, 'AccountService.getAccounts')
     }
