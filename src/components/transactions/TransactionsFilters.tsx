@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Building, FileText, Tag, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/client/api';
-import { toUTCDateString, getCurrentDate, createUTCDate, addDays, subtractDays } from '@/lib/utils/date-utils';
+import { toUTCDateString, getCurrentUTCDate, createUTCDate, addDays, subtractDays } from '@/lib/utils/date-utils';
 
 
 interface Filters {
@@ -38,7 +38,16 @@ interface PaginatedAccountsResponse {
 }
 
 interface PaginatedCategoriesResponse {
-  categories: Category[];
+  categories: Array<{
+    id: number;
+    name: string;
+    type: string;
+    color: string;
+    tenant_id: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+  count: number;
 }
 
 interface TransactionsFiltersProps {
@@ -95,10 +104,19 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
         if (categoriesResponse.success && categoriesResponse.data) {
           // Handle both array and paginated response formats
-          const categoriesData = Array.isArray(categoriesResponse.data)
+          const categoriesData: any[] = Array.isArray(categoriesResponse.data)
             ? categoriesResponse.data
-            : (categoriesResponse.data as PaginatedCategoriesResponse).categories || categoriesResponse.data;
-          setCategories(categoriesData);
+            : (categoriesResponse.data as PaginatedCategoriesResponse).categories || [];
+
+          // Convert to our Category interface format
+          const formattedCategories: Category[] = categoriesData.map((cat: any) => ({
+            id: cat.id,
+            name: cat.name,
+            type: cat.type,
+            color: cat.color
+          }));
+
+          setCategories(formattedCategories);
         }
       } catch (err) {
         console.error('Error fetching filter data:', err);
@@ -120,7 +138,7 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
     // Auto-populate start and end dates when date range is selected
     if (field === 'dateRange') {
-      const today = getCurrentDate();
+      const today: Date = getCurrentUTCDate();
       let fromDate = '';
       let toDate = '';
 
