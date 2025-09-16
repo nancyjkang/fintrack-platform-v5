@@ -59,3 +59,7 @@ logs
 *.tmp
 *.temp
 .cursor/
+
+# Temporary files
+setup-vercel.md
+backups/
