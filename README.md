@@ -142,3 +142,4 @@ This is a strategic rewrite focusing on scalability and advanced features. See [
 ---
 
 **FinTrack v5**: Where personal finance meets intelligent insights. 🧠💰
+# Deployment test with correct Vercel IDs
