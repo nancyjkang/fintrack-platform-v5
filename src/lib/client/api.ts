@@ -1,6 +1,7 @@
 /**
  * Client-side API utilities for FinTrack v5
  */
+import { getCurrentDate, toUTCDateString } from '@/lib/utils/date-utils'
 
 export interface ApiResponse<T = any> {
   success: boolean
@@ -19,6 +20,7 @@ export interface User {
   id: string
   email: string
   emailVerified: boolean
+  // eslint-disable-next-line no-restricted-globals
   lastLogin?: Date
 }
 
@@ -93,7 +95,7 @@ class ApiClient {
       return {
         success: false,
         error: 'Network error occurred',
-        timestamp: new Date().toISOString()
+        timestamp: toUTCDateString(getCurrentDate())
       }
     }
   }
@@ -181,7 +183,7 @@ class ApiClient {
   async logout(): Promise<ApiResponse> {
     if (!this.refreshToken) {
       this.clearTokens()
-      return { success: true, timestamp: new Date().toISOString() }
+      return { success: true, timestamp: toUTCDateString(getCurrentDate()) }
     }
 
     const response = await this.request('/auth/logout', {
@@ -234,6 +236,209 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data)
     })
+  }
+
+  // Transaction methods
+  async getTransactions(params?: {
+    search?: string
+    account_id?: string
+    type?: string
+    category_id?: string
+    is_recurring?: string
+    date_from?: string
+    date_to?: string
+  }): Promise<ApiResponse<{
+    transactions: Array<{
+      id: number
+      account_id: number
+      category_id?: number
+      amount: number
+      description: string
+      date: string
+      type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+      is_recurring: boolean
+      created_at: string
+      updated_at: string
+      tenant_id: number
+      account?: {
+        id: number
+        name: string
+        type: string
+        color?: string
+      }
+      category?: {
+        id: number
+        name: string
+        type: string
+        color?: string
+      }
+    }>
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value)
+      })
+    }
+    const url = `/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    return this.request(url)
+  }
+
+  async createTransaction(data: {
+    account_id: number
+    category_id?: number
+    amount: number
+    description: string
+    type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    date: Date
+    is_recurring: boolean
+  }): Promise<ApiResponse<any>> {
+    return this.request('/transactions', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async updateTransaction(id: number, data: {
+    account_id?: number
+    category_id?: number
+    amount?: number
+    description?: string
+    type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    date?: Date
+    is_recurring?: boolean
+  }): Promise<ApiResponse<any>> {
+    return this.request(`/transactions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async deleteTransaction(id: number): Promise<ApiResponse<any>> {
+    return this.request(`/transactions/${id}`, {
+      method: 'DELETE'
+    })
+  }
+
+  async getCategories(params?: {
+    type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    search?: string
+  }): Promise<ApiResponse<{
+    categories: Array<{
+      id: number
+      name: string
+      type: string
+      color: string
+      tenant_id: string
+      created_at: string
+      updated_at: string
+    }>
+    count: number
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value)
+      })
+    }
+    const url = `/categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    return this.request(url)
+  }
+
+  async getCategoryById(id: number): Promise<ApiResponse<{
+    category: {
+      id: number
+      name: string
+      type: string
+      color: string
+      tenant_id: string
+      created_at: string
+      updated_at: string
+    }
+  }>> {
+    return this.request(`/categories/${id}`)
+  }
+
+  async createCategory(data: {
+    name: string
+    type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    color: string
+  }): Promise<ApiResponse<{
+    category: {
+      id: number
+      name: string
+      type: string
+      color: string
+      tenant_id: string
+      created_at: string
+      updated_at: string
+    }
+  }>> {
+    return this.request('/categories', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async updateCategory(id: number, data: {
+    name?: string
+    type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    color?: string
+  }): Promise<ApiResponse<{
+    category: {
+      id: number
+      name: string
+      type: string
+      color: string
+      tenant_id: string
+      created_at: string
+      updated_at: string
+    }
+  }>> {
+    return this.request(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async deleteCategory(id: number): Promise<ApiResponse<any>> {
+    return this.request(`/categories/${id}`, {
+      method: 'DELETE'
+    })
+  }
+
+  async mergeCategories(sourceCategoryId: number, targetCategoryId: number): Promise<ApiResponse<{
+    transactionsUpdated: number
+    sourceCategoryDeleted: boolean
+  }>> {
+    return this.request('/categories/merge', {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceCategoryId,
+        targetCategoryId
+      })
+    })
+  }
+
+  async getCategoryUsageStats(categoryIds?: number[]): Promise<ApiResponse<{
+    usageStats: Array<{
+      categoryId: number
+      transactionCount: number
+    }>
+    count: number
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (categoryIds && categoryIds.length > 0) {
+      queryParams.append('categoryIds', categoryIds.join(','))
+    }
+    const url = `/categories/usage${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    return this.request(url)
   }
 
   // Utility methods

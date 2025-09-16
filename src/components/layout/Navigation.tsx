@@ -46,7 +46,7 @@ const getNavigationItems = (userEmail?: string) => {
         },
         {
           name: 'Add Transaction',
-          href: '/transactions/add',
+          href: '/transactions?add=true',
           icon: Plus
         },
         {

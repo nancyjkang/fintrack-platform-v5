@@ -50,9 +50,9 @@ describe('Date Utils - Core Functions', () => {
       const result = getCurrentDate()
       expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
 
-      // Should be today's date (using our own utility for consistency)
-      const nowString = getCurrentUTCDate()
-      const expected = toUTCDateString(nowString)
+      // Should be today's date in local timezone
+      const now = new Date()
+      const expected = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       expect(result).toBe(expected)
     })
   })

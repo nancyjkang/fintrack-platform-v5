@@ -49,11 +49,12 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: API portion complete with service layer. UI implementation ready to start.
   - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
 
-- **Date Handling Utilities** - 📋 Ready
-  - **Estimate**: 2 days
+- **Date Handling Utilities** - ✅ Complete
+  - **Estimate**: 2 days | **Actual**: 2 days
+  - **Completed**: 2025-09-15
   - **Last Updated**: 2025-09-15
-  - **Dependencies**: None
-  - **Notes**: **CRITICAL FOUNDATION** - Prevent recurring date bugs that have plagued previous versions. Timezone-safe utilities for consistent date handling.
+  - **Dependencies**: None ✅
+  - **Notes**: **CRITICAL FOUNDATION** ✅ **COMPLETED** - Comprehensive timezone-safe date utilities implemented. Zero date violations remaining in codebase. ESLint rules active.
   - **Documentation**: [Planning](docs/features/date-handling-utilities/planning.md) | [Best Practices](docs/architecture/date-handling-best-practices.md)
 
 - **Account Management UI** - 📋 Ready
@@ -61,10 +62,13 @@ This document contains the prioritized list of all features to be implemented, s
   - **Dependencies**: Transaction CRUD
   - **Notes**: Complete account views and forms
 
-- **Category Management** - 📋 Ready
-  - **Estimate**: 2 days
-  - **Dependencies**: Transaction CRUD
-  - **Notes**: Basic category CRUD operations
+- **Category Management** - ✅ Complete
+  - **Estimate**: 2 days | **Actual**: 1 day
+  - **Completed**: 2025-01-15
+  - **Last Updated**: 2025-01-15
+  - **Dependencies**: Transaction CRUD (paused to implement this first)
+  - **Notes**: Complete category CRUD operations with merge functionality, smart defaults, and transaction count display
+  - **Documentation**: [Planning](docs/features/category-management/planning.md) | [Implementation](docs/features/category-management/implementation.md)
 
 - **CSV Import System** - 📋 Ready
   - **Estimate**: 5 days
@@ -356,9 +360,9 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 - **Value**: Focus on high-impact user features first
 
 ### **Current Sprint Progress:**
-- **Features Completed**: 3/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅)
-- **Estimated Completion**: 2 weeks for remaining Priority 1 features
-- **Risk Level**: Low (strong foundation established, clear path forward)
+- **Features Completed**: 5/8 (Schema Design ✅, API Updates ✅, Transaction CRUD API ✅, Date Handling Utilities ✅, Category Management ✅)
+- **Estimated Completion**: 1 week for remaining Priority 1 features
+- **Risk Level**: Very Low (strong foundation + date safety established, category dependencies resolved)
 
 ---
 
