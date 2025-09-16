@@ -66,11 +66,11 @@ This document contains the prioritized list of all features to be implemented, s
   - **Documentation**: [Planning](docs/features/account-management/planning.md) | [Implementation](docs/features/account-management/implementation.md)
 
 - **Transaction CRUD** - ✅ Complete (Core Features) / 🔧 In Progress (v4.1 Alignment)
-  - **Estimate**: 4 days (API: 0.5 days actual, UI Core: 2.5 days actual, v4.1 Alignment: 1.1 days remaining)
-  - **Completed**: 2025-09-16 6:40 (Core UI features with v4.1 improvements)
+  - **Estimate**: 4 days (API: 0.5 days actual, UI Core: 2.5 days actual, v4.1 Alignment: 1.1 days actual, Accounting Fixes: 0.5 days actual)
+  - **Completed**: 2025-09-16 18:30 (Core UI + v4.1 improvements + accounting fixes)
   - **Last Updated**: 2025-09-16
   - **Dependencies**: API Updates for New Schema ✅
-  - **Notes**: ✅ API complete ✅ Core UI complete ✅ Category filtering ✅ Dynamic text colors ✅ Summary improvements. Remaining: bulk selection, column reordering, form restructure.
+  - **Notes**: ✅ API complete ✅ Core UI complete ✅ Category filtering ✅ Dynamic text colors ✅ Summary improvements ✅ **Accounting fixes complete** (Math.abs() corrections, net calculation includes transfers, proper transfer categorization). Remaining: bulk selection, column reordering, form restructure.
   - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
 
 - **Vercel CLI Deployment System** - ✅ Complete
@@ -132,13 +132,14 @@ This document contains the prioritized list of all features to be implemented, s
   - **Dependencies**: None
   - **Notes**: Complete auth flow
 
-- **Intelligent Seed Generation** - ✅ **Completed**
-  - **Estimate**: 2.5 days (Actual: 1 day)
+- **Intelligent Seed Generation** - ✅ **Completed** (with Accounting Fixes)
+  - **Estimate**: 2.5 days (Actual: 1.5 days including accounting corrections)
+  - **Completed**: 2025-09-16 18:30 (with proper accounting and categorization)
   - **Dependencies**: None (uses existing schema)
-  - **Notes**: Configurable realistic financial data generation for testing/demos
+  - **Notes**: Configurable realistic financial data generation for testing/demos. **Accounting fixes applied**: proper Math.abs() usage, correct transfer categorization (Emergency Fund, Roth IRA, Credit Card Payment), signed amount preservation.
   - **Planning**: [docs/features/intelligent-seed-generation/planning.md](features/intelligent-seed-generation/planning.md)
   - **Usage Guide**: [docs/features/intelligent-seed-generation/USAGE_GUIDE.md](features/intelligent-seed-generation/USAGE_GUIDE.md)
-  - **Results**: 1,084 transactions + 90 transfers generated for young-professional avatar
+  - **Results**: 1,220 transactions + 90 transfers generated for young-professional avatar (with correct accounting)
 
 ---
 

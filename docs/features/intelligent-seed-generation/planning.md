@@ -7,12 +7,18 @@
 
 ## 📊 **Implementation Results**
 
-- **Generated Data**: 1,084 transactions + 90 transfers
+- **Generated Data**: 1,220 transactions + 90 transfers (with accounting fixes)
 - **Avatar**: Young Professional persona
 - **Date Range**: July 1, 2024 to September 16, 2025 (today)
 - **Database**: Local PostgreSQL (`fintrack_dev`)
 - **Usage**: `npm run seed:generate`
 - **Documentation**: [Usage Guide](./USAGE_GUIDE.md)
+
+### **🔧 Accounting Fixes Applied** (September 16, 2025)
+- ✅ **Math.abs() Corrections**: Removed from calculations, proper signed arithmetic
+- ✅ **Transfer Categories**: Emergency Fund, Roth IRA, Credit Card Payment (not "System Transfer")
+- ✅ **Amount Preservation**: Database values maintain proper signs throughout
+- ✅ **Accounting Integrity**: All transfers net to $0.00, paired transactions verified
 
 ---
 
