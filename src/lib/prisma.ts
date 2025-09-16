@@ -91,27 +91,27 @@ export function createTenantClient(tenantId: string) {
   return {
     // Accounts
     accounts: {
-      findMany: (args?: Prisma.AccountFindManyArgs) => prisma.account.findMany({
+      findMany: (args?: any) => prisma.account.findMany({
         ...args,
         where: { ...args?.where, tenant_id: tenantId }
       }),
 
-      findUnique: (args: Prisma.AccountFindUniqueArgs) => prisma.account.findUnique({
+      findUnique: (args: any) => prisma.account.findUnique({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       }),
 
-      create: (args: Prisma.AccountCreateArgs) => prisma.account.create({
+      create: (args: any) => prisma.account.create({
         ...args,
         data: { ...args.data, tenant_id: tenantId }
-      }),
+      } as any),
 
-      update: (args: Prisma.AccountUpdateArgs) => prisma.account.update({
+      update: (args: any) => prisma.account.update({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       }),
 
-      delete: (args: Prisma.AccountDeleteArgs) => prisma.account.delete({
+      delete: (args: any) => prisma.account.delete({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       })
@@ -119,27 +119,27 @@ export function createTenantClient(tenantId: string) {
 
     // Transactions
     transactions: {
-      findMany: (args?: Prisma.TransactionFindManyArgs) => prisma.transaction.findMany({
+      findMany: (args?: any) => prisma.transaction.findMany({
         ...args,
         where: { ...args?.where, tenant_id: tenantId }
       }),
 
-      findUnique: (args: Prisma.TransactionFindUniqueArgs) => prisma.transaction.findUnique({
+      findUnique: (args: any) => prisma.transaction.findUnique({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       }),
 
-      create: (args: Prisma.TransactionCreateArgs) => prisma.transaction.create({
+      create: (args: any) => prisma.transaction.create({
         ...args,
         data: { ...args.data, tenant_id: tenantId }
-      }),
+      } as any),
 
-      update: (args: Prisma.TransactionUpdateArgs) => prisma.transaction.update({
+      update: (args: any) => prisma.transaction.update({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       }),
 
-      delete: (args: Prisma.TransactionDeleteArgs) => prisma.transaction.delete({
+      delete: (args: any) => prisma.transaction.delete({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       })
@@ -147,27 +147,27 @@ export function createTenantClient(tenantId: string) {
 
     // Categories
     categories: {
-      findMany: (args?: Prisma.CategoryFindManyArgs) => prisma.category.findMany({
+      findMany: (args?: any) => prisma.category.findMany({
         ...args,
         where: { ...args?.where, tenant_id: tenantId }
       }),
 
-      findUnique: (args: Prisma.CategoryFindUniqueArgs) => prisma.category.findUnique({
+      findUnique: (args: any) => prisma.category.findUnique({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       }),
 
-      create: (args: Prisma.CategoryCreateArgs) => prisma.category.create({
+      create: (args: any) => prisma.category.create({
         ...args,
         data: { ...args.data, tenant_id: tenantId }
-      }),
+      } as any),
 
-      update: (args: Prisma.CategoryUpdateArgs) => prisma.category.update({
+      update: (args: any) => prisma.category.update({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       }),
 
-      delete: (args: Prisma.CategoryDeleteArgs) => prisma.category.delete({
+      delete: (args: any) => prisma.category.delete({
         ...args,
         where: { ...args.where, tenant_id: tenantId }
       })

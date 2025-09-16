@@ -56,7 +56,7 @@ export class TransactionService extends BaseService {
     try {
       this.validateTenantId(tenantId)
 
-      const where: Record<string, unknown> = {
+      const where: any = {
         tenant_id: tenantId
       }
 
@@ -68,9 +68,9 @@ export class TransactionService extends BaseService {
         if (filters.is_recurring !== undefined) where.is_recurring = filters.is_recurring
 
         if (filters.date_from || filters.date_to) {
-          where.date = {}
-          if (filters.date_from) where.date.gte = filters.date_from
-          if (filters.date_to) where.date.lte = filters.date_to
+          where.date = {} as any
+          if (filters.date_from) (where.date as any).gte = filters.date_from
+          if (filters.date_to) (where.date as any).lte = filters.date_to
         }
 
         if (filters.search) {
