@@ -32,7 +32,11 @@ export function AccountsPageContent() {
     try {
       const response = await api.getAccounts()
       if (response.success && response.data) {
-        setAccounts(response.data)
+        // Handle both array format and paginated format
+        const accountsData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any).items || response.data
+        setAccounts(accountsData)
       } else {
         throw new Error(response.error || 'Failed to fetch accounts')
       }
