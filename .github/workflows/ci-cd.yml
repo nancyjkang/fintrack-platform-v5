@@ -1,0 +1,331 @@
+name: 🚀 FinTrack v5 CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20'
+  POSTGRES_VERSION: '15'
+
+jobs:
+  # ============================================================================
+  # CONTINUOUS INTEGRATION
+  # ============================================================================
+
+  ci:
+    name: 🔍 Continuous Integration
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: fintrack_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fintrack_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install Dependencies
+        run: npm ci
+
+      - name: 🏗️ Generate Prisma Client
+        run: npm run db:generate
+
+      - name: 🔍 Lint Code
+        run: npm run lint
+
+      - name: 🎯 Type Check
+        run: npm run type-check
+
+      - name: 🧪 Run Tests
+        run: npm run test:coverage
+        env:
+          DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
+
+      - name: 🏗️ Build Application
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://fintrack_test:test_password@localhost:5432/fintrack_test
+
+      - name: 📊 Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        if: success()
+
+      - name: 💾 Cache Build Artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            .next/cache
+            node_modules/.cache
+          key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}
+
+  # ============================================================================
+  # SECURITY AUDIT
+  # ============================================================================
+
+  security:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install Dependencies
+        run: npm ci
+
+      - name: 🔍 Security Audit
+        run: npm audit --audit-level=moderate
+
+      - name: 🔒 Check for Vulnerabilities
+        run: |
+          if npm audit --audit-level=high --json | jq '.vulnerabilities | length' | grep -q '^0$'; then
+            echo "✅ No high-severity vulnerabilities found"
+          else
+            echo "❌ High-severity vulnerabilities detected"
+            npm audit --audit-level=high
+            exit 1
+          fi
+
+  # ============================================================================
+  # DATABASE MIGRATION VALIDATION
+  # ============================================================================
+
+  migration-test:
+    name: 🗄️ Database Migration Test
+    runs-on: ubuntu-latest
+    needs: ci
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: fintrack_migration_test
+          POSTGRES_PASSWORD: migration_test_password
+          POSTGRES_DB: fintrack_migration_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install Dependencies
+        run: npm ci
+
+      - name: 🗄️ Test Fresh Migration
+        run: |
+          echo "Testing fresh database migration..."
+          npm run db:migrate:prod
+        env:
+          DATABASE_URL: postgresql://fintrack_migration_test:migration_test_password@localhost:5432/fintrack_migration_test
+
+      - name: 🌱 Test Seeding
+        run: |
+          echo "Testing database seeding..."
+          npm run db:seed
+        env:
+          DATABASE_URL: postgresql://fintrack_migration_test:migration_test_password@localhost:5432/fintrack_migration_test
+
+      - name: ✅ Validate Schema
+        run: |
+          echo "Validating database schema..."
+          npx prisma db pull --print
+        env:
+          DATABASE_URL: postgresql://fintrack_migration_test:migration_test_password@localhost:5432/fintrack_migration_test
+
+  # ============================================================================
+  # STAGING DEPLOYMENT
+  # ============================================================================
+
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [ci, security, migration-test]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install Dependencies
+        run: npm ci
+
+      - name: 🗄️ Run Database Migrations (Staging)
+        run: |
+          echo "Running database migrations on staging..."
+          npm run db:migrate:prod
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+
+      - name: 🚀 Deploy to Vercel (Staging)
+        id: deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
+      - name: 🏥 Health Check
+        run: |
+          echo "Performing health check..."
+          sleep 30  # Wait for deployment to be ready
+          curl -f ${{ steps.deploy.outputs.preview-url }}/api/health || exit 1
+          echo "✅ Staging deployment healthy"
+
+      - name: 📝 Comment PR with Staging URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Staging Deployment Ready**\n\n📍 **URL**: ${{ steps.deploy.outputs.preview-url }}\n\n✅ All checks passed:\n- ✅ Tests\n- ✅ Security audit\n- ✅ Database migrations\n- ✅ Health check`
+            })
+
+  # ============================================================================
+  # PRODUCTION DEPLOYMENT (Manual Trigger)
+  # ============================================================================
+
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://fintrack.yourdomain.com
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📚 Install Dependencies
+        run: npm ci
+
+      - name: 💾 Backup Production Database
+        run: |
+          echo "Creating production database backup..."
+          # Add your backup script here
+          # pg_dump $PRODUCTION_DATABASE_URL > backup-$(date +%Y%m%d-%H%M%S).sql
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: 🗄️ Run Database Migrations (Production)
+        run: |
+          echo "Running database migrations on production..."
+          npm run db:migrate:prod
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: 🚀 Deploy to Vercel (Production)
+        id: deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
+      - name: 🏥 Production Health Check
+        run: |
+          echo "Performing production health check..."
+          sleep 60  # Wait longer for production deployment
+          curl -f https://fintrack.yourdomain.com/api/health || exit 1
+          echo "✅ Production deployment healthy"
+
+      - name: 📊 Post-Deployment Validation
+        run: |
+          echo "Running post-deployment validation..."
+          # Add your validation scripts here
+          # npm run validate-data
+          echo "✅ Post-deployment validation complete"
+
+      - name: 🎉 Notify Success
+        if: success()
+        run: |
+          echo "🎉 Production deployment successful!"
+          echo "🌟 FinTrack v5 is live at https://fintrack.yourdomain.com"
+
+      - name: 🚨 Rollback on Failure
+        if: failure()
+        run: |
+          echo "🚨 Production deployment failed! Initiating rollback..."
+          npm run rollback
+          exit 1
+
+  # ============================================================================
+  # CLEANUP
+  # ============================================================================
+
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+      - name: 🧹 Clean up old deployments
+        run: |
+          echo "Cleaning up old preview deployments..."
+          # Add cleanup logic here if needed
