@@ -295,32 +295,35 @@ async function generateSeedData() {
     })
     console.log(`✅ Created user: ${user.email}`)
 
-    // Create tenant
-    const tenant = await prisma.tenant.upsert({
-      where: { id: 'demo-tenant' },
-      update: {},
-      create: {
-        id: 'demo-tenant',
-        name: config.user.tenantName
-      }
+    // Check if user already has a tenant/membership
+    const existingMembership = await prisma.membership.findFirst({
+      where: { user_id: user.id },
+      include: { tenant: true }
     })
-    console.log(`✅ Created tenant: ${tenant.name}`)
 
-    // Create membership
-    await prisma.membership.upsert({
-      where: {
-        user_id_tenant_id: {
-          user_id: user.id,
-          tenant_id: tenant.id
+    let tenant
+    if (existingMembership) {
+      // Use existing tenant
+      tenant = existingMembership.tenant
+      console.log(`✅ Using existing tenant: ${tenant.name}`)
+    } else {
+      // Create new tenant
+      tenant = await prisma.tenant.create({
+        data: {
+          name: config.user.tenantName
         }
-      },
-      update: {},
-      create: {
-        user_id: user.id,
-        tenant_id: tenant.id,
-        role: 'owner'
-      }
-    })
+      })
+      console.log(`✅ Created tenant: ${tenant.name}`)
+
+      // Create membership
+      await prisma.membership.create({
+        data: {
+          user_id: user.id,
+          tenant_id: tenant.id,
+          role: 'owner'
+        }
+      })
+    }
     console.log(`✅ Created membership`)
 
     // Create categories
