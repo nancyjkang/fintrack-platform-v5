@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Token is invalid, clear it
             await api.logout()
           }
-        } catch (error) {
+        } catch {
           // Network error or token invalid
           console.log('Auth check failed:', error)
           await api.logout()
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         return { success: false, error: response.error || 'Login failed' }
       }
-    } catch (error) {
+    } catch {
       return { success: false, error: 'Network error' }
     } finally {
       setIsLoading(false)
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         return { success: false, error: response.error || 'Registration failed' }
       }
-    } catch (error) {
+    } catch {
       return { success: false, error: 'Network error' }
     } finally {
       setIsLoading(false)

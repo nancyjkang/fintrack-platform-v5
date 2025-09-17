@@ -20,7 +20,7 @@ interface AccountCardProps {
   onDelete?: (accountId: string) => void
 }
 
-export default function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
+export default function AccountCard({ account }: AccountCardProps) {
   const formatCurrency = (amount: number | string, currency: string = 'USD') => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount
     return new Intl.NumberFormat('en-US', {

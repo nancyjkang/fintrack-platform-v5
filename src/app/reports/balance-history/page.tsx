@@ -188,11 +188,12 @@ export default function BalanceHistoryPage() {
           ? response.data
           : (response.data as { items?: unknown[] }).items || response.data
 
-        setAccounts(accountsData);
+        setAccounts(accountsData as AccountResponse[]);
 
         // Auto-select first account if available
         if (accountsData.length > 0 && !filters.accountId) {
-          setFilters(prev => ({ ...prev, accountId: accountsData[0].id }));
+          const firstAccount = accountsData[0] as { id: number };
+          setFilters(prev => ({ ...prev, accountId: firstAccount.id }));
         }
       }
     } catch (error) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { FileText, BarChart3 } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 
 export default function ReportsPage() {

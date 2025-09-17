@@ -52,7 +52,7 @@ export default function DashboardPage() {
           subtype: account.type, // Map type to subtype for display
           currency: 'USD', // Default currency
           icon: 'building' // Default icon
-        }))
+        })) as Account[]
 
         setAccounts(mappedAccounts)
       } else {

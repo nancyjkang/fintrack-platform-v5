@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Calculator } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { AccountForm } from './AccountForm'
-import EmptyState from '@/components/ui/EmptyState'
 import { formatDateForDisplay } from '@/lib/utils/date-utils'
 
 interface Account {
@@ -37,7 +36,7 @@ export function AccountsPageContent() {
         // Handle both array format and paginated format
         const accountsData = Array.isArray(response.data)
           ? response.data
-          : (response.data as any).items || response.data
+          : (response.data as { items?: unknown[] }).items || response.data
         setAccounts(accountsData)
       } else {
         throw new Error(response.error || 'Failed to fetch accounts')
