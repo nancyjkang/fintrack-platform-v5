@@ -230,6 +230,13 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
   - **Value**: Critical
   - **Notes**: Complete data isolation, role-based access - **[📁 Docs](./features/multi-tenant-support/)**
 
+- **Financial Trends Analysis** - 📋 **Ready for Development**
+  - **Estimate**: 5 days
+  - **Dependencies**: Transaction CRUD ✅, Account Management ✅, Category Management ✅
+  - **Value**: High
+  - **Notes**: **ADVANCED ANALYTICS FEATURE** ✅ Data cube architecture with 6 dimensions ✅ Multi-period analysis (weekly to annual) ✅ Savings trend tracking ✅ Category and account performance analysis ✅ Recurring vs one-time transaction insights ✅ Interactive visualizations with Recharts ✅ Real-time cube updates. Revolutionary analytics capability using OLAP-style dimensional modeling for flexible financial insights.
+  - **Documentation**: [Planning](docs/features/financial-trends-analysis/planning.md) | [Execution Log](docs/features/financial-trends-analysis/execution-log.md) | [README](docs/features/financial-trends-analysis/README.md)
+
 - **Audit Logging** - 📋 Ready
   - **Estimate**: 3 days
   - **Value**: High
