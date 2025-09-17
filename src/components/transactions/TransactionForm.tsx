@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, DollarSign, Calendar, Building, Tag, FileText, RotateCcw } from 'lucide-react';
 import { getCurrentDate, isValidDateString, parseAndConvertToUTC } from '@/lib/utils/date-utils';
+import { api } from '@/lib/client/api';
 
 interface Transaction {
   id: number;
@@ -20,11 +21,16 @@ interface Transaction {
 
 interface Account {
   id: number;
+  tenant_id: string;
   name: string;
   type: string;
+  net_worth_category: string;
   balance: number;
+  balance_date: string;
   color: string;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Category {
@@ -32,6 +38,9 @@ interface Category {
   name: string;
   type: string;
   color: string;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface TransactionFormProps {
@@ -63,22 +72,16 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
     const fetchData = async () => {
       try {
         const [accountsResponse, categoriesResponse] = await Promise.all([
-          fetch('/api/accounts'),
-          fetch('/api/categories')
+          api.getAccounts({ is_active: true }),
+          api.getCategories()
         ]);
 
-        if (accountsResponse.ok) {
-          const accountsData = await accountsResponse.json();
-          if (accountsData.success) {
-            setAccounts(accountsData.data || []);
-          }
+        if (accountsResponse.success && accountsResponse.data) {
+          setAccounts(accountsResponse.data);
         }
 
-        if (categoriesResponse.ok) {
-          const categoriesData = await categoriesResponse.json();
-          if (categoriesData.success) {
-            setCategories(categoriesData.data || []);
-          }
+        if (categoriesResponse.success && categoriesResponse.data) {
+          setCategories(categoriesResponse.data.categories || []);
         }
       } catch (err) {
         console.error('Error fetching form data:', err);
@@ -195,30 +198,14 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
         is_recurring: formData.is_recurring
       };
 
-      const url = editingTransaction
-        ? `/api/transactions/${editingTransaction.id}`
-        : '/api/transactions';
+      const response = editingTransaction
+        ? await api.updateTransaction(editingTransaction.id, transactionData)
+        : await api.createTransaction(transactionData);
 
-      const method = editingTransaction ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(transactionData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save transaction');
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         onSave();
       } else {
-        throw new Error(data.error || 'Failed to save transaction');
+        throw new Error(response.error || 'Failed to save transaction');
       }
     } catch (err) {
       console.error('Error saving transaction:', err);
@@ -368,7 +355,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
             {/* Account */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {formData.type === 'TRANSFER' ? 'From Account' : 'Account'}
+                {formData.type === 'TRANSFER' ? 'From Account' : 'Account'} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -389,11 +376,11 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
               </div>
             </div>
 
-            {/* To Account (for transfers) */}
+              {/* To Account (for transfers) */}
             {formData.type === 'TRANSFER' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  To Account
+                  To Account <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -431,7 +418,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white"
                     disabled={isSubmitting}
                   >
-                    <option value="">Select category (optional)</option>
+                    <option value="">Select category</option>
                     {filteredCategories.map(category => (
                       <option key={category.id} value={category.id.toString()}>
                         {category.name}
