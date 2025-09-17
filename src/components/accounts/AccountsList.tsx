@@ -15,6 +15,7 @@ interface Account {
   is_active: boolean
   created_at: string
   updated_at: string
+  latest_anchor_date?: string | null
 }
 
 interface AccountsListProps {
@@ -161,7 +162,9 @@ export function AccountsList({ accounts, onEdit, onDelete }: AccountsListProps) 
                   {formatCurrency(account.balance)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  as of {formatDate(account.balance_date)}
+                  {account.latest_anchor_date
+                    ? `as of ${formatDate(account.latest_anchor_date)}`
+                    : `as of ${formatDate(account.balance_date)}`}
                 </p>
               </div>
 
