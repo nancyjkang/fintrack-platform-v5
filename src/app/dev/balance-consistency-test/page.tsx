@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 
 interface TestResult {
-  balanceHistory: any[];
-  transactions: any[];
+  balanceHistory: unknown[];
+  transactions: unknown[];
   consistencyErrors: Array<{
     date: string;
     expectedBalance: number;
@@ -66,7 +66,7 @@ export default function BalanceConsistencyTestPage() {
       } else {
         throw new Error('Login failed: No token received');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(`Login failed: ${err.message}`);
     } finally {
       setAuthLoading(false);
@@ -131,14 +131,16 @@ export default function BalanceConsistencyTestPage() {
 
       // Create maps for comparison
       const dailyBalances = new Map();
-      balanceHistory.forEach((entry: any) => {
-        dailyBalances.set(entry.date, entry.endingBalance);
+      balanceHistory.forEach((entry: unknown) => {
+        const typedEntry = entry as { date: string; endingBalance: number };
+        dailyBalances.set(typedEntry.date, typedEntry.endingBalance);
       });
 
       const transactionDailyBalances = new Map();
-      transactions.forEach((transaction: any) => {
-        const date = transaction.date.split('T')[0];
-        transactionDailyBalances.set(date, transaction.balance);
+      transactions.forEach((transaction: unknown) => {
+        const typedTransaction = transaction as { date: string; balance: number };
+        const date = typedTransaction.date.split('T')[0];
+        transactionDailyBalances.set(date, typedTransaction.balance);
       });
 
       // Compare balances
@@ -173,7 +175,7 @@ export default function BalanceConsistencyTestPage() {
         }
       });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Test failed:', err);
       setError(err.message);
     } finally {
@@ -400,10 +402,10 @@ export default function BalanceConsistencyTestPage() {
       <div className="bg-blue-50 rounded-lg p-6 mt-6">
         <h2 className="text-lg font-semibold mb-2">Instructions</h2>
         <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700">
-          <li>Make sure you're logged in (auth token is stored in localStorage/sessionStorage)</li>
+          <li>Make sure you&apos;re logged in (auth token is stored in localStorage/sessionStorage)</li>
           <li>Enter the account ID you want to test (default: 5 from seed data)</li>
           <li>Set the date range for the test</li>
-          <li>Click "Run Consistency Test" to compare both endpoints</li>
+          <li>Click &quot;Run Consistency Test&quot; to compare both endpoints</li>
           <li>Review the results to ensure both endpoints return consistent balance calculations</li>
         </ol>
       </div>

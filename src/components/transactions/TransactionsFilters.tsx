@@ -104,12 +104,12 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
         if (categoriesResponse.success && categoriesResponse.data) {
           // Handle both array and paginated response formats
-          const categoriesData: any[] = Array.isArray(categoriesResponse.data)
+          const categoriesData = Array.isArray(categoriesResponse.data)
             ? categoriesResponse.data
             : (categoriesResponse.data as PaginatedCategoriesResponse).categories || [];
 
           // Convert to our Category interface format
-          const formattedCategories: Category[] = categoriesData.map((cat: any) => ({
+          const formattedCategories: Category[] = categoriesData.map((cat) => ({
             id: cat.id,
             name: cat.name,
             type: cat.type,

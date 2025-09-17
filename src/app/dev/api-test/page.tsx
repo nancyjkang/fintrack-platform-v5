@@ -59,7 +59,7 @@ const API_ENDPOINTS = [
 interface ApiResponse {
   status: number;
   statusText: string;
-  data: any;
+  data: unknown;
   headers: Record<string, string>;
   timestamp: string;
 }
@@ -114,7 +114,7 @@ export default function ApiTestPage() {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      const startTime = Date.now();
+      const startTime = getCurrentUTCDate().getTime();
       const res = await fetch(url, {
         method: 'GET',
         headers,
@@ -133,7 +133,7 @@ export default function ApiTestPage() {
         data = await res.text();
       }
 
-      const endTime = Date.now();
+      const endTime = getCurrentUTCDate().getTime();
 
       setResponse({
         status: res.status,
@@ -247,7 +247,7 @@ export default function ApiTestPage() {
                   placeholder="e.g., id=1&date_from=2024-01-01&date_to=2024-12-31"
                 />
                 <p className="text-sm text-gray-600 mt-1">
-                  For endpoints with {'{id}'}, use "id=123" parameter
+                  For endpoints with {'{id}'}, use &quot;id=123&quot; parameter
                 </p>
               </div>
 
