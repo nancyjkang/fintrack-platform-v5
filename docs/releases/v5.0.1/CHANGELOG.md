@@ -38,7 +38,7 @@ This release includes transaction management improvements, deployment workflow e
 ## 🧪 **Testing Checklist**
 
 - [ ] Login/Registration functionality
-- [ ] Transaction CRUD operations  
+- [ ] Transaction CRUD operations
 - [ ] Account management
 - [ ] Category filtering and display
 - [ ] Mobile responsiveness
@@ -52,6 +52,6 @@ This release includes transaction management improvements, deployment workflow e
 
 ---
 
-**Live Demo**: https://fintrack-platform-v5-fbvapk98s-lumifin.vercel.appQueued
+**Live Demo**: [URL will be updated after deployment]
 
 **Rollback Command**: `vercel rollback --previous`
