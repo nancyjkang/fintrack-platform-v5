@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cubeService } from '@/lib/services/cube.service'
 import { getCurrentUser } from '@/lib/auth/jwt'
-import { parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
 import { z } from 'zod'
 
 // Query parameter validation schema
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const serializedTrends = trends.map(trend => ({
       ...trend,
       total_amount: Number(trend.total_amount),
-      period_start: trend.period_start.toISOString().split('T')[0] // YYYY-MM-DD format
+      period_start: toUTCDateString(trend.period_start) // YYYY-MM-DD format
     }))
 
     // Group by account for easier frontend consumption

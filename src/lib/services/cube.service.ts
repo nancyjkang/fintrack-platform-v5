@@ -128,7 +128,7 @@ export class CubeService extends BaseService {
     timeElapsed: number
     accountsProcessed?: number
   }> {
-    const startTime = Date.now()
+    const startTime = performance.now()
 
     // Default options
     const {
@@ -143,7 +143,7 @@ export class CubeService extends BaseService {
       return {
         periodsProcessed: 0,
         recordsCreated: 0,
-        timeElapsed: Date.now() - startTime,
+        timeElapsed: performance.now() - startTime,
         accountsProcessed: 0
       }
     }
@@ -219,7 +219,7 @@ export class CubeService extends BaseService {
     return {
       periodsProcessed,
       recordsCreated: totalRecordsCreated,
-      timeElapsed: Date.now() - startTime,
+      timeElapsed: performance.now() - startTime,
       accountsProcessed: accountId ? 1 : await this.getAccountCount(tenantId)
     }
   }

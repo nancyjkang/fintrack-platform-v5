@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if date range is reasonable (not more than 2 years)
-    const daysDiff = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    const daysDiff = Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
     if (daysDiff > 730) { // 2 years
       return NextResponse.json({
         error: 'Date range too large: maximum 2 years allowed'
@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
     console.log(`Rebuilding cube for tenant ${user.tenantId}: ${startDate} to ${endDate} (${periodType})`)
 
     // Rebuild cube data
-    const startTime = Date.now()
+    const startTime = performance.now()
     await cubeService.rebuildCubeForPeriod(
       user.tenantId,
       start,
       end,
       periodType
     )
-    const duration = Date.now() - startTime
+    const duration = performance.now() - startTime
 
     console.log(`Cube rebuild completed in ${duration}ms`)
 
