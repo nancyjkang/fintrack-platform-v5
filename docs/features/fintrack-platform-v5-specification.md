@@ -7,13 +7,6 @@
 - [Technology Stack](#technology-stack)
 - [Database Schema](#database-schema)
 - [Core Systems](#core-systems)
-  - [Multi-Tenant Authentication System](#multi-tenant-authentication-system)
-  - [Account Management System](#account-management-system)
-  - [Transaction Management Engine](#transaction-management-engine)
-  - [Category Management System](#category-management-system)
-  - [Balance Calculation Engine](#balance-calculation-engine)
-  - [Spending Goals & Analytics](#spending-goals--analytics)
-  - [Audit Logging & Security](#audit-logging--security)
 - [API Specification](#api-specification)
 - [User Interface Requirements](#user-interface-requirements)
 - [Advanced Features](#advanced-features)
@@ -374,202 +367,15 @@ CREATE TABLE encryption_keys (
 
 ## Core Systems
 
-### **Multi-Tenant Authentication System**
+**Note**: Detailed feature documentation is available in the `docs/features/` directory. This section provides high-level system overview only.
 
-#### **Business Requirements**
-- Secure user registration and authentication
-- Multi-tenant data isolation
-- Session management with automatic refresh
-- Password security and recovery
-- Role-based access control
-
-#### **Technical Implementation**
-- **JWT Authentication**: Access tokens (15min) + refresh tokens (7 days)
-- **Password Security**: bcrypt hashing with salt rounds
-- **Session Management**: Redis-based session storage
-- **Multi-Tenancy**: Tenant ID-based data isolation in all queries
-- **Rate Limiting**: Login attempt limiting and API rate limiting
-
-#### **API Endpoints**
-```typescript
-POST /api/auth/register     // User registration
-POST /api/auth/login        // User authentication
-POST /api/auth/refresh      // Token refresh
-POST /api/auth/logout       // Session termination
-POST /api/auth/forgot       // Password reset request
-POST /api/auth/reset        // Password reset confirmation
-```
-
----
-
-### **Account Management System**
-
-#### **Business Requirements**
-- Multiple account types (checking, savings, credit, investment, etc.)
-- Account balance tracking with historical data
-- Multi-currency support for international users
-- Account categorization and organization
-- Balance anchoring for accuracy verification
-
-#### **Technical Implementation**
-- **Account Types**: Comprehensive enum for all financial account types
-- **Balance Calculation**: Real-time balance computation from transactions
-- **Currency Support**: Multi-currency with exchange rate handling
-- **Balance History**: Daily balance snapshots for trend analysis
-- **Balance Anchors**: Manual balance verification points
-
-#### **API Endpoints**
-```typescript
-GET    /api/accounts           // List user accounts
-POST   /api/accounts           // Create new account
-GET    /api/accounts/:id       // Get account details
-PUT    /api/accounts/:id       // Update account
-DELETE /api/accounts/:id       // Delete account
-GET    /api/accounts/:id/balance-history  // Balance history
-POST   /api/accounts/:id/anchor          // Set balance anchor
-```
-
----
-
-### **Transaction Management Engine**
-
-#### **Business Requirements**
-- Comprehensive transaction recording (income, expenses, transfers)
-- Transaction categorization with hierarchical categories
-- Bulk operations for efficiency (import, delete, categorize)
-- Transaction search and filtering capabilities
-- Duplicate detection and prevention
-- Transaction attachments and notes
-
-#### **Technical Implementation**
-- **Transaction Types**: Income, expense, transfer with proper accounting
-- **Category System**: Hierarchical categories with auto-categorization
-- **Bulk Operations**: Efficient batch processing for large datasets
-- **Search Engine**: Full-text search with advanced filtering
-- **Duplicate Detection**: Smart algorithms to prevent duplicate entries
-- **File Attachments**: Receipt and document storage
-
-#### **API Endpoints**
-```typescript
-GET    /api/transactions           // List transactions with filtering
-POST   /api/transactions           // Create new transaction
-GET    /api/transactions/:id       // Get transaction details
-PUT    /api/transactions/:id       // Update transaction
-DELETE /api/transactions/:id       // Delete transaction
-POST   /api/transactions/bulk      // Bulk operations
-GET    /api/transactions/search    // Advanced search
-POST   /api/transactions/:id/attachments  // Upload attachments
-```
-
----
-
-### **Category Management System**
-
-#### **Business Requirements**
-- Hierarchical category structure (parent/child relationships)
-- Default category templates for common use cases
-- Custom category creation and management
-- Category-based budgeting and reporting
-- Auto-categorization based on transaction patterns
-- Category merging and reorganization
-
-#### **Technical Implementation**
-- **Hierarchical Structure**: Parent-child category relationships
-- **Default Templates**: Pre-built category sets for different user types
-- **Auto-Categorization**: Machine learning-based category suggestions
-- **Budget Integration**: Category-based budget tracking
-- **Bulk Operations**: Efficient category management tools
-
-#### **API Endpoints**
-```typescript
-GET    /api/categories           // List categories (hierarchical)
-POST   /api/categories           // Create new category
-GET    /api/categories/:id       // Get category details
-PUT    /api/categories/:id       // Update category
-DELETE /api/categories/:id       // Delete category (with reassignment)
-POST   /api/categories/merge     // Merge categories
-GET    /api/categories/templates // Get default category templates
-```
-
----
-
-### **Balance Calculation Engine**
-
-#### **Business Requirements**
-- Real-time balance calculation from transaction history
-- Historical balance reconstruction for any date
-- Balance validation and discrepancy detection
-- Multi-account balance aggregation
-- Balance forecasting based on recurring transactions
-- Performance optimization for large transaction volumes
-
-#### **Technical Implementation**
-- **Real-Time Calculation**: Efficient balance computation algorithms
-- **Historical Reconstruction**: Point-in-time balance calculation
-- **Validation Engine**: Balance discrepancy detection and reporting
-- **Aggregation Logic**: Multi-account and category-based summaries
-- **Caching Strategy**: Redis caching for performance optimization
-
-#### **API Endpoints**
-```typescript
-GET /api/accounts/:id/balance           // Current account balance
-GET /api/accounts/:id/balance/:date     // Historical balance
-GET /api/balances/summary               // Multi-account summary
-GET /api/balances/validate              // Balance validation
-GET /api/balances/forecast              // Balance forecasting
-```
-
----
-
-### **Spending Goals & Analytics**
-
-#### **Business Requirements**
-- Goal-based financial planning and tracking
-- Category-based spending limits and budgets
-- Progress monitoring with alerts and notifications
-- Multiple goal types (savings, spending limits, debt reduction)
-- Visual progress indicators and achievement tracking
-
-#### **Technical Implementation**
-- **Goal Management**: Goal creation, tracking, and progress calculation
-- **Progress Analytics**: Real-time goal progress analysis and projections
-- **Alert System**: Threshold-based notifications and warnings
-- **Budget Integration**: Goal-based budget allocation and tracking
-
-#### **API Endpoints**
-```typescript
-GET    /api/goals              // List spending goals
-POST   /api/goals              // Create new goal
-GET    /api/goals/:id          // Get goal details
-PUT    /api/goals/:id          // Update goal
-DELETE /api/goals/:id          // Delete goal
-GET    /api/goals/:id/progress // Goal progress analysis
-```
-
----
-
-### **Audit Logging & Security**
-
-#### **Business Requirements**
-- Comprehensive audit trails for all financial operations
-- Compliance with financial data regulations
-- Security monitoring and breach detection
-- Change tracking for all sensitive operations
-- User activity monitoring and reporting
-
-#### **Technical Implementation**
-- **Audit Trail**: Complete logging of all CRUD operations
-- **Security Monitoring**: Login attempts, session management, suspicious activity
-- **Change Tracking**: Before/after values for all modifications
-- **Compliance Reporting**: Audit log exports and analysis
-
-#### **API Endpoints**
-```typescript
-GET /api/audit/logs           // List audit logs (admin only)
-GET /api/audit/user/:id       // User-specific audit trail
-GET /api/audit/resource/:type/:id  // Resource-specific audit trail
-GET /api/audit/export         // Export audit logs for compliance
-```
+### **System Architecture Overview**
+- **Multi-Tenant Authentication**: JWT-based auth with tenant isolation → [Feature Docs](./authentication-system/)
+- **Account Management**: Multi-type accounts with balance tracking → [Feature Docs](./account-management/)
+- **Transaction Engine**: Comprehensive transaction CRUD with categorization → [Feature Docs](./transaction-crud/)
+- **Category System**: Hierarchical categories with management → [Feature Docs](./category-management/)
+- **Balance Calculation**: Real-time balance computation → [Feature Docs](./account-balance-history/)
+- **Audit & Security**: Complete audit trails and compliance → [Feature Docs](./multi-tenant-support/)
 
 ---
 
@@ -650,24 +456,19 @@ interface ApiError {
 
 ## Advanced Features
 
-### **CSV Import & Export System**
-- **Format Detection**: Automatic CSV format recognition
-- **Column Mapping**: Intelligent field mapping with user override
-- **Preview System**: Import preview with validation and corrections
-- **Duplicate Detection**: Smart duplicate transaction identification
-- **Batch Processing**: Efficient bulk import with progress tracking
+**Note**: Advanced features have dedicated documentation in the `docs/features/` directory.
 
-### **AI-Powered Categorization**
-- **Machine Learning**: Transaction pattern recognition algorithms
-- **Training Data**: User-specific categorization patterns
-- **Confidence Scoring**: Probability-based categorization confidence
-- **Feedback Loop**: Learning from user corrections and preferences
+### **Implemented Advanced Features**
+- **CSV Import & Export System** → [Feature Docs](./csv-import/)
+- **Bulk Transaction Operations** → [Feature Docs](./bulk-transaction-operations/)
+- **Financial Trends Analysis** → [Feature Docs](./financial-trends-analysis/)
+- **Net Worth Reporting** → [Feature Docs](./net-worth-report/)
 
-### **Recurring Transaction Detection**
-- **Pattern Detection**: Algorithm to identify recurring transaction patterns
-- **Template System**: Recurring transaction templates with scheduling
-- **Variance Analysis**: Detection of amount changes in recurring transactions
-- **Prediction Engine**: Future transaction forecasting
+### **Planned Advanced Features**
+- **AI-Powered Categorization**: Machine learning-based transaction categorization
+- **Recurring Transaction Detection**: Pattern detection and automated scheduling
+- **Investment Tracking**: Portfolio management and performance analysis
+- **Budget Management**: Advanced budgeting with variance analysis
 
 ---
 
