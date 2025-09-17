@@ -106,11 +106,6 @@ This document contains the prioritized list of all features to be implemented, s
   - **Dependencies**: Transaction CRUD, Categories
   - **Notes**: File upload, parsing, duplicate detection
 
-- **Transaction Filtering** - 📋 Ready
-  - **Estimate**: 3 days
-  - **Dependencies**: Transaction CRUD
-  - **Notes**: Advanced search, date ranges, filters
-
 - **Bulk Transaction Operations** - 📋 Ready
   - **Estimate**: 3 days
   - **Dependencies**: Transaction CRUD, Filtering
@@ -165,11 +160,6 @@ These are features that exist in v4.1 and need to be ported to v5's PostgreSQL a
   - **Complexity**: High
   - **Notes**: Complex table with sorting, filtering, pagination
 
-- **Account Balance Calculation** - 📋 Ready
-  - **Estimate**: 2 days
-  - **Complexity**: Medium
-  - **Notes**: Real-time balance updates
-
 - **Category Hierarchy** - 📋 Ready
   - **Estimate**: 2 days
   - **Complexity**: Medium
@@ -214,30 +204,11 @@ These are features that exist in v4.1 and need to be ported to v5's PostgreSQL a
   - **Complexity**: Medium
   - **Notes**: Custom validation logic
 
-- **Keyboard Shortcuts** - 📋 Backlog
-  - **Estimate**: 1 day
-  - **Complexity**: Low
-  - **Notes**: Power user features
-
-- **Dark Mode** - 📋 Backlog
-  - **Estimate**: 1 day
-  - **Complexity**: Low
-  - **Notes**: UI theme switching
-
 ---
 
 ## 🏗️ **Infrastructure & DevOps**
 
 Critical infrastructure features that support the entire application.
-
-- **CI/CD Pipeline** - ✅ Complete
-  - **Estimate**: 1 day (actual: 1 day)
-  - **Completed**: 2025-01-16
-  - **Last Updated**: 2025-01-16
-  - **Dependencies**: None ✅
-  - **Value**: Critical
-  - **Notes**: Complete GitHub Actions workflow with database migrations, automated testing, security scanning, and multi-environment deployment
-  - **Documentation**: [Planning](docs/features/ci-cd-pipeline/planning.md) | [Implementation](docs/features/ci-cd-pipeline/implementation.md) | [Execution Log](docs/features/ci-cd-pipeline/execution-log.md)
 
 ## 🆕 **New v5-Only Features**
 
