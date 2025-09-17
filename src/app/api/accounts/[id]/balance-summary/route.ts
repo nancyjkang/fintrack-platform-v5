@@ -94,11 +94,11 @@ function isValidDateFormat(dateString: string): boolean {
 
   // Simple validation - check if it's a valid date
   // eslint-disable-next-line no-restricted-globals
-  const date = new Date(year, month - 1, day) // Month is 0-indexed in Date constructor
+  const date = createUTCDate(year, month - 1, day) // Month is 0-indexed in Date constructor
 
   return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 && // Month is 0-indexed
-    date.getDate() === day
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 && // Month is 0-indexed
+    date.getUTCDate() === day
   )
 }

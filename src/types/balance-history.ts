@@ -73,3 +73,4 @@ export interface BalanceSummaryResponse {
   data: BalanceSummary;
   error?: string;
 }
+
