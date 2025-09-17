@@ -1,6 +1,7 @@
 'use client';
 
 import { Calendar } from 'lucide-react';
+import { getCurrentUTCDate, subtractDays, toUTCDateString, addDays, createUTCDate } from '@/lib/utils/date-utils';
 import type { BalanceHistoryFilters as FilterType } from '@/types/balance-history';
 
 interface BalanceHistoryFiltersProps {
@@ -34,76 +35,73 @@ export function BalanceHistoryFilters({
 }: BalanceHistoryFiltersProps) {
 
   const getDateRange = (value: string) => {
-    const today = new Date();
+    const today = getCurrentUTCDate();
     let startDate = '';
-    let endDate = today.toISOString().split('T')[0];
+    let endDate = toUTCDateString(today);
 
     switch (value) {
       case 'this-week': {
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        startDate = startOfWeek.toISOString().split('T')[0];
+        const startOfWeek = subtractDays(today, today.getUTCDay());
+        startDate = toUTCDateString(startOfWeek);
         break;
       }
       case 'last-week': {
-        const startOfLastWeek = new Date(today);
-        startOfLastWeek.setDate(today.getDate() - today.getDay() - 7);
-        const endOfLastWeek = new Date(startOfLastWeek);
-        endOfLastWeek.setDate(startOfLastWeek.getDate() + 6);
-        startDate = startOfLastWeek.toISOString().split('T')[0];
-        endDate = endOfLastWeek.toISOString().split('T')[0];
+        const startOfLastWeek = subtractDays(today, today.getUTCDay() + 7);
+        const endOfLastWeek = addDays(startOfLastWeek, 6);
+        startDate = toUTCDateString(startOfLastWeek);
+        endDate = toUTCDateString(endOfLastWeek);
         break;
       }
       case 'this-month': {
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        startDate = startOfMonth.toISOString().split('T')[0];
+        const startOfMonth = createUTCDate(today.getUTCFullYear(), today.getUTCMonth(), 1);
+        startDate = toUTCDateString(startOfMonth);
         break;
       }
       case 'last-month': {
-        const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        startDate = startOfLastMonth.toISOString().split('T')[0];
-        endDate = endOfLastMonth.toISOString().split('T')[0];
+        const startOfLastMonth = createUTCDate(today.getUTCFullYear(), today.getUTCMonth() - 1, 1);
+        const endOfLastMonth = createUTCDate(today.getUTCFullYear(), today.getUTCMonth(), 0);
+        startDate = toUTCDateString(startOfLastMonth);
+        endDate = toUTCDateString(endOfLastMonth);
         break;
       }
       case 'this-quarter': {
-        const quarter = Math.floor(today.getMonth() / 3);
-        const startOfQuarter = new Date(today.getFullYear(), quarter * 3, 1);
-        startDate = startOfQuarter.toISOString().split('T')[0];
+        const quarter = Math.floor(today.getUTCMonth() / 3);
+        const startOfQuarter = createUTCDate(today.getUTCFullYear(), quarter * 3, 1);
+        startDate = toUTCDateString(startOfQuarter);
         break;
       }
       case 'last-quarter': {
-        const quarter = Math.floor(today.getMonth() / 3);
-        const startOfLastQuarter = new Date(today.getFullYear(), (quarter - 1) * 3, 1);
-        const endOfLastQuarter = new Date(today.getFullYear(), quarter * 3, 0);
-        startDate = startOfLastQuarter.toISOString().split('T')[0];
-        endDate = endOfLastQuarter.toISOString().split('T')[0];
+        const quarter = Math.floor(today.getUTCMonth() / 3);
+        const startOfLastQuarter = createUTCDate(today.getUTCFullYear(), (quarter - 1) * 3, 1);
+        const endOfLastQuarter = createUTCDate(today.getUTCFullYear(), quarter * 3, 0);
+        startDate = toUTCDateString(startOfLastQuarter);
+        endDate = toUTCDateString(endOfLastQuarter);
         break;
       }
       case 'this-half': {
-        const half = Math.floor(today.getMonth() / 6);
-        const startOfHalf = new Date(today.getFullYear(), half * 6, 1);
-        startDate = startOfHalf.toISOString().split('T')[0];
+        const half = Math.floor(today.getUTCMonth() / 6);
+        const startOfHalf = createUTCDate(today.getUTCFullYear(), half * 6, 1);
+        startDate = toUTCDateString(startOfHalf);
         break;
       }
       case 'last-half': {
-        const half = Math.floor(today.getMonth() / 6);
-        const startOfLastHalf = new Date(today.getFullYear(), (half - 1) * 6, 1);
-        const endOfLastHalf = new Date(today.getFullYear(), half * 6, 0);
-        startDate = startOfLastHalf.toISOString().split('T')[0];
-        endDate = endOfLastHalf.toISOString().split('T')[0];
+        const half = Math.floor(today.getUTCMonth() / 6);
+        const startOfLastHalf = createUTCDate(today.getUTCFullYear(), (half - 1) * 6, 1);
+        const endOfLastHalf = createUTCDate(today.getUTCFullYear(), half * 6, 0);
+        startDate = toUTCDateString(startOfLastHalf);
+        endDate = toUTCDateString(endOfLastHalf);
         break;
       }
       case 'this-year': {
-        const startOfYear = new Date(today.getFullYear(), 0, 1);
-        startDate = startOfYear.toISOString().split('T')[0];
+        const startOfYear = createUTCDate(today.getUTCFullYear(), 0, 1);
+        startDate = toUTCDateString(startOfYear);
         break;
       }
       case 'last-year': {
-        const startOfLastYear = new Date(today.getFullYear() - 1, 0, 1);
-        const endOfLastYear = new Date(today.getFullYear() - 1, 11, 31);
-        startDate = startOfLastYear.toISOString().split('T')[0];
-        endDate = endOfLastYear.toISOString().split('T')[0];
+        const startOfLastYear = createUTCDate(today.getUTCFullYear() - 1, 0, 1);
+        const endOfLastYear = createUTCDate(today.getUTCFullYear() - 1, 11, 31);
+        startDate = toUTCDateString(startOfLastYear);
+        endDate = toUTCDateString(endOfLastYear);
         break;
       }
       default:

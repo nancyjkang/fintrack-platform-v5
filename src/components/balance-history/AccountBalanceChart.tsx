@@ -11,6 +11,7 @@ import {
   Tooltip, 
   Legend 
 } from 'recharts';
+import { createUTCDate } from '@/lib/utils/date-utils';
 import type { BalanceHistoryData } from '@/types/balance-history';
 
 interface AccountBalanceChartProps {
@@ -35,7 +36,8 @@ export function AccountBalanceChart({
   };
 
   const formatXAxisLabel = (dateString: string) => {
-    const date = new Date(dateString);
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = createUTCDate(year, month - 1, day);
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -54,7 +56,8 @@ export function AccountBalanceChart({
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const date = new Date(label);
+      const [year, month, day] = label.split('-').map(Number);
+      const date = createUTCDate(year, month - 1, day);
       const formattedDate = date.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -85,7 +88,7 @@ export function AccountBalanceChart({
   };
 
   // Sort data chronologically for proper chart display
-  const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
   if (sortedData.length === 0) {
     return (

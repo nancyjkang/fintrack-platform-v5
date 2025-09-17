@@ -2,6 +2,7 @@
 
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { BalanceHistoryData } from '@/types/balance-history';
+import { formatDateForDisplay, parseAndConvertToUTC } from '@/lib/utils/date-utils';
 
 interface BalanceHistoryTableProps {
   data: BalanceHistoryData[];
@@ -16,10 +17,7 @@ export function BalanceHistoryTable({ data }: BalanceHistoryTableProps) {
   };
 
   const formatDate = (dateString: string) => {
-    // Match v4.1 format exactly: "Jan 2, 2025" (no weekday)
-    const date = new Date(dateString);
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    return formatDateForDisplay(dateString);
   };
 
   const getNetChangeDisplay = (netAmount: number) => {
@@ -53,7 +51,7 @@ export function BalanceHistoryTable({ data }: BalanceHistoryTableProps) {
   }
 
   // Sort data by date (most recent first)
-  const sortedData = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedData = [...data].sort((a, b) => parseAndConvertToUTC(b.date).getTime() - parseAndConvertToUTC(a.date).getTime());
 
   return (
     <div className="overflow-hidden">

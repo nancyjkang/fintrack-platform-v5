@@ -3,6 +3,7 @@
 import React from 'react';
 import { Transaction } from '@prisma/client';
 import { TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react';
+import { formatDateForDisplay, parseAndConvertToUTC } from '@/lib/utils/date-utils';
 
 interface TransactionWithBalance extends Transaction {
   balance: number;
@@ -35,12 +36,7 @@ export default function AccountTransactionsTable({
 }: AccountTransactionsTableProps) {
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    return formatDateForDisplay(dateString);
   };
 
   const formatCurrency = (amount: number) => {
