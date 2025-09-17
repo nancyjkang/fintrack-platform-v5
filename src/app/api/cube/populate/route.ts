@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get cube population status/stats
-    const stats = await cubeService.getCubeStats(user.tenantId)
+    const stats = await cubeService.getCubeStatistics(user.tenantId)
 
     return NextResponse.json({
       success: true,

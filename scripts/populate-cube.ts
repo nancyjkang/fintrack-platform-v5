@@ -98,7 +98,7 @@ Examples:
     }
 
     // Get current cube stats
-    const currentStats = await cubeService.getCubeStats(options.tenantId)
+    const currentStats = await cubeService.getCubeStatistics(options.tenantId)
     console.log(`📈 Current cube records: ${currentStats.totalRecords} (${currentStats.weeklyRecords} weekly, ${currentStats.monthlyRecords} monthly)`)
 
     if (options.dryRun) {
@@ -141,7 +141,7 @@ Examples:
     console.log(`⏱️  Time elapsed: ${(result.timeElapsed / 1000).toFixed(2)}s`)
 
     // Show final stats
-    const finalStats = await cubeService.getCubeStats(options.tenantId)
+    const finalStats = await cubeService.getCubeStatistics(options.tenantId)
     console.log(`📈 Final cube records: ${finalStats.totalRecords} (${finalStats.weeklyRecords} weekly, ${finalStats.monthlyRecords} monthly)`)
 
     if (finalStats.dateRange.earliest && finalStats.dateRange.latest) {

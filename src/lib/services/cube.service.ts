@@ -1,8 +1,16 @@
 import { BaseService } from './base.service'
 import type { FinancialCube, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
-import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, format } from 'date-fns'
-import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight } from '@/lib/utils/date-utils'
+import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, format, addWeeks, addMonths } from 'date-fns'
+import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import type {
+  TransactionDelta,
+  CubeRelevantFields,
+  Period,
+  CubeRegenerationTarget,
+  DeltaProcessingResult,
+  BulkUpdateMetadata
+} from '@/lib/types/cube-delta.types'
 
 // Core interfaces for cube operations
 
@@ -68,7 +76,7 @@ export class CubeService extends BaseService {
       WHERE t.tenant_id = $1
         AND t.date >= $2
         AND t.date <= $3`
-    
+
     const accountFilter = accountId ? ` AND t.account_id = $4` : ''
     const groupByClause = `
       GROUP BY
@@ -77,13 +85,136 @@ export class CubeService extends BaseService {
         t.account_id,
         t.is_recurring
       HAVING COUNT(*) > 0`
-    
+
     const fullQuery = baseQuery + accountFilter + groupByClause
-    
-    const queryParams = accountId 
+
+    const queryParams = accountId
       ? [tenantId, periodStart, periodEnd, accountId]
       : [tenantId, periodStart, periodEnd]
-    
+
+    const aggregations = await this.prisma.$queryRawUnsafe<Array<{
+      transaction_type: string
+      category_id: number | null
+      category_name: string
+      account_id: number
+      account_name: string
+      is_recurring: boolean
+      total_amount: Decimal
+      transaction_count: bigint
+    }>>(fullQuery, ...queryParams)
+
+    // Insert aggregated data into cube
+    const cubeRecords: Prisma.FinancialCubeCreateManyInput[] = aggregations.map(agg => ({
+      tenant_id: tenantId,
+      period_type: periodType,
+      period_start: periodStart,
+      period_end: periodEnd,
+      transaction_type: agg.transaction_type,
+      category_id: agg.category_id,
+      category_name: agg.category_name,
+      account_id: agg.account_id,
+      account_name: agg.account_name,
+      is_recurring: agg.is_recurring,
+      total_amount: agg.total_amount,
+      transaction_count: Number(agg.transaction_count)
+    }))
+
+    if (cubeRecords.length > 0) {
+      await this.prisma.financialCube.createMany({
+        data: cubeRecords,
+        skipDuplicates: true // Handle race conditions gracefully
+      })
+    }
+  }
+
+  /**
+   * Build cube data for specific regeneration targets within a period
+   * This is more precise than rebuilding the entire period when we know exactly what changed
+   */
+  private async buildCubeForTargets(
+    tenantId: string,
+    periodStart: Date,
+    periodEnd: Date,
+    periodType: 'WEEKLY' | 'MONTHLY',
+    targets: CubeRegenerationTarget[]
+  ): Promise<void> {
+    // Process each target individually for maximum precision
+    // This ensures we only query for data that actually needs regeneration
+    for (const target of targets) {
+      await this.buildCubeForSpecificCriteria(
+        tenantId,
+        periodStart,
+        periodEnd,
+        periodType,
+        target.transactionType,
+        [target.categoryId], // Single category per query
+        target.isRecurring
+      )
+    }
+  }
+
+  /**
+   * Build cube data for specific transaction type, categories, and recurring flag
+   */
+  private async buildCubeForSpecificCriteria(
+    tenantId: string,
+    periodStart: Date,
+    periodEnd: Date,
+    periodType: 'WEEKLY' | 'MONTHLY',
+    transactionType: string,
+    categoryIds: (number | null)[],
+    isRecurring: boolean
+  ): Promise<void> {
+    // Build the query with specific filters
+    const baseQuery = `
+      SELECT
+        t.type as transaction_type,
+        t.category_id,
+        COALESCE(MIN(c.name), 'Uncategorized') as category_name,
+        t.account_id,
+        MIN(a.name) as account_name,
+        t.is_recurring,
+        SUM(t.amount) as total_amount,
+        COUNT(*) as transaction_count
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      INNER JOIN accounts a ON t.account_id = a.id
+      WHERE t.tenant_id = $1
+        AND t.date >= $2
+        AND t.date <= $3
+        AND t.type = $4
+        AND t.is_recurring = $5`
+
+    // Add category filter - handle null categories properly
+    let categoryFilter = ''
+    let queryParams = [tenantId, periodStart, periodEnd, transactionType, isRecurring]
+
+    if (categoryIds.length > 0) {
+      const nonNullCategories = categoryIds.filter(id => id !== null)
+      const hasNull = categoryIds.includes(null)
+
+      if (nonNullCategories.length > 0 && hasNull) {
+        // Both null and non-null categories
+        categoryFilter = ` AND (t.category_id IN (${nonNullCategories.join(',')}) OR t.category_id IS NULL)`
+      } else if (nonNullCategories.length > 0) {
+        // Only non-null categories
+        categoryFilter = ` AND t.category_id IN (${nonNullCategories.join(',')})`
+      } else if (hasNull) {
+        // Only null category
+        categoryFilter = ` AND t.category_id IS NULL`
+      }
+    }
+
+    const groupByClause = `
+      GROUP BY
+        t.type,
+        t.category_id,
+        t.account_id,
+        t.is_recurring
+      HAVING COUNT(*) > 0`
+
+    const fullQuery = baseQuery + categoryFilter + groupByClause
+
     const aggregations = await this.prisma.$queryRawUnsafe<Array<{
       transaction_type: string
       category_id: number | null
@@ -581,86 +712,9 @@ export class CubeService extends BaseService {
     return periods
   }
 
-  private async getAffectedPeriods(
-    tenantId: string,
-    transactionIds: number[]
-  ): Promise<Array<{
-    periodStart: Date
-    periodEnd: Date
-    periodType: 'WEEKLY' | 'MONTHLY'
-  }>> {
-    // Get distinct dates from affected transactions
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        tenant_id: tenantId,
-        id: { in: transactionIds }
-      },
-      select: { date: true },
-      distinct: ['date']
-    })
+  // REMOVED: getAffectedPeriods - obsolete with bulk metadata approach
 
-    const affectedPeriods: Array<{
-      periodStart: Date
-      periodEnd: Date
-      periodType: 'WEEKLY' | 'MONTHLY'
-    }> = []
-
-    // Generate both weekly and monthly periods for each affected date
-    for (const transaction of transactions) {
-      const date = transaction.date
-
-      // Weekly period
-      affectedPeriods.push({
-        periodStart: startOfWeek(date, { weekStartsOn: 1 }),
-        periodEnd: endOfWeek(date, { weekStartsOn: 1 }),
-        periodType: 'WEEKLY'
-      })
-
-      // Monthly period
-      affectedPeriods.push({
-        periodStart: startOfMonth(date),
-        periodEnd: endOfMonth(date),
-        periodType: 'MONTHLY'
-      })
-    }
-
-    // Remove duplicates
-    const uniquePeriods = affectedPeriods.filter((period, index, self) =>
-      index === self.findIndex(p =>
-        p.periodStart.getTime() === period.periodStart.getTime() &&
-        p.periodEnd.getTime() === period.periodEnd.getTime() &&
-        p.periodType === period.periodType
-      )
-    )
-
-    return uniquePeriods
-  }
-
-  /**
-   * Get affected account IDs for a specific period from given transaction IDs
-   * This allows us to rebuild only the accounts that actually had changes in this period
-   */
-  private async getAffectedAccountsForPeriod(
-    tenantId: string,
-    transactionIds: number[],
-    periodStart: Date,
-    periodEnd: Date
-  ): Promise<number[]> {
-    const result = await this.prisma.transaction.findMany({
-      where: {
-        tenant_id: tenantId,
-        id: { in: transactionIds },
-        date: {
-          gte: periodStart,
-          lte: periodEnd
-        }
-      },
-      select: { account_id: true },
-      distinct: ['account_id']
-    })
-
-    return result.map(t => t.account_id)
-  }
+  // REMOVED: getAffectedAccountsForPeriod - obsolete with bulk metadata approach
 
   /**
    * Get the earliest transaction date for a tenant (optionally for specific account)
@@ -708,67 +762,7 @@ export class CubeService extends BaseService {
     return count
   }
 
-  /**
-   * Get cube statistics for a tenant
-   */
-  async getCubeStats(tenantId: string): Promise<{
-    totalRecords: number
-    weeklyRecords: number
-    monthlyRecords: number
-    dateRange: {
-      earliest: Date | null
-      latest: Date | null
-    }
-    lastUpdated: Date | null
-  }> {
-    const [totalCount, weeklyCount, monthlyCount, dateRange, lastUpdated] = await Promise.all([
-      // Total records
-      this.prisma.financialCube.count({
-        where: { tenant_id: tenantId }
-      }),
-
-      // Weekly records
-      this.prisma.financialCube.count({
-        where: {
-          tenant_id: tenantId,
-          period_type: 'WEEKLY'
-        }
-      }),
-
-      // Monthly records
-      this.prisma.financialCube.count({
-        where: {
-          tenant_id: tenantId,
-          period_type: 'MONTHLY'
-        }
-      }),
-
-      // Date range
-      this.prisma.financialCube.aggregate({
-        where: { tenant_id: tenantId },
-        _min: { period_start: true },
-        _max: { period_end: true }
-      }),
-
-      // Last updated
-      this.prisma.financialCube.findFirst({
-        where: { tenant_id: tenantId },
-        select: { updated_at: true },
-        orderBy: { updated_at: 'desc' }
-      })
-    ])
-
-    return {
-      totalRecords: totalCount,
-      weeklyRecords: weeklyCount,
-      monthlyRecords: monthlyCount,
-      dateRange: {
-        earliest: dateRange._min.period_start,
-        latest: dateRange._max.period_end
-      },
-      lastUpdated: lastUpdated?.updated_at || null
-    }
-  }
+  // REMOVED: getCubeStats - replaced by getCubeStatistics which is more comprehensive
 
   /**
    * Get count of accounts for a tenant
@@ -779,26 +773,484 @@ export class CubeService extends BaseService {
     })
   }
 
-  // Helper methods
+  /**
+   * Group cube regeneration targets by period for efficient batch processing
+   */
+  private groupCubesByPeriod(targets: CubeRegenerationTarget[]): Map<string, CubeRegenerationTarget[]> {
+    const groups = new Map<string, CubeRegenerationTarget[]>()
 
-  private async getCategoryName(categoryId: number | null): Promise<string> {
-    if (!categoryId) return 'Uncategorized'
+    for (const target of targets) {
+      const key = `${target.tenantId}-${target.periodType}-${target.periodStart.toISOString()}`
 
-    const category = await this.prisma.category.findUnique({
-      where: { id: categoryId },
-      select: { name: true }
-    })
+      if (!groups.has(key)) {
+        groups.set(key, [])
+      }
+      groups.get(key)!.push(target)
+    }
 
-    return category?.name || 'Uncategorized'
+    return groups
   }
 
-  private async getAccountName(accountId: number): Promise<string> {
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      select: { name: true }
+  /**
+   * Regenerate cube records for the affected periods
+   * This clears and rebuilds only the specific cube records that need updating
+   */
+  private async regenerateCubeRecords(periodGroups: Map<string, CubeRegenerationTarget[]>): Promise<void> {
+    for (const [periodKey, targets] of periodGroups) {
+      // Parse period info from the key (format: "tenantId-periodType-periodStartISO")
+      const [tenantId, periodType, periodStartISO] = periodKey.split('-')
+      const periodStart = parseAndConvertToUTC(periodStartISO)
+
+      // Calculate period end
+      const periodEnd = periodType === 'WEEKLY'
+        ? endOfWeek(periodStart, { weekStartsOn: 1 })
+        : endOfMonth(periodStart)
+
+      // Clear existing cube records for this specific period and dimensions
+      await this.clearSpecificCubeRecords(targets)
+
+      // Rebuild cube data for the specific targets only
+      await this.buildCubeForTargets(tenantId, periodStart, periodEnd, periodType as 'WEEKLY' | 'MONTHLY', targets)
+    }
+  }
+
+  /**
+   * Clear specific cube records that match the regeneration targets
+   */
+  private async clearSpecificCubeRecords(
+    targets: CubeRegenerationTarget[]
+  ): Promise<void> {
+    // Build OR conditions for each target using specific criteria
+    const orConditions = targets.map(target => ({
+      tenant_id: target.tenantId,
+      period_type: target.periodType,
+      period_start: target.periodStart,
+      transaction_type: target.transactionType,
+      category_id: target.categoryId,
+      is_recurring: target.isRecurring
+      // Note: Using specific criteria including is_recurring (no account_id)
+    }))
+
+    if (orConditions.length > 0) {
+      await this.prisma.financialCube.deleteMany({
+        where: {
+          OR: orConditions
+        }
+      })
+    }
+  }
+
+  /**
+   * Extract unique periods affected by the regeneration targets
+   */
+  private extractAffectedPeriods(targets: CubeRegenerationTarget[]): Period[] {
+    const periodSet = new Set<string>()
+    const periods: Period[] = []
+
+    for (const target of targets) {
+      const periodEnd = target.periodType === 'WEEKLY'
+        ? endOfWeek(target.periodStart, { weekStartsOn: 1 })
+        : endOfMonth(target.periodStart)
+
+      const key = `${target.periodType}-${target.periodStart.toISOString()}`
+
+      if (!periodSet.has(key)) {
+        periodSet.add(key)
+        periods.push({
+          type: target.periodType,
+          start: target.periodStart,
+          end: periodEnd
+        })
+      }
+    }
+
+    return periods
+  }
+
+  /**
+   * Create a transaction delta for INSERT operations
+   */
+  static createInsertDelta(
+    transactionId: number,
+    tenantId: string,
+    newValues: CubeRelevantFields,
+    userId?: string
+  ): TransactionDelta {
+    return {
+      transactionId,
+      operation: 'INSERT',
+      tenantId,
+      newValues,
+      timestamp: getCurrentUTCDate(),
+      userId
+    }
+  }
+
+  /**
+   * Create a transaction delta for UPDATE operations
+   */
+  static createUpdateDelta(
+    transactionId: number,
+    tenantId: string,
+    oldValues: CubeRelevantFields,
+    newValues: CubeRelevantFields,
+    userId?: string
+  ): TransactionDelta {
+    return {
+      transactionId,
+      operation: 'UPDATE',
+      tenantId,
+      oldValues,
+      newValues,
+      timestamp: getCurrentUTCDate(),
+      userId
+    }
+  }
+
+  /**
+   * Create a transaction delta for DELETE operations
+   */
+  static createDeleteDelta(
+    transactionId: number,
+    tenantId: string,
+    oldValues: CubeRelevantFields,
+    userId?: string
+  ): TransactionDelta {
+    return {
+      transactionId,
+      operation: 'DELETE',
+      tenantId,
+      oldValues,
+      timestamp: getCurrentUTCDate(),
+      userId
+    }
+  }
+
+  // ============================================================================
+  // BULK METADATA APPROACH - Superior for bulk operations
+  // ============================================================================
+
+  /**
+   * Update cube using bulk metadata approach - much more efficient for bulk operations
+   */
+  async updateCubeWithBulkMetadata(bulkUpdate: BulkUpdateMetadata): Promise<DeltaProcessingResult> {
+    if (bulkUpdate.affectedTransactionIds.length === 0) {
+      return {
+        cubesToRegenerate: [],
+        affectedPeriods: [],
+        totalDeltas: 0,
+        processedAt: getCurrentUTCDate()
+      }
+    }
+
+    // Step 1: Calculate affected periods from date range (not individual dates!)
+    const periods = await this.calculatePeriodsForDateRange(
+      bulkUpdate.dateRange?.startDate || await this.getEarliestTransactionDateForIds(bulkUpdate.affectedTransactionIds),
+      bulkUpdate.dateRange?.endDate || await this.getLatestTransactionDateForIds(bulkUpdate.affectedTransactionIds)
+    )
+
+    // Step 2: Direct calculation of regeneration targets based on changed fields
+    const targets = await this.calculateRegenerationTargetsFromBulk(bulkUpdate, periods)
+
+    // Step 3: Group and regenerate (same as delta approach)
+    const periodGroups = this.groupCubesByPeriod(targets)
+    await this.regenerateCubeRecords(periodGroups)
+
+    return {
+      cubesToRegenerate: targets,
+      affectedPeriods: this.extractAffectedPeriods(targets),
+      totalDeltas: bulkUpdate.affectedTransactionIds.length,
+      processedAt: getCurrentUTCDate()
+    }
+  }
+
+  /**
+   * Calculate periods for a date range
+   */
+  private async calculatePeriodsForDateRange(startDate: Date, endDate: Date): Promise<Period[]> {
+    const periods: Period[] = []
+
+    // Generate weekly periods
+    let currentWeekStart = startOfWeek(startDate, { weekStartsOn: 1 }) // Monday start
+    const lastWeekStart = startOfWeek(endDate, { weekStartsOn: 1 })
+
+    while (currentWeekStart <= lastWeekStart) {
+      periods.push({
+        type: 'WEEKLY',
+        start: currentWeekStart,
+        end: endOfWeek(currentWeekStart, { weekStartsOn: 1 })
+      })
+      currentWeekStart = addWeeks(currentWeekStart, 1)
+    }
+
+    // Generate monthly periods
+    let currentMonthStart = startOfMonth(startDate)
+    const lastMonthStart = startOfMonth(endDate)
+
+    while (currentMonthStart <= lastMonthStart) {
+      periods.push({
+        type: 'MONTHLY',
+        start: currentMonthStart,
+        end: endOfMonth(currentMonthStart)
+      })
+      currentMonthStart = addMonths(currentMonthStart, 1)
+    }
+
+    return periods
+  }
+
+  /**
+   * Calculate regeneration targets directly from bulk metadata
+   */
+  private async calculateRegenerationTargetsFromBulk(
+    bulkUpdate: BulkUpdateMetadata,
+    periods: Period[]
+  ): Promise<CubeRegenerationTarget[]> {
+    const targets: CubeRegenerationTarget[] = []
+
+    // Get transaction types and recurring flags for the affected transactions (we'll need this for most changes)
+    const transactionTypes = await this.getTransactionTypesForTransactions(bulkUpdate.affectedTransactionIds)
+    const recurringFlags = await this.getRecurringFlagsForTransactions(bulkUpdate.affectedTransactionIds)
+
+    for (const change of bulkUpdate.changedFields) {
+      for (const period of periods) {
+
+        if (change.fieldName === 'category_id') {
+          // Category change affects both old and new category cubes
+          // Need to regenerate for all transaction types and recurring flags of affected transactions
+          for (const transactionType of transactionTypes) {
+            for (const isRecurring of recurringFlags) {
+              if (change.oldValue !== null) {
+                targets.push({
+                  tenantId: bulkUpdate.tenantId,
+                  periodType: period.type,
+                  periodStart: period.start,
+                  periodEnd: period.end,
+                  transactionType: transactionType,
+                  categoryId: change.oldValue,
+                  isRecurring: isRecurring
+                })
+              }
+
+              if (change.newValue !== null) {
+                targets.push({
+                  tenantId: bulkUpdate.tenantId,
+                  periodType: period.type,
+                  periodStart: period.start,
+                  periodEnd: period.end,
+                  transactionType: transactionType,
+                  categoryId: change.newValue,
+                  isRecurring: isRecurring
+                })
+              }
+            }
+          }
+        }
+
+        if (change.fieldName === 'account_id') {
+          // Account change - regenerate for the categories, transaction types, and recurring flags
+          const affectedCategories = await this.getCategoriesForTransactions(bulkUpdate.affectedTransactionIds)
+
+          for (const transactionType of transactionTypes) {
+            for (const isRecurring of recurringFlags) {
+              for (const categoryId of affectedCategories) {
+                targets.push({
+                  tenantId: bulkUpdate.tenantId,
+                  periodType: period.type,
+                  periodStart: period.start,
+                  periodEnd: period.end,
+                  transactionType: transactionType,
+                  categoryId: categoryId,
+                  isRecurring: isRecurring
+                })
+              }
+            }
+          }
+        }
+
+        if (change.fieldName === 'type') {
+          // Transaction type change affects both old and new types
+          const affectedCategories = await this.getCategoriesForTransactions(bulkUpdate.affectedTransactionIds)
+
+          for (const isRecurring of recurringFlags) {
+            for (const categoryId of affectedCategories) {
+              // Old type
+              targets.push({
+                tenantId: bulkUpdate.tenantId,
+                periodType: period.type,
+                periodStart: period.start,
+                periodEnd: period.end,
+                transactionType: change.oldValue,
+                categoryId: categoryId,
+                isRecurring: isRecurring
+              })
+
+              // New type
+              targets.push({
+                tenantId: bulkUpdate.tenantId,
+                periodType: period.type,
+                periodStart: period.start,
+                periodEnd: period.end,
+                transactionType: change.newValue,
+                categoryId: categoryId,
+                isRecurring: isRecurring
+              })
+            }
+          }
+        }
+
+        if (change.fieldName === 'amount') {
+          // Amount change - regenerate for existing categories, types, and recurring flags
+          const affectedCategories = await this.getCategoriesForTransactions(bulkUpdate.affectedTransactionIds)
+
+          for (const transactionType of transactionTypes) {
+            for (const isRecurring of recurringFlags) {
+              for (const categoryId of affectedCategories) {
+                targets.push({
+                  tenantId: bulkUpdate.tenantId,
+                  periodType: period.type,
+                  periodStart: period.start,
+                  periodEnd: period.end,
+                  transactionType: transactionType,
+                  categoryId: categoryId,
+                  isRecurring: isRecurring
+                })
+              }
+            }
+          }
+        }
+
+        if (change.fieldName === 'is_recurring') {
+          // Recurring change affects both old and new recurring flags
+          const affectedCategories = await this.getCategoriesForTransactions(bulkUpdate.affectedTransactionIds)
+
+          for (const transactionType of transactionTypes) {
+            for (const categoryId of affectedCategories) {
+              // Old recurring flag
+              targets.push({
+                tenantId: bulkUpdate.tenantId,
+                periodType: period.type,
+                periodStart: period.start,
+                periodEnd: period.end,
+                transactionType: transactionType,
+                categoryId: categoryId,
+                isRecurring: change.oldValue
+              })
+
+              // New recurring flag
+              targets.push({
+                tenantId: bulkUpdate.tenantId,
+                periodType: period.type,
+                periodStart: period.start,
+                periodEnd: period.end,
+                transactionType: transactionType,
+                categoryId: categoryId,
+                isRecurring: change.newValue
+              })
+            }
+          }
+        }
+
+        if (change.fieldName === 'date') {
+          // Date change is complex - might fall back to individual delta processing
+          throw new Error('Date changes in bulk updates not yet supported. Use individual transaction updates.')
+        }
+      }
+    }
+
+    // Remove duplicates (much smaller set than individual delta approach)
+    return this.deduplicateTargets(targets)
+  }
+
+  /**
+   * Get unique transaction types for a set of transactions
+   */
+  private async getTransactionTypesForTransactions(transactionIds: number[]): Promise<('INCOME' | 'EXPENSE' | 'TRANSFER')[]> {
+    const result = await this.prisma.transaction.findMany({
+      where: { id: { in: transactionIds } },
+      select: { type: true },
+      distinct: ['type']
     })
 
-    return account?.name || 'Unknown Account'
+    return result.map(t => t.type as 'INCOME' | 'EXPENSE' | 'TRANSFER')
+  }
+
+  /**
+   * Get unique recurring flags for a set of transactions
+   */
+  private async getRecurringFlagsForTransactions(transactionIds: number[]): Promise<boolean[]> {
+    const result = await this.prisma.transaction.findMany({
+      where: { id: { in: transactionIds } },
+      select: { is_recurring: true },
+      distinct: ['is_recurring']
+    })
+
+    return result.map(t => t.is_recurring)
+  }
+
+  /**
+   * Get unique categories for a set of transactions
+   */
+  private async getCategoriesForTransactions(transactionIds: number[]): Promise<(number | null)[]> {
+    const result = await this.prisma.transaction.findMany({
+      where: { id: { in: transactionIds } },
+      select: { category_id: true },
+      distinct: ['category_id']
+    })
+
+    return result.map(t => t.category_id)
+  }
+
+  /**
+   * Get earliest transaction date for a set of transactions
+   */
+  private async getEarliestTransactionDateForIds(transactionIds: number[]): Promise<Date> {
+    const result = await this.prisma.transaction.findFirst({
+      where: { id: { in: transactionIds } },
+      select: { date: true },
+      orderBy: { date: 'asc' }
+    })
+
+    return result?.date || getCurrentUTCDate()
+  }
+
+  /**
+   * Get latest transaction date for a set of transactions
+   */
+  private async getLatestTransactionDateForIds(transactionIds: number[]): Promise<Date> {
+    const result = await this.prisma.transaction.findFirst({
+      where: { id: { in: transactionIds } },
+      select: { date: true },
+      orderBy: { date: 'desc' }
+    })
+
+    return result?.date || getCurrentUTCDate()
+  }
+
+  /**
+   * Remove duplicate targets using JSON-based deduplication
+   */
+  private deduplicateTargets(targets: CubeRegenerationTarget[]): CubeRegenerationTarget[] {
+    const seen = new Set<string>()
+    const unique: CubeRegenerationTarget[] = []
+
+    for (const target of targets) {
+      const key = JSON.stringify({
+        tenantId: target.tenantId,
+        periodType: target.periodType,
+        periodStart: target.periodStart.toISOString(),
+        transactionType: target.transactionType,
+        categoryId: target.categoryId,
+        isRecurring: target.isRecurring
+      })
+
+      if (!seen.has(key)) {
+        seen.add(key)
+        unique.push(target)
+      }
+    }
+
+    return unique
   }
 }
 
