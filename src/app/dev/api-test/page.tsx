@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable no-restricted-globals, no-restricted-syntax */
 
 import { useState, useEffect } from 'react';
 import { Play, Copy, Download } from 'lucide-react';

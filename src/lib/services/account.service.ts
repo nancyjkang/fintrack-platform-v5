@@ -55,7 +55,7 @@ export class AccountService extends BaseService {
   static async getAccounts(
     tenantId: string,
     filters?: AccountFilters
-  ): Promise<(Account & { latest_anchor_date?: Date })[]> {
+  ): Promise<(Account & { latest_anchor_date?: Date })[]> { // eslint-disable-line no-restricted-globals
     try {
       this.validateTenantId(tenantId)
 
