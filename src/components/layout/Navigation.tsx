@@ -128,9 +128,10 @@ const getNavigationItems = (userEmail?: string) => {
   if (userEmail && DEV_TOOLS_AUTHORIZED_USERS.includes(userEmail)) {
     baseItems.push({
       name: 'Dev Tools',
-      href: '/dev-tools',
+      href: null, // Make non-clickable
       icon: Code,
       submenu: [
+        { name: 'API Test', href: '/dev/api-test', icon: Code },
         { name: 'Database Inspector', href: '/dev-tools/database', icon: Database },
         { name: 'Audit Logs', href: '/dev-tools/audit', icon: FileText },
         { name: 'System Health', href: '/dev-tools/health', icon: BarChart3 }

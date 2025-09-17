@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Play, Copy, Download } from 'lucide-react';
+import { getCurrentUTCDate, toISOString } from '@/lib/utils/date-utils';
 
 // Available API endpoints for testing
 const API_ENDPOINTS = [
@@ -139,7 +140,7 @@ export default function ApiTestPage() {
         statusText: res.statusText,
         data,
         headers: responseHeaders,
-        timestamp: new Date().toISOString(),
+        timestamp: toISOString(getCurrentUTCDate()),
       });
 
       console.log(`API Request completed in ${endTime - startTime}ms:`, {
@@ -155,7 +156,7 @@ export default function ApiTestPage() {
         statusText: 'Network Error',
         data: { error: error instanceof Error ? error.message : 'Unknown error' },
         headers: {},
-        timestamp: new Date().toISOString(),
+        timestamp: toISOString(getCurrentUTCDate()),
       });
     } finally {
       setLoading(false);
