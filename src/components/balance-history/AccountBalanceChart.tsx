@@ -38,10 +38,7 @@ export function AccountBalanceChart({
   const formatXAxisLabel = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
     const date = createUTCDate(year, month - 1, day);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
+    return formatDateForDisplay(date);
   };
 
   const formatYAxisLabel = (value: number) => {

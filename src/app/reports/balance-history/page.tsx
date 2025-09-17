@@ -10,7 +10,7 @@ import AccountTransactionsTable from '@/components/balance-history/AccountTransa
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { api } from '@/lib/client/api';
-import { getCurrentUTCDate, subtractDays, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils';
+import { getCurrentUTCDate, subtractDays, toUTCDateString } from '@/lib/utils/date-utils';
 import type { BalanceHistoryData, BalanceSummary, BalanceHistoryFilters as FilterType } from '@/types/balance-history';
 import type { Transaction } from '@prisma/client';
 // Using API endpoints for all balance calculations

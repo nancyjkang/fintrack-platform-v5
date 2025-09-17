@@ -233,7 +233,7 @@ export class AccountBalanceHistoryService extends BaseService {
   private async findLatestBalanceAnchor(
     accountId: number,
     tenantId: string
-  ): Promise<any | null> {
+  ): Promise<{ anchor_date: Date; balance: string | number | import('@prisma/client/runtime/library').Decimal } | null> {
     try {
       const anchors = await prisma.accountBalanceAnchor.findMany({
         where: {
@@ -262,7 +262,7 @@ export class AccountBalanceHistoryService extends BaseService {
    */
   private calculateFromAnchor(
     transactions: Transaction[],
-    anchor: { anchor_date: Date; balance: string | number }
+    anchor: { anchor_date: Date; balance: string | number | import('@prisma/client/runtime/library').Decimal }
   ): Array<Transaction & { balance: number }> {
     const anchorDate = toUTCDateString(anchor.anchor_date);
     const anchorBalance = Number(anchor.balance);

@@ -2,7 +2,7 @@
 
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { BalanceHistoryData } from '@/types/balance-history';
-import { formatDateForDisplay, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils';
+import { formatDateForDisplay, toUTCDateString } from '@/lib/utils/date-utils';
 
 interface BalanceHistoryTableProps {
   data: BalanceHistoryData[];
