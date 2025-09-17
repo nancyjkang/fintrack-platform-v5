@@ -94,6 +94,7 @@ export default function TransactionsList({
       if (filters.fromDate) params.date_from = filters.fromDate;
       if (filters.toDate) params.date_to = filters.toDate;
 
+      console.log('🔍 [TransactionsList] API params being sent:', params);
       const response = await api.getTransactions(params);
 
       if (response.success) {

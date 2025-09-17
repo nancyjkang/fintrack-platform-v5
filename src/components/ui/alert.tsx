@@ -10,7 +10,7 @@ const Alert = React.forwardRef<
     default: "bg-blue-50 border-blue-200 text-blue-800",
     destructive: "bg-red-50 border-red-200 text-red-800"
   }
-  
+
   return (
     <div
       ref={ref}
@@ -35,3 +35,4 @@ const AlertDescription = React.forwardRef<
 AlertDescription.displayName = "AlertDescription"
 
 export { Alert, AlertDescription }
+
