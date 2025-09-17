@@ -283,7 +283,7 @@ export default function BalanceHistoryPage() {
     }
 
     // Remove the flag before updating filters
-    const { fromTimePeriod: _, ...filterUpdates } = newFilters;
+    const { fromTimePeriod, ...filterUpdates } = newFilters;
     setFilters(prev => ({ ...prev, ...filterUpdates }));
   }, []);
 

@@ -138,7 +138,7 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
 
     // Auto-populate start and end dates when date range is selected
     if (field === 'dateRange') {
-      const today: Date = getCurrentUTCDate();
+      const today = getCurrentUTCDate();
       let fromDate = '';
       let toDate = '';
 

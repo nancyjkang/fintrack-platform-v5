@@ -1,15 +1,15 @@
 'use client';
 
-import { 
-  ResponsiveContainer, 
-  ComposedChart, 
-  Line, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend 
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
 } from 'recharts';
 import { createUTCDate, formatDateForDisplay } from '@/lib/utils/date-utils';
 import type { BalanceHistoryData } from '@/types/balance-history';
@@ -20,12 +20,12 @@ interface AccountBalanceChartProps {
   height?: number;
 }
 
-export function AccountBalanceChart({ 
-  data, 
-  accountName, 
-  height = 400 
+export function AccountBalanceChart({
+  data,
+  accountName,
+  height = 400
 }: AccountBalanceChartProps) {
-  
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -62,8 +62,8 @@ export function AccountBalanceChart({
           <p className="font-medium text-gray-900 mb-2">{formattedDate}</p>
           {payload.map((entry, index: number) => (
             <div key={index} className="flex items-center gap-2 text-sm">
-              <div 
-                className="w-3 h-3 rounded-full" 
+              <div
+                className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
               <span className="text-gray-600">{entry.name}:</span>
@@ -106,21 +106,21 @@ export function AccountBalanceChart({
           }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey="date" 
+          <XAxis
+            dataKey="date"
             tickFormatter={formatXAxisLabel}
             tick={{ fontSize: 12 }}
             axisLine={{ stroke: '#e5e7eb' }}
             tickLine={{ stroke: '#e5e7eb' }}
           />
-          <YAxis 
+          <YAxis
             tickFormatter={formatYAxisLabel}
             tick={{ fontSize: 12 }}
             axisLine={{ stroke: '#e5e7eb' }}
             tickLine={{ stroke: '#e5e7eb' }}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend 
+          <Legend
             wrapperStyle={{ paddingTop: '20px' }}
             iconType="circle"
           />

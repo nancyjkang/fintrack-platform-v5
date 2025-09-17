@@ -114,7 +114,7 @@ export default function ApiTestPage() {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      const startTime = getCurrentUTCDate().getTime();
+      const startTime = Date.now();
       const res = await fetch(url, {
         method: 'GET',
         headers,
@@ -133,7 +133,7 @@ export default function ApiTestPage() {
         data = await res.text();
       }
 
-      const endTime = getCurrentUTCDate().getTime();
+      const endTime = Date.now();
 
       setResponse({
         status: res.status,
@@ -175,7 +175,7 @@ export default function ApiTestPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `api-response-${getCurrentUTCDate().getTime()}.json`;
+      a.download = `api-response-${Date.now()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

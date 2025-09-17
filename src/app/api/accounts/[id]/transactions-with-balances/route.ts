@@ -134,7 +134,7 @@ export async function GET(
 function isValidDateFormat(dateString: string): boolean {
   try {
     const date = parseAndConvertToUTC(dateString)
-    if (isNaN(date.getTime())) return false
+    if (isNaN(Number(date))) return false
 
     const year = date.getUTCFullYear()
     const month = date.getUTCMonth() + 1

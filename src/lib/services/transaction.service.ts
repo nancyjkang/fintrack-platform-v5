@@ -1,6 +1,6 @@
 import { BaseService } from './base.service'
 import type { Transaction, Account, Category } from '@prisma/client'
-import { getCurrentUTCDate, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { getCurrentUTCDate } from '@/lib/utils/date-utils'
 
 export interface CreateTransactionData {
   account_id: number
@@ -56,7 +56,7 @@ export class TransactionService extends BaseService {
     try {
       this.validateTenantId(tenantId)
 
-      const where: any = {
+      const where: Record<string, unknown> = {
         tenant_id: tenantId
       }
 
@@ -68,9 +68,9 @@ export class TransactionService extends BaseService {
         if (filters.is_recurring !== undefined) where.is_recurring = filters.is_recurring
 
         if (filters.date_from || filters.date_to) {
-          where.date = {} as any
-          if (filters.date_from) (where.date as any).gte = filters.date_from
-          if (filters.date_to) (where.date as any).lte = filters.date_to
+          where.date = {} as Record<string, unknown>
+          if (filters.date_from) (where.date as Record<string, unknown>).gte = filters.date_from
+          if (filters.date_to) (where.date as Record<string, unknown>).lte = filters.date_to
         }
 
         if (filters.search) {
