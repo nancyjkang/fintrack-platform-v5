@@ -148,10 +148,11 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: **Enhanced from PRD**: Configurable breakdown periods (bi-weekly, monthly, quarterly, bi-annually, annually), pre-calculated cube table for fast interactive analysis, Web Workers for performance, comprehensive filtering by category/account/recurring status
   - **Documentation**: [PRD](docs/features/spending-trend-report-prd.md)
 
-- **Recurring Transactions** - 📋 Ready
-  - **Estimate**: 4 days
-  - **Dependencies**: Transaction CRUD
-  - **Notes**: Setup and auto-generation
+- **Enhanced Recurring Transactions** - 📋 Ready
+  - **Estimate**: 6 days (enhanced scope)
+  - **Dependencies**: Transaction CRUD ✅, Category Management ✅
+  - **Notes**: **Comprehensive recurring transaction system** with frequency tracking (monthly, quarterly, annually, etc.), future transaction forecasting, and automated generation. Enables users to identify, expect, and prepare for upcoming transactions with smart scheduling and variance detection.
+  - **Key Features**: Frequency patterns (weekly, bi-weekly, monthly, quarterly, semi-annually, annually), future transaction prediction, variance alerts, template management, auto-categorization, and financial planning integration
 
 ### **💡 Priority 3: Enhancement Features (Nice to Have)**
 

@@ -30,6 +30,7 @@ model Tenant {
   memberships     Membership[]
   spending_goals  SpendingGoal[]
   transactions    Transaction[]
+  financial_cube  FinancialCube[]
 
   @@map("tenants")
 }
@@ -61,21 +62,23 @@ model Account {
   balance_anchors    AccountBalanceAnchor[]
   tenant             Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   transactions       Transaction[]
+  financial_cube     FinancialCube[]
 
   @@unique([tenant_id, name])
   @@map("accounts")
 }
 
 model Category {
-  id           Int           @id @default(autoincrement())
-  tenant_id    String
-  name         String
-  type         String
-  color        String
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
-  tenant       Tenant        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  id             Int             @id @default(autoincrement())
+  tenant_id      String
+  name           String
+  type           String
+  color          String
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+  financial_cube FinancialCube[]
 
   @@unique([tenant_id, name, type])
   @@map("categories")
@@ -135,4 +138,45 @@ model SpendingGoal {
   tenant                    Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@map("spending_goals")
+}
+
+model FinancialCube {
+  id               Int      @id @default(autoincrement())
+  tenant_id        String
+
+  // Dimensions for flexible analysis
+  period_type      String   // 'WEEKLY' | 'MONTHLY'
+  period_start     DateTime @db.Date
+  period_end       DateTime @db.Date
+  transaction_type String   // 'INCOME' | 'EXPENSE' | 'TRANSFER'
+  category_id      Int?
+  category_name    String
+  account_id       Int
+  account_name     String
+  is_recurring     Boolean  @default(false)
+
+  // Facts (measures)
+  total_amount     Decimal  @db.Decimal(12, 2) @default(0.00)
+  transaction_count Int     @default(0)
+
+  // Metadata
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  // Relations
+  tenant           Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  category         Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  account          Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
+
+  // Unique constraint for dimensional combinations (optimized column order for query performance)
+  @@unique([tenant_id, period_type, period_start, transaction_type, category_id, account_id, is_recurring])
+
+  // Indexes for performance (optimized - removed redundant indexes covered by unique constraint)
+  @@index([tenant_id, category_id, period_start])
+  @@index([tenant_id, account_id, period_start])
+  @@index([tenant_id, transaction_type, period_start])
+  @@index([tenant_id, is_recurring, period_start])
+  @@index([updated_at])
+
+  @@map("financial_cube")
 }

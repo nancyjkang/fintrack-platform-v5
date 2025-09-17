@@ -511,6 +511,70 @@ class ApiClient {
     return this.request(url)
   }
 
+  // Financial Cube methods
+  async populateCube(data: {
+    startDate?: string // YYYY-MM-DD format
+    endDate?: string // YYYY-MM-DD format
+    clearExisting?: boolean
+    batchSize?: number
+    accountId?: number // Optional: populate only for specific account
+  } = {}): Promise<ApiResponse<{
+    periodsProcessed: number
+    recordsCreated: number
+    timeElapsed: number
+    timeElapsedFormatted: string
+    accountsProcessed?: number
+  }>> {
+    return this.request('/cube/populate', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async getCubeStats(): Promise<ApiResponse<{
+    totalRecords: number
+    weeklyRecords: number
+    monthlyRecords: number
+    dateRange: {
+      earliest: string | null
+      latest: string | null
+    }
+    lastUpdated: string | null
+  }>> {
+    return this.request('/cube/populate')
+  }
+
+  async getCubeTrends(filters: {
+    periodType?: 'WEEKLY' | 'MONTHLY'
+    startDate?: string // YYYY-MM-DD format
+    endDate?: string // YYYY-MM-DD format
+    transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    categoryIds?: number[]
+    accountIds?: number[]
+    isRecurring?: boolean
+  } = {}): Promise<ApiResponse<Array<{
+    period_start: string
+    period_type: string
+    transaction_type: string
+    category_name: string
+    account_name: string
+    is_recurring: boolean
+    total_amount: number
+    transaction_count: number
+  }>>> {
+    const params = new URLSearchParams()
+    if (filters.periodType) params.append('periodType', filters.periodType)
+    if (filters.startDate) params.append('startDate', filters.startDate)
+    if (filters.endDate) params.append('endDate', filters.endDate)
+    if (filters.transactionType) params.append('transactionType', filters.transactionType)
+    if (filters.categoryIds?.length) params.append('categoryIds', filters.categoryIds.join(','))
+    if (filters.accountIds?.length) params.append('accountIds', filters.accountIds.join(','))
+    if (filters.isRecurring !== undefined) params.append('isRecurring', filters.isRecurring.toString())
+
+    const queryString = params.toString()
+    return this.request(`/cube/trends${queryString ? `?${queryString}` : ''}`)
+  }
+
   // Utility methods
   isAuthenticated(): boolean {
     return !!this.accessToken

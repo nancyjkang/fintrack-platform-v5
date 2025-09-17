@@ -1,9 +1,9 @@
 # Net Worth Report
 
-**Status**: 📋 **PLANNED**  
-**Priority**: ⚡ Priority 2 (Important - Day After Tomorrow)  
-**Estimated Effort**: 2 days  
-**Planned Start**: September 19, 2025  
+**Status**: 📋 **PLANNED**
+**Priority**: ⚡ Priority 2 (Important - Day After Tomorrow)
+**Estimated Effort**: 2 days
+**Planned Start**: September 19, 2025
 
 ## Quick Overview
 
