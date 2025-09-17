@@ -92,13 +92,13 @@ export async function PUT(
     const updateData = validationResult.data
 
     // Convert date string to Date object if provided
-    const processedUpdateData = { ...updateData }
+    const processedUpdateData: Record<string, unknown> = { ...updateData }
     if ('balance_date' in processedUpdateData && processedUpdateData.balance_date) {
-      processedUpdateData.balance_date = parseAndConvertToUTC(processedUpdateData.balance_date)
+      processedUpdateData.balance_date = parseAndConvertToUTC(processedUpdateData.balance_date as string)
     }
 
     // Update account
-    const account = await AccountService.updateAccount(accountId, tenantId, processedUpdateData)
+    const account = await AccountService.updateAccount(accountId, tenantId, processedUpdateData as Parameters<typeof AccountService.updateAccount>[2])
 
     return NextResponse.json({
       success: true,

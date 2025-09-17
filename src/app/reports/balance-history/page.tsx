@@ -10,7 +10,7 @@ import AccountTransactionsTable from '@/components/balance-history/AccountTransa
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { api } from '@/lib/client/api';
-import { getCurrentUTCDate, subtractDays, parseAndConvertToUTC } from '@/lib/utils/date-utils';
+import { getCurrentUTCDate, subtractDays, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils';
 import type { BalanceHistoryData, BalanceSummary, BalanceHistoryFilters as FilterType } from '@/types/balance-history';
 import type { Transaction } from '@prisma/client';
 // Using API endpoints for all balance calculations
@@ -37,16 +37,19 @@ function deriveBalanceSummaryFromTransactions(
 
   // Sort transactions by date ascending to find chronological start and end
   const sortedTransactions = [...transactions].sort((a, b) =>
-    parseAndConvertToUTC(a.date.toString()).getTime() - parseAndConvertToUTC(b.date.toString()).getTime()
+    toUTCDateString(a.date).localeCompare(toUTCDateString(b.date))
   );
 
   const firstTransaction = sortedTransactions[0];
 
   // Find the transaction with the highest absolute balance (final balance in the range)
   // Since transactions come sorted desc from API, the first transaction for the latest date has the final balance
-  const latestDate = Math.max(...transactions.map(t => parseAndConvertToUTC(t.date.toString()).getTime()));
+  const latestDateString = transactions.reduce((latest, t) => {
+    const dateStr = toUTCDateString(t.date);
+    return dateStr > latest ? dateStr : latest;
+  }, '');
   const transactionsOnLatestDate = transactions.filter(t =>
-    parseAndConvertToUTC(t.date.toString()).getTime() === latestDate
+    toUTCDateString(t.date) === latestDateString
   );
 
   // Use the first transaction from the latest date (has final balance due to API sorting)
@@ -155,8 +158,8 @@ export default function BalanceHistoryPage() {
 
     return {
       accountId: null,
-      startDate: thirtyDaysAgo.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0]
+      startDate: toUTCDateString(thirtyDaysAgo),
+      endDate: toUTCDateString(today)
     };
   });
 
@@ -183,7 +186,7 @@ export default function BalanceHistoryPage() {
         // Handle both array format and paginated format
         const accountsData = Array.isArray(response.data)
           ? response.data
-          : (response.data as any).items || response.data
+          : (response.data as { items?: unknown[] }).items || response.data
 
         setAccounts(accountsData);
 
@@ -258,9 +261,9 @@ export default function BalanceHistoryPage() {
         setBalanceSummary(null);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to load balance data:', error);
-      setError(`API Error: ${error.message}`);
+      setError(`API Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setBalanceHistory([]);
       setBalanceSummary(null);
       setTransactions([]);
@@ -279,7 +282,7 @@ export default function BalanceHistoryPage() {
     }
 
     // Remove the flag before updating filters
-    const { fromTimePeriod, ...filterUpdates } = newFilters;
+    const { fromTimePeriod: _, ...filterUpdates } = newFilters;
     setFilters(prev => ({ ...prev, ...filterUpdates }));
   }, []);
 

@@ -43,10 +43,10 @@ export default function DashboardPage() {
         // Handle both array format and paginated format
         const accountsData = Array.isArray(response.data)
           ? response.data
-          : (response.data as any).items || response.data
+          : (response.data as { items?: unknown[] }).items || response.data
 
         // Map API response to Dashboard interface
-        const mappedAccounts = accountsData.map((account: any) => ({
+        const mappedAccounts = (accountsData as Array<Record<string, unknown>>).map((account) => ({
           ...account,
           current_balance: account.balance, // Map balance to current_balance
           subtype: account.type, // Map type to subtype for display
@@ -58,7 +58,7 @@ export default function DashboardPage() {
       } else {
         setError(response.error || 'Failed to load accounts')
       }
-    } catch (err) {
+    } catch {
       setError('Network error occurred')
     } finally {
       setIsLoading(false)
