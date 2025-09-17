@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # FinTrack v5 - Production Deployment Script
-# STEP 3 of 3-step deployment process  
+# STEP 3 of 3-step deployment process
 # Based on proven v4.1 deployment workflow
 
 set -e  # Exit on any error

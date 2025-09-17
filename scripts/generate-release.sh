@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FinTrack v5 - Release Documentation Generation Script  
+# FinTrack v5 - Release Documentation Generation Script
 # STEP 2 of 3-step deployment process
 # Based on proven v4.1 deployment workflow
 
@@ -85,7 +85,7 @@ This release includes transaction management improvements, deployment workflow e
 ## 🧪 **Testing Checklist**
 
 - [ ] Login/Registration functionality
-- [ ] Transaction CRUD operations  
+- [ ] Transaction CRUD operations
 - [ ] Account management
 - [ ] Category filtering and display
 - [ ] Mobile responsiveness
@@ -115,7 +115,7 @@ cat > "$RELEASE_DIR/DEPLOYMENT_NOTES.md" << EOF
 
 ### **Pre-Deployment Checklist**
 - [x] STEP 1 completed: \`npm run pre-deploy\` ✅
-- [x] STEP 2 completed: \`npm run release\` ✅  
+- [x] STEP 2 completed: \`npm run release\` ✅
 - [ ] STEP 3 ready: \`npm run deploy\`
 
 ### **Deployment Command**
@@ -125,7 +125,7 @@ npm run deploy
 
 ### **Expected Deployment Time**
 - Build: ~90 seconds
-- Deploy: ~60 seconds  
+- Deploy: ~60 seconds
 - Total: ~2.5 minutes
 
 ## 🔧 **Environment Requirements**
@@ -215,7 +215,7 @@ cat > CHANGELOG.md << EOF
 - Direct Vercel CLI deployment workflow
 - Enhanced transaction management UI
 
-### 🐛 Bug Fixes  
+### 🐛 Bug Fixes
 - Resolved TypeScript compilation errors in CI/CD
 - Fixed date handling consistency across components
 - Improved Prisma type compatibility
@@ -240,7 +240,7 @@ echo "✅ STEP 2 COMPLETE: Release documentation generated!"
 echo ""
 echo "📁 Generated Files:"
 echo "   - $RELEASE_DIR/CHANGELOG.md"
-echo "   - $RELEASE_DIR/DEPLOYMENT_NOTES.md" 
+echo "   - $RELEASE_DIR/DEPLOYMENT_NOTES.md"
 echo "   - Updated CHANGELOG.md"
 echo ""
 echo "📋 Next Steps:"

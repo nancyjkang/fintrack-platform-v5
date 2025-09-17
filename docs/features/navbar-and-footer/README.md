@@ -145,3 +145,4 @@ This feature updates the main navigation bar to improve user experience by remov
 ---
 
 *This feature improves the core user experience by streamlining navigation and preparing for future notification functionality.*
+
