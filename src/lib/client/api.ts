@@ -396,6 +396,33 @@ class ApiClient {
     })
   }
 
+  async bulkUpdateTransactions(transactionIds: number[], updates: {
+    category_id?: number | null
+    account_id?: number
+    amount?: string
+    description?: string
+    type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    is_recurring?: boolean
+    date?: string
+  }): Promise<ApiResponse<{ message: string; updatedCount: number; updatedAt: string }>> {
+    return this.request('/transactions/bulk', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        transactionIds,
+        updates
+      })
+    });
+  }
+
+  async bulkDeleteTransactions(transactionIds: number[]): Promise<ApiResponse<{ message: string; deletedCount: number; deletedAt: string }>> {
+    return this.request('/transactions/bulk', {
+      method: 'DELETE',
+      body: JSON.stringify({
+        transactionIds
+      })
+    })
+  }
+
   async getCategories(params?: {
     type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
     search?: string

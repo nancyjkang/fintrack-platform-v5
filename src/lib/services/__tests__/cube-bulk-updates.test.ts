@@ -451,18 +451,10 @@ describe('TransactionService - Bulk Updates', () => {
 
       await TransactionService.bulkUpdateTransactions(transactionIds, updates, tenantId)
 
-      // Verify database operations
+      // Verify database operations (simplified - no cube integration)
       expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith({
         where: { id: { in: transactionIds }, tenant_id: tenantId },
-        select: {
-          id: true,
-          account_id: true,
-          category_id: true,
-          amount: true,
-          date: true,
-          type: true,
-          is_recurring: true
-        }
+        select: { id: true }
       })
 
       expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith({
@@ -470,22 +462,8 @@ describe('TransactionService - Bulk Updates', () => {
         data: updates
       })
 
-      // Verify cube update was called
-      expect(cubeService.updateCubeWithBulkMetadata).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId,
-          affectedTransactionIds: [1, 2],
-          changedFields: [{
-            fieldName: 'category_id',
-            oldValue: 1,
-            newValue: 2
-          }],
-          dateRange: {
-            startDate: new Date('2024-01-15'),
-            endDate: new Date('2024-01-16')
-          }
-        })
-      )
+      // Note: Cube integration removed as per user request
+      // TODO: Add cube integration later when requested
     })
 
     it('should throw error when no transactions found', async () => {
@@ -496,49 +474,37 @@ describe('TransactionService - Bulk Updates', () => {
       ).rejects.toThrow('No transactions found for bulk update')
     })
 
-    it('should throw error for multiple old category values', async () => {
+    it('should handle multiple old category values (simplified implementation)', async () => {
       mockPrisma.transaction.findMany.mockResolvedValue([
-        {
-          id: 1,
-          account_id: 100,
-          category_id: 1, // Different category
-          amount: new Decimal('50.00'),
-          date: new Date('2024-01-15'),
-          type: 'EXPENSE',
-          is_recurring: false
-        },
-        {
-          id: 2,
-          account_id: 100,
-          category_id: 2, // Different category
-          amount: new Decimal('75.00'),
-          date: new Date('2024-01-16'),
-          type: 'EXPENSE',
-          is_recurring: false
-        }
+        { id: 1 },
+        { id: 2 }
       ])
 
+      // Current implementation allows this - no complex validation
       await expect(
         TransactionService.bulkUpdateTransactions([1, 2], { category_id: 3 }, 'tenant-1')
-      ).rejects.toThrow('Bulk update with multiple old category values not supported')
+      ).resolves.toBeUndefined()
+
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [1, 2] }, tenant_id: 'tenant-1' },
+        data: { category_id: 3 }
+      })
     })
 
-    it('should throw error for date changes', async () => {
+    it('should handle date changes (simplified implementation)', async () => {
       mockPrisma.transaction.findMany.mockResolvedValue([
-        {
-          id: 1,
-          account_id: 100,
-          category_id: 1,
-          amount: new Decimal('50.00'),
-          date: new Date('2024-01-15'),
-          type: 'EXPENSE',
-          is_recurring: false
-        }
+        { id: 1 }
       ])
 
+      // Current implementation allows date changes - no validation restrictions
       await expect(
         TransactionService.bulkUpdateTransactions([1], { date: new Date('2024-01-20') }, 'tenant-1')
-      ).rejects.toThrow('Date changes in bulk updates not supported')
+      ).resolves.toBeUndefined()
+
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [1] }, tenant_id: 'tenant-1' },
+        data: { date: new Date('2024-01-20') }
+      })
     })
   })
 

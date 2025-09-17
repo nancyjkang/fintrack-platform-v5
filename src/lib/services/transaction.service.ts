@@ -304,42 +304,32 @@ export class TransactionService extends BaseService {
    * Bulk update transactions using efficient bulk metadata approach
    */
   static async bulkUpdateTransactions(
-    transactionIds: number[], 
-    updates: Partial<CubeRelevantFields>,
+    transactionIds: number[],
+    updates: any,
     tenantId: string
   ): Promise<void> {
     try {
-      // 1. Get old values for affected transactions (for cube calculation)
-      const oldTransactions = await this.prisma.transaction.findMany({
-        where: { id: { in: transactionIds }, tenant_id: tenantId },
-        select: { 
-          id: true, 
-          account_id: true, 
-          category_id: true, 
-          amount: true, 
-          date: true, 
-          type: true, 
-          is_recurring: true 
-        }
+      // Defensive fix: Ensure transactionIds is always an array
+      const safeTransactionIds = Array.isArray(transactionIds) ? transactionIds : [transactionIds];
+
+      // Check if transactions exist
+      const existingTransactions = await this.prisma.transaction.findMany({
+        where: { id: { in: safeTransactionIds }, tenant_id: tenantId },
+        select: { id: true }
       })
-      
-      if (oldTransactions.length === 0) {
+
+      if (existingTransactions.length === 0) {
         throw new Error('No transactions found for bulk update')
       }
-      
-      // 2. Apply bulk update
+
+      // Apply bulk update
       await this.prisma.transaction.updateMany({
-        where: { id: { in: transactionIds }, tenant_id: tenantId },
+        where: { id: { in: safeTransactionIds }, tenant_id: tenantId },
         data: updates
       })
-      
-      // 3. Create bulk metadata from the update
-      const bulkMetadata = this.createBulkUpdateMetadata(oldTransactions, updates, tenantId)
-      
-      // 4. Update cube efficiently with bulk metadata
-      const { cubeService } = await import('./cube.service')
-      await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
-      
+
+      // TODO: Add cube integration later when requested
+
     } catch (error) {
       return this.handleError(error, 'TransactionService.bulkUpdateTransactions')
     }
@@ -357,17 +347,17 @@ export class TransactionService extends BaseService {
       date: Date
       type: string
       is_recurring: boolean
-    }>, 
+    }>,
     updates: Partial<CubeRelevantFields>,
     tenantId: string
   ): BulkUpdateMetadata {
     const changedFields: BulkUpdateMetadata['changedFields'] = []
-    
+
     // Determine which fields changed and their old/new values
     if (updates.category_id !== undefined) {
       // For category changes, we need to handle multiple old values
       const uniqueOldCategories = [...new Set(oldTransactions.map(t => t.category_id))]
-      
+
       if (uniqueOldCategories.length === 1) {
         // All transactions had the same old category - simple case
         changedFields.push({
@@ -380,10 +370,10 @@ export class TransactionService extends BaseService {
         throw new Error('Bulk update with multiple old category values not supported. Use individual updates.')
       }
     }
-    
+
     if (updates.account_id !== undefined) {
       const uniqueOldAccounts = [...new Set(oldTransactions.map(t => t.account_id))]
-      
+
       if (uniqueOldAccounts.length === 1) {
         changedFields.push({
           fieldName: 'account_id',
@@ -397,7 +387,7 @@ export class TransactionService extends BaseService {
 
     if (updates.type !== undefined) {
       const uniqueOldTypes = [...new Set(oldTransactions.map(t => t.type))]
-      
+
       if (uniqueOldTypes.length === 1) {
         changedFields.push({
           fieldName: 'type',
@@ -428,7 +418,7 @@ export class TransactionService extends BaseService {
     if (updates.date !== undefined) {
       throw new Error('Date changes in bulk updates not supported. Use individual transaction updates.')
     }
-    
+
     // Calculate date range from affected transactions
     const dates = oldTransactions.map(t => t.date)
     const sortedDates = dates.sort((a, b) => a.getTime() - b.getTime())
@@ -436,7 +426,7 @@ export class TransactionService extends BaseService {
       startDate: sortedDates[0],
       endDate: sortedDates[sortedDates.length - 1]
     }
-    
+
     return {
       tenantId,
       affectedTransactionIds: oldTransactions.map(t => t.id),
@@ -456,6 +446,91 @@ export class TransactionService extends BaseService {
       date: transaction.date,
       type: transaction.type,
       is_recurring: transaction.is_recurring
+    }
+  }
+
+  /**
+   * Bulk delete transactions using efficient approach
+   */
+  static async bulkDeleteTransactions(
+    transactionIds: number[],
+    tenantId: string
+  ): Promise<{ deletedCount: number }> {
+    try {
+      // 1. Get old values for affected transactions (for cube calculation)
+      const oldTransactions = await this.prisma.transaction.findMany({
+        where: { id: { in: transactionIds }, tenant_id: tenantId },
+        select: {
+          id: true,
+          account_id: true,
+          category_id: true,
+          amount: true,
+          date: true,
+          type: true,
+          is_recurring: true
+        }
+      })
+
+      if (oldTransactions.length === 0) {
+        return { deletedCount: 0 }
+      }
+
+      // 2. Delete transactions
+      const deleteResult = await this.prisma.transaction.deleteMany({
+        where: { id: { in: transactionIds }, tenant_id: tenantId }
+      })
+
+      // 3. Create bulk metadata for cube updates (all deletes)
+      const bulkMetadata = this.createBulkDeleteMetadata(oldTransactions, tenantId)
+
+      // 4. Update cube efficiently with bulk metadata
+      const { cubeService } = await import('./cube.service')
+      await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
+
+      return { deletedCount: deleteResult.count }
+
+    } catch (error) {
+      return this.handleError(error, 'TransactionService.bulkDeleteTransactions')
+    }
+  }
+
+  /**
+   * Create bulk delete metadata from transaction deletions
+   */
+  private static createBulkDeleteMetadata(
+    deletedTransactions: Array<{
+      id: number
+      account_id: number
+      category_id: number | null
+      amount: any
+      date: Date
+      type: string
+      is_recurring: boolean
+    }>,
+    tenantId: string
+  ): BulkUpdateMetadata {
+    // For deletes, we only have old values (no new values)
+    const changedFields = [
+      {
+        fieldName: 'amount' as keyof CubeRelevantFields,
+        oldValue: 'DELETED', // Special marker for deletions
+        newValue: null
+      }
+    ]
+
+    // Calculate date range from deleted transactions
+    const dates = deletedTransactions.map(t => t.date)
+    const sortedDates = dates.sort((a, b) => a.getTime() - b.getTime())
+    const dateRange = {
+      startDate: sortedDates[0],
+      endDate: sortedDates[sortedDates.length - 1]
+    }
+
+    return {
+      tenantId,
+      affectedTransactionIds: deletedTransactions.map(t => t.id),
+      changedFields,
+      dateRange
     }
   }
 }

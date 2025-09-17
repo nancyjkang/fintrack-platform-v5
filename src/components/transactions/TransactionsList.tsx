@@ -74,8 +74,21 @@ export default function TransactionsList({
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
-  // const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [bulkUpdateLoading, setBulkUpdateLoading] = useState(false);
+  const [categories, setCategories] = useState<Array<{
+    id: number;
+    name: string;
+    type: string;
+    color: string;
+  }>>([]);
+  const [filteredCategories, setFilteredCategories] = useState<Array<{
+    id: number;
+    name: string;
+    type: string;
+    color: string;
+  }>>([]);
 
   // Fetch transactions based on filters
   const fetchTransactions = useCallback(async () => {
@@ -94,7 +107,6 @@ export default function TransactionsList({
       if (filters.fromDate) params.date_from = filters.fromDate;
       if (filters.toDate) params.date_to = filters.toDate;
 
-      console.log('🔍 [TransactionsList] API params being sent:', params);
       const response = await api.getTransactions(params);
 
       if (response.success) {
@@ -187,16 +199,112 @@ export default function TransactionsList({
     setSelectedTransactions(new Set());
   }, []);
 
-  // Bulk action handlers
-  const handleBulkUpdateClick = useCallback(() => {
-    // setShowBulkUpdateModal(true);
-    console.log('Bulk update clicked - feature not implemented yet');
+  // Load categories for bulk update modal
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await api.getCategories();
+      if (response.success && response.data) {
+        setCategories(response.data.categories);
+        setFilteredCategories(response.data.categories); // Initially show all categories
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
   }, []);
 
+  // Filter categories based on transaction type
+  const filterCategoriesByType = useCallback((transactionType: string) => {
+    if (transactionType === 'no-change') {
+      setFilteredCategories([]);
+    } else {
+      const filtered = categories.filter(category => category.type === transactionType);
+      setFilteredCategories(filtered);
+    }
+  }, [categories]);
+
+  // Bulk action handlers
+  const handleBulkUpdateClick = useCallback(() => {
+    setShowBulkUpdateModal(true);
+    // Load categories when modal opens
+    loadCategories();
+  }, [loadCategories]);
+
+  // Initialize filtered categories when modal opens and categories are loaded
+  useEffect(() => {
+    if (showBulkUpdateModal && categories.length > 0) {
+      // Calculate default type for selected transactions
+      const selectedTxns = transactions.filter(t => selectedTransactions.has(t.id));
+      const uniqueTypes = [...new Set(selectedTxns.map(t => t.type))];
+      const defaultType = uniqueTypes.length === 1 ? uniqueTypes[0] : 'no-change';
+
+      // Filter categories based on default type
+      filterCategoriesByType(defaultType);
+    }
+  }, [showBulkUpdateModal, categories, transactions, selectedTransactions, filterCategoriesByType]);
+
   const handleBulkDeleteClick = useCallback(() => {
-    // setShowBulkDeleteDialog(true);
-    console.log('Bulk delete clicked - feature not implemented yet');
+    setShowBulkDeleteDialog(true);
   }, []);
+
+  // Bulk update handler
+  const handleBulkUpdate = useCallback(async (updates: any) => {
+    if (selectedTransactions.size === 0) return;
+
+    setBulkUpdateLoading(true);
+    try {
+      const transactionIds = Array.from(selectedTransactions);
+
+      // Use the proper API client that handles JWT authentication
+      const response = await api.bulkUpdateTransactions(transactionIds, updates);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update transactions');
+      }
+
+      // Refresh transactions and clear selection
+      await fetchTransactions();
+      setSelectedTransactions(new Set());
+      setShowBulkUpdateModal(false);
+
+      // Show success message (you can add a toast notification here)
+      alert(`Successfully updated ${transactionIds.length} transactions`);
+
+    } catch (error) {
+      alert(`Failed to update transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setBulkUpdateLoading(false);
+    }
+  }, [selectedTransactions, fetchTransactions]);
+
+  // Bulk delete handler
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedTransactions.size === 0) return;
+
+    setBulkUpdateLoading(true);
+    try {
+      const transactionIds = Array.from(selectedTransactions);
+
+      // Use the proper API client that handles JWT authentication
+      const response = await api.bulkDeleteTransactions(transactionIds);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete transactions');
+      }
+
+      // Refresh transactions and clear selection
+      await fetchTransactions();
+      setSelectedTransactions(new Set());
+      setShowBulkDeleteDialog(false);
+
+      // Show success message
+      alert(`Successfully deleted ${response.data?.deletedCount || transactionIds.length} transactions`);
+
+    } catch (error) {
+      alert(`Failed to delete transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setBulkUpdateLoading(false);
+    }
+  }, [selectedTransactions, fetchTransactions]);
 
   // Helper functions - use data from transaction relations
   const getAccountName = (transaction: Transaction) => {
@@ -496,6 +604,198 @@ export default function TransactionsList({
         cancelText="Cancel"
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+        variant="danger"
+      />
+
+      {/* Bulk Update Modal */}
+      {showBulkUpdateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Edit {selectedTransactions.size} Transaction{selectedTransactions.size !== 1 ? 's' : ''}
+            </h3>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+
+              const updates: any = {};
+
+              // Handle transaction type
+              const type = formData.get('type') as string;
+              if (type && type !== 'no-change') {
+                updates.type = type;
+              }
+
+              // Handle category
+              const categoryId = formData.get('categoryId') as string;
+              if (categoryId && categoryId !== 'no-change') {
+                updates.category_id = categoryId === 'remove' ? null : parseInt(categoryId);
+              }
+
+              // Handle recurring flag
+              const recurringOption = formData.get('recurringOption') as string;
+              if (recurringOption && recurringOption !== 'no-change') {
+                if (recurringOption === 'recurring') {
+                  updates.is_recurring = true;
+                } else if (recurringOption === 'nonRecurring') {
+                  updates.is_recurring = false;
+                }
+              }
+
+              handleBulkUpdate(updates);
+            }} className="space-y-6">
+
+              {(() => {
+                // Calculate smart defaults based on selected transactions
+                const selectedTxns = transactions.filter(t => selectedTransactions.has(t.id));
+
+                // Smart default for transaction type
+                const uniqueTypes = [...new Set(selectedTxns.map(t => t.type))];
+                const defaultType = uniqueTypes.length === 1 ? uniqueTypes[0] : 'no-change';
+
+                // Smart default for category
+                const uniqueCategories = [...new Set(selectedTxns.map(t => t.category_id))];
+                const defaultCategory = uniqueCategories.length === 1 ?
+                  (uniqueCategories[0] ? uniqueCategories[0].toString() : 'remove') : 'no-change';
+
+                // Always default recurring to "no-change"
+                const defaultRecurring = 'no-change';
+
+                return (
+                  <>
+                    {/* First Row: Transaction Type and Category */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                      {/* Set Transaction Type */}
+                      <div>
+                        <label htmlFor="bulkType" className="block text-sm font-medium text-gray-900 mb-2">
+                          Set Transaction Type
+                        </label>
+                        <select
+                          id="bulkType"
+                          name="type"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          defaultValue={defaultType}
+                          onChange={(e) => {
+                            // Filter categories based on selected transaction type
+                            filterCategoriesByType(e.target.value);
+
+                            // Enable/disable category dropdown based on type selection
+                            const categorySelect = document.getElementById('bulkCategory') as HTMLSelectElement;
+                            const noChangeOption = categorySelect?.querySelector('option[value="no-change"]') as HTMLOptionElement;
+
+                            if (categorySelect && noChangeOption) {
+                              if (e.target.value === 'no-change') {
+                                categorySelect.disabled = true;
+                                categorySelect.value = 'no-change';
+                                categorySelect.className = categorySelect.className.replace(
+                                  'bg-gray-100 text-gray-500 cursor-not-allowed', ''
+                                ) + ' bg-gray-100 text-gray-500 cursor-not-allowed';
+                                noChangeOption.textContent = "Can't change (mixed types)";
+                              } else {
+                                categorySelect.disabled = false;
+                                categorySelect.className = categorySelect.className.replace(
+                                  'bg-gray-100 text-gray-500 cursor-not-allowed', ''
+                                );
+                                noChangeOption.textContent = "Don't change";
+                              }
+                            }
+                          }}
+                        >
+                          <option value="no-change">Don't change</option>
+                          <option value="INCOME">Income</option>
+                          <option value="EXPENSE">Expense</option>
+                          <option value="TRANSFER">Transfer</option>
+                        </select>
+                      </div>
+
+                      {/* Set Category */}
+                      <div>
+                        <label htmlFor="bulkCategory" className="block text-sm font-medium text-gray-900 mb-2">
+                          Set Category
+                        </label>
+                        <select
+                          id="bulkCategory"
+                          name="categoryId"
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                            defaultType === 'no-change' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+                          }`}
+                          defaultValue={defaultType === 'no-change' ? 'no-change' : defaultCategory}
+                          disabled={defaultType === 'no-change'}
+                        >
+                          <option value="no-change">
+                            {defaultType === 'no-change' ? "Can't change (mixed types)" : "Don't change"}
+                          </option>
+                          <option value="remove">Remove category</option>
+                          {filteredCategories.map(category => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                    </div>
+
+                    {/* Second Row: Recurring Flag */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                      {/* Set Recurring Flag */}
+                      <div>
+                        <label htmlFor="bulkRecurring" className="block text-sm font-medium text-gray-900 mb-2">
+                          Set Recurring Flag
+                        </label>
+                        <select
+                          id="bulkRecurring"
+                          name="recurringOption"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          defaultValue={defaultRecurring}
+                        >
+                          <option value="no-change">Don't change</option>
+                          <option value="recurring">Mark as recurring</option>
+                          <option value="nonRecurring">Mark as non-recurring</option>
+                        </select>
+                      </div>
+
+                      {/* Empty space for symmetry */}
+                      <div></div>
+
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkUpdateModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkUpdateLoading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bulkUpdateLoading ? 'Updating...' : 'Update Transactions'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showBulkDeleteDialog}
+        title="Delete Transactions"
+        message={`Are you sure you want to delete ${selectedTransactions.size} selected transaction(s)? This action cannot be undone.`}
+        confirmText="Delete All"
+        cancelText="Cancel"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setShowBulkDeleteDialog(false)}
         variant="danger"
       />
     </>
