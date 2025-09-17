@@ -18,6 +18,7 @@ jest.mock('@/lib/prisma', () => ({
 
 import { AccountService } from '../account.service'
 import { prisma } from '@/lib/prisma'
+import { Decimal } from '@prisma/client/runtime/library'
 import { createUTCDate } from '@/lib/utils/date-utils'
 
 // Get the mocked prisma
@@ -619,8 +620,7 @@ describe('AccountService', () => {
     it('should reconcile account with adjustment transaction', async () => {
       const reconcileData = {
         newBalance: 1500,
-        reconcileDate: '2025-01-15',
-        adjustmentType: 'INCOME' as const
+        reconcileDate: '2025-01-15'
       }
 
       // Mock existing account
@@ -645,10 +645,11 @@ describe('AccountService', () => {
         id: 1,
         tenant_id: mockTenantId,
         account_id: 1,
-        amount: 499.5, // 1500 - 1000.5
-        description: 'Balance Adjustment',
+        amount: new Decimal(499.5), // 1500 - 1000.5
+        description: 'System Balance Adjustment',
         date: createUTCDate(2025, 0, 15),
-        type: 'INCOME'
+        type: 'TRANSFER',
+        category_id: null
       }
       mockPrisma.transaction.create.mockResolvedValue(adjustmentTransaction)
 
@@ -661,10 +662,10 @@ describe('AccountService', () => {
         data: {
           tenant_id: mockTenantId,
           account_id: 1,
-          amount: 499.5,
-          description: 'Balance Adjustment',
+          amount: expect.any(Object), // Decimal object
+          description: 'System Balance Adjustment',
           date: expect.any(Date),
-          type: 'INCOME',
+          type: 'TRANSFER',
           category_id: null
         }
       })

@@ -426,8 +426,7 @@ describe('Accounts API', () => {
   describe('POST /api/accounts/[id]/reconcile', () => {
     const reconcileData = {
       newBalance: 1500,
-      reconcileDate: '2025-01-15',
-      adjustmentType: 'INCOME'
+      reconcileDate: '2025-01-15'
     }
 
     it('should reconcile account successfully', async () => {

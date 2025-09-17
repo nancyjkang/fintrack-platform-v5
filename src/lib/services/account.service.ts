@@ -372,14 +372,6 @@ export class AccountService extends BaseService {
       let adjustmentTransaction = null
       if (Math.abs(difference) > 0.01) {
         // Always use TRANSFER type for reconciliation adjustments (MVP accounting system)
-        console.log('[Reconcile] Creating adjustment transaction:', {
-          accountId,
-          difference,
-          newBalance: data.newBalance,
-          currentBalance,
-          reconcileDate: reconcileDate.toISOString()
-        })
-
         adjustmentTransaction = await this.prisma.transaction.create({
           data: {
             tenant_id: tenantId,
@@ -390,11 +382,6 @@ export class AccountService extends BaseService {
             type: 'TRANSFER',
             category_id: null // System Transfer category (to be implemented)
           }
-        })
-
-        console.log('[Reconcile] Adjustment transaction created:', {
-          id: adjustmentTransaction.id,
-          amount: adjustmentTransaction.amount.toString()
         })
       }
 
