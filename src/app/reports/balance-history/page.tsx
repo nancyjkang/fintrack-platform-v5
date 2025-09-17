@@ -16,6 +16,62 @@ import type { Transaction } from '@prisma/client';
 // Using API endpoints for all balance calculations
 
 /**
+ * Derive balance summary from transactions with running balances
+ * This ensures the summary uses the same corrected balance calculation as the transactions table
+ */
+function deriveBalanceSummaryFromTransactions(
+  transactions: (Transaction & { balance: number })[],
+  startDate: string,
+  endDate: string
+): BalanceSummary {
+  if (transactions.length === 0) {
+    return {
+      startingBalance: 0,
+      endingBalance: 0,
+      totalTransactions: 0,
+      netChange: 0,
+      dateRange: { startDate, endDate },
+      calculationMethods: { direct: 0, anchorBased: 1 }
+    };
+  }
+
+  // Sort transactions by date ascending to find chronological start and end
+  const sortedTransactions = [...transactions].sort((a, b) =>
+    parseAndConvertToUTC(a.date.toString()).getTime() - parseAndConvertToUTC(b.date.toString()).getTime()
+  );
+
+  const firstTransaction = sortedTransactions[0];
+
+  // Find the transaction with the highest absolute balance (final balance in the range)
+  // Since transactions come sorted desc from API, the first transaction for the latest date has the final balance
+  const latestDate = Math.max(...transactions.map(t => parseAndConvertToUTC(t.date.toString()).getTime()));
+  const transactionsOnLatestDate = transactions.filter(t =>
+    parseAndConvertToUTC(t.date.toString()).getTime() === latestDate
+  );
+
+  // Use the first transaction from the latest date (has final balance due to API sorting)
+  const finalTransaction = transactionsOnLatestDate[0];
+
+  // Calculate starting balance (balance before first transaction)
+  const startingBalance = firstTransaction.balance - Number(firstTransaction.amount);
+
+  // Ending balance is the final balance from the latest date
+  const endingBalance = finalTransaction.balance;
+
+  // Net change is the sum of all transaction amounts
+  const netChange = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+
+  return {
+    startingBalance,
+    endingBalance,
+    totalTransactions: transactions.length,
+    netChange,
+    dateRange: { startDate, endDate },
+    calculationMethods: { direct: 0, anchorBased: transactions.length }
+  };
+}
+
+/**
  * Derive daily balance history from transactions with running balances
  * This ensures the chart uses the same corrected balance calculation as the transactions table
  */
@@ -157,44 +213,26 @@ export default function BalanceHistoryPage() {
       if (!accessToken) {
         throw new Error('Authentication required');
       }
-      // Load summary and transactions in parallel
-      // Note: We'll derive the balance history from transactions for consistency
-      const [summaryResponse, transactionsResponse] = await Promise.all([
-        fetch(`/api/accounts/${filters.accountId}/balance-summary?startDate=${filters.startDate}&endDate=${filters.endDate}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetch(`/api/accounts/${filters.accountId}/transactions-with-balances?startDate=${filters.startDate}&endDate=${filters.endDate}&sortOrder=desc&limit=1000`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        })
-      ]);
+      // Load transactions and derive summary for consistency
+      const transactionsResponse = await fetch(`/api/accounts/${filters.accountId}/transactions-with-balances?startDate=${filters.startDate}&endDate=${filters.endDate}&sortOrder=desc&limit=1000`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
       // Check for HTTP errors
-      if (!summaryResponse.ok) {
-        throw new Error(`Failed to load balance summary: ${summaryResponse.statusText}`);
-      }
       if (!transactionsResponse.ok) {
         throw new Error(`Failed to load transactions: ${transactionsResponse.statusText}`);
       }
 
-      // Parse JSON responses
-      const summaryData = await summaryResponse.json();
+      // Parse JSON response
       const transactionsData = await transactionsResponse.json();
 
       // Check for API errors
-      if (!summaryData.success) {
-        throw new Error(summaryData.error || 'Failed to load balance summary');
-      }
       if (!transactionsData.success) {
         throw new Error(transactionsData.error || 'Failed to load transactions');
       }
-
-      setBalanceSummary(summaryData.data || null);
 
       // Set transactions directly - they already have correct running balances from balance anchors
       if (transactionsData.data?.transactions && transactionsData.data.transactions.length > 0) {
@@ -203,12 +241,21 @@ export default function BalanceHistoryPage() {
         // Transactions already have running balances calculated using balance anchors
         setTransactions(transactions);
 
+        // Derive balance summary from transactions for consistency
+        const balanceSummaryFromTransactions = deriveBalanceSummaryFromTransactions(
+          transactions,
+          filters.startDate || '',
+          filters.endDate || ''
+        );
+        setBalanceSummary(balanceSummaryFromTransactions);
+
         // Derive balance history from transactions for chart consistency
         const balanceHistoryFromTransactions = deriveBalanceHistoryFromTransactions(transactions);
         setBalanceHistory(balanceHistoryFromTransactions);
       } else {
         setTransactions([]);
         setBalanceHistory([]);
+        setBalanceSummary(null);
       }
 
     } catch (error: any) {
