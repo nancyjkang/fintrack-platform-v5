@@ -1,9 +1,9 @@
 # Financial Trends Analysis
 
-**Status**: 📋 Ready for Development  
-**Priority**: High (Priority 1)  
-**Estimated Time**: 5 days  
-**Category**: Analytics & Insights  
+**Status**: 📋 Ready for Development
+**Priority**: High (Priority 1)
+**Estimated Time**: 5 days
+**Category**: Analytics & Insights
 
 ## Overview
 
@@ -86,7 +86,7 @@ The feature uses a sophisticated data cube design with the following dimensions:
 CREATE TABLE financial_cube (
   id SERIAL PRIMARY KEY,
   tenant_id VARCHAR NOT NULL,
-  
+
   -- Dimensions
   period_type VARCHAR NOT NULL,
   period_start DATE NOT NULL,
@@ -97,20 +97,20 @@ CREATE TABLE financial_cube (
   is_recurring BOOLEAN NOT NULL,
   account_id INTEGER NOT NULL,
   account_name VARCHAR NOT NULL,
-  
+
   -- Facts
   total_amount DECIMAL(12,2) NOT NULL,
   transaction_count INTEGER NOT NULL,
   avg_transaction_amount DECIMAL(12,2) GENERATED ALWAYS AS (
     CASE WHEN transaction_count > 0 THEN total_amount / transaction_count ELSE 0 END
   ) STORED,
-  
+
   -- Metadata
   last_updated TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW(),
-  
+
   -- Constraints
-  UNIQUE(tenant_id, period_type, period_start, transaction_type, 
+  UNIQUE(tenant_id, period_type, period_start, transaction_type,
          COALESCE(category_id, -1), is_recurring, account_id),
   FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE

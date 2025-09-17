@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AccountBalanceHistoryService } from '@/lib/services/account-balance-history.service'
 import { TransactionService } from '@/lib/services/transaction.service'
 import { verifyAuth } from '@/lib/auth'
-import { createSuccessResponse, handleApiError } from '@/lib/api-response'
-import { createUTCDate, getCurrentUTCDate, subtractDays, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { handleApiError } from '@/lib/api-response'
+import { createUTCDate, getCurrentUTCDate, subtractDays, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
 
 /**
  * GET /api/accounts/[id]/transactions-with-balances
@@ -87,12 +87,12 @@ export async function GET(
     // Sort transactions based on requested order using deterministic sorting
     // This must match the sorting used in calculateRunningBalancesFromAnchor to preserve balance calculation order
     const sortedTransactions = [...transactionsWithBalance].sort((a, b) => {
-      const dateA = parseAndConvertToUTC(a.date.toString()).getTime()
-      const dateB = parseAndConvertToUTC(b.date.toString()).getTime()
+      const dateA = toUTCDateString(a.date)
+      const dateB = toUTCDateString(b.date)
 
       // Primary: sort by date
       if (dateA !== dateB) {
-        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+        return sortOrder === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA)
       }
 
       // Secondary: sort by ID (deterministic for same-date transactions)
@@ -111,8 +111,8 @@ export async function GET(
         transactions: sortedTransactions,
         count: sortedTransactions.length,
         dateRange: {
-          startDate: finalStartDate.toISOString().split('T')[0],
-          endDate: finalEndDate.toISOString().split('T')[0]
+          startDate: toUTCDateString(finalStartDate),
+          endDate: toUTCDateString(finalEndDate)
         },
         calculationMethod: 'balance-anchor-primary', // Indicates which method was used
         metadata: {
@@ -122,7 +122,7 @@ export async function GET(
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in transactions-with-balances API:', error)
     return handleApiError(error)
   }

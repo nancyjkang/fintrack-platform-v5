@@ -22,8 +22,7 @@ import {
   Upload,
   Sliders,
   Target,
-  Bell,
-  Check
+  Bell
 } from 'lucide-react';
 import styles from './Navigation.module.css';
 import { useAuth } from '@/lib/client/auth-context';

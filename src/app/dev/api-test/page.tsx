@@ -175,7 +175,7 @@ export default function ApiTestPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `api-response-${Date.now()}.json`;
+      a.download = `api-response-${getCurrentUTCDate().getTime()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

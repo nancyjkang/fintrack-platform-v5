@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { X, AlertTriangle, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/client/api'
 
@@ -95,8 +95,8 @@ export function CategoryMergeModal({ sourceCategory, categories, onSubmit, onClo
               <div>
                 <h3 className="font-medium text-blue-900 mb-2">What will happen:</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• All {sourceCategory.transactionCount || 0} transactions from "{sourceCategory.name}" will be moved to the target category</li>
-                  <li>• The "{sourceCategory.name}" category will be permanently deleted</li>
+                  <li>• All {sourceCategory.transactionCount || 0} transactions from &quot;{sourceCategory.name}&quot; will be moved to the target category</li>
+                  <li>• The &quot;{sourceCategory.name}&quot; category will be permanently deleted</li>
                   <li>• This action cannot be undone</li>
                 </ul>
               </div>

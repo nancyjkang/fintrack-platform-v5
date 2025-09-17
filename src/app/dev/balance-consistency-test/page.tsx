@@ -67,7 +67,7 @@ export default function BalanceConsistencyTestPage() {
         throw new Error('Login failed: No token received');
       }
     } catch (err: unknown) {
-      setError(`Login failed: ${err.message}`);
+      setError(`Login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setAuthLoading(false);
     }
@@ -177,7 +177,7 @@ export default function BalanceConsistencyTestPage() {
 
     } catch (err: unknown) {
       console.error('Test failed:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
       setLoading(false);
     }

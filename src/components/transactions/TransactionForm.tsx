@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, DollarSign, Calendar, Building, Tag, FileText, RotateCcw } from 'lucide-react';
-import { getCurrentDate, isValidDateString, parseAndConvertToUTC } from '@/lib/utils/date-utils';
+import { getCurrentDate, isValidDateString, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils';
 import { api } from '@/lib/client/api';
 
 interface Transaction {
@@ -194,7 +194,7 @@ export default function TransactionForm({ editingTransaction, onSave, onCancel }
         amount: parseFloat(formData.amount),
         description: formData.description.trim(),
         type: formData.type,
-        date: parseAndConvertToUTC(formData.date),
+        date: toUTCDateString(parseAndConvertToUTC(formData.date)),
         is_recurring: formData.is_recurring
       };
 

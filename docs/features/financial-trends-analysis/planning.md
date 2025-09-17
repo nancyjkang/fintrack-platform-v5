@@ -1,9 +1,9 @@
 # Financial Trends Analysis - Planning Document
 
-**Feature**: Financial Trends Analysis  
-**Status**: 📋 Planning Complete  
-**Created**: 2025-09-17  
-**Estimated Duration**: 5 days  
+**Feature**: Financial Trends Analysis
+**Status**: 📋 Planning Complete
+**Created**: 2025-09-17
+**Estimated Duration**: 5 days
 
 ---
 
@@ -33,7 +33,7 @@ The feature uses a dimensional modeling approach with a financial data cube:
 CREATE TABLE financial_cube (
   id SERIAL PRIMARY KEY,
   tenant_id VARCHAR NOT NULL,
-  
+
   -- Dimensions (6 total)
   period_type VARCHAR NOT NULL CHECK (period_type IN ('WEEKLY', 'BI_WEEKLY', 'MONTHLY', 'QUARTERLY', 'BI_ANNUAL', 'ANNUAL')),
   period_start DATE NOT NULL,
@@ -44,38 +44,38 @@ CREATE TABLE financial_cube (
   is_recurring BOOLEAN NOT NULL,
   account_id INTEGER NOT NULL,
   account_name VARCHAR NOT NULL, -- Denormalized for performance
-  
+
   -- Facts (measures)
   total_amount DECIMAL(12,2) NOT NULL,
   transaction_count INTEGER NOT NULL DEFAULT 0,
   avg_transaction_amount DECIMAL(12,2) GENERATED ALWAYS AS (
     CASE WHEN transaction_count > 0 THEN total_amount / transaction_count ELSE 0 END
   ) STORED,
-  
+
   -- Metadata
   last_updated TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW(),
-  
+
   -- Unique constraint on all dimensions
-  UNIQUE(tenant_id, period_type, period_start, transaction_type, 
+  UNIQUE(tenant_id, period_type, period_start, transaction_type,
          COALESCE(category_id, -1), is_recurring, account_id),
-         
+
   -- Foreign keys for data integrity
   FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
 );
 
 -- Performance indexes
-CREATE INDEX idx_financial_cube_tenant_period 
+CREATE INDEX idx_financial_cube_tenant_period
 ON financial_cube(tenant_id, period_type, period_start);
 
-CREATE INDEX idx_financial_cube_analysis 
+CREATE INDEX idx_financial_cube_analysis
 ON financial_cube(tenant_id, transaction_type, period_start, category_id);
 
-CREATE INDEX idx_financial_cube_account 
+CREATE INDEX idx_financial_cube_account
 ON financial_cube(tenant_id, account_id, period_start);
 
-CREATE INDEX idx_financial_cube_recurring 
+CREATE INDEX idx_financial_cube_recurring
 ON financial_cube(tenant_id, is_recurring, period_start);
 ```
 
@@ -118,12 +118,12 @@ interface CubeQuery {
 class FinancialCubeService {
   // Core querying
   async query(tenantId: string, query: CubeQuery): Promise<CubeResult[]>
-  
+
   // Cube maintenance
   async populateCube(tenantId: string, dateRange: DateRange): Promise<void>
   async updateCubeForTransaction(transaction: Transaction): Promise<void>
   async refreshCube(tenantId: string): Promise<void>
-  
+
   // Validation
   async validateCubeIntegrity(tenantId: string): Promise<ValidationResult>
 }
@@ -134,7 +134,7 @@ class TrendAnalysisService {
   async getCategoryBreakdown(tenantId: string, options: CategoryOptions): Promise<CategoryBreakdown[]>
   async getAccountPerformance(tenantId: string, options: AccountOptions): Promise<AccountPerformance[]>
   async getRecurringAnalysis(tenantId: string, options: RecurringOptions): Promise<RecurringAnalysis[]>
-  
+
   // Growth calculations
   async calculateGrowthRates(data: TrendData[]): Promise<GrowthAnalysis[]>
   async comparePeriodsAnalysis(tenantId: string, options: ComparisonOptions): Promise<ComparisonResult>
@@ -159,35 +159,35 @@ class CubePopulationService {
   async populateFullCube(tenantId: string): Promise<void> {
     // Get all transactions for tenant
     const transactions = await this.getAllTransactions(tenantId)
-    
+
     // Group by all dimension combinations
     const cubeData = new Map<string, CubeAggregation>()
-    
+
     for (const transaction of transactions) {
       for (const periodType of PERIOD_TYPES) {
         const periods = this.getPeriodsForTransaction(transaction.date, periodType)
-        
+
         for (const period of periods) {
           const dimensions = this.extractDimensions(transaction, periodType, period)
           const key = this.createDimensionKey(dimensions)
-          
+
           if (!cubeData.has(key)) {
             cubeData.set(key, this.initializeAggregation(dimensions))
           }
-          
+
           this.addTransactionToAggregation(cubeData.get(key)!, transaction)
         }
       }
     }
-    
+
     // Batch insert/update cube data
     await this.batchUpsertCubeData(Array.from(cubeData.values()))
   }
-  
+
   async updateCubeForTransaction(transaction: Transaction, operation: 'INSERT' | 'UPDATE' | 'DELETE'): Promise<void> {
     // Update only affected cube entries
     const affectedEntries = this.getAffectedCubeEntries(transaction)
-    
+
     for (const entry of affectedEntries) {
       await this.recalculateCubeEntry(entry, operation)
     }
@@ -201,57 +201,57 @@ class CubePopulationService {
 -- Common query patterns with optimizations
 
 -- 1. Savings trend over time
-SELECT 
+SELECT
   period_start,
   SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) as total_income,
   SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END) as total_expenses,
-  (SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) - 
+  (SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) -
    SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END)) as net_savings
-FROM financial_cube 
-WHERE tenant_id = $1 
-  AND period_type = $2 
+FROM financial_cube
+WHERE tenant_id = $1
+  AND period_type = $2
   AND period_start BETWEEN $3 AND $4
 GROUP BY period_start
 ORDER BY period_start;
 
 -- 2. Category breakdown with growth rates
 WITH category_totals AS (
-  SELECT 
+  SELECT
     category_name,
     period_start,
     SUM(total_amount) as amount,
     SUM(transaction_count) as count
-  FROM financial_cube 
-  WHERE tenant_id = $1 
+  FROM financial_cube
+  WHERE tenant_id = $1
     AND transaction_type = 'EXPENSE'
     AND period_type = 'MONTHLY'
   GROUP BY category_name, period_start
 )
-SELECT 
+SELECT
   category_name,
   period_start,
   amount,
   count,
   LAG(amount) OVER (PARTITION BY category_name ORDER BY period_start) as prev_amount,
-  (amount - LAG(amount) OVER (PARTITION BY category_name ORDER BY period_start)) / 
+  (amount - LAG(amount) OVER (PARTITION BY category_name ORDER BY period_start)) /
     NULLIF(LAG(amount) OVER (PARTITION BY category_name ORDER BY period_start), 0) * 100 as growth_rate
 FROM category_totals
 ORDER BY category_name, period_start;
 
 -- 3. Account performance comparison
-SELECT 
+SELECT
   account_name,
   period_start,
   SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) as income,
   SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END) as expenses,
-  (SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) - 
+  (SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) -
    SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END)) as net_change,
-  CASE 
-    WHEN SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) > 0 
-    THEN (SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) - 
-          SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END)) / 
+  CASE
+    WHEN SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) > 0
+    THEN (SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) -
+          SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END)) /
          SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) * 100
-    ELSE 0 
+    ELSE 0
   END as savings_rate
 FROM financial_cube
 WHERE tenant_id = $1 AND period_type = $2
@@ -272,7 +272,7 @@ interface TrendsDashboardProps {
   dateRange: { start: Date, end: Date }
   selectedAccounts: number[]
   selectedCategories: number[]
-  
+
   // Display options
   showRecurringOnly: boolean
   comparisonMode: 'none' | 'previous_period' | 'year_over_year'
@@ -285,23 +285,23 @@ const TrendsDashboard = () => {
     <div className="trends-dashboard">
       {/* Header with period selector and filters */}
       <TrendsHeader />
-      
+
       {/* Key metrics cards */}
       <SavingsMetricsCards />
-      
+
       {/* Main chart area */}
       <div className="chart-section">
         <SavingsTrendChart />
         <CategoryBreakdownChart />
       </div>
-      
+
       {/* Detailed analysis tables */}
       <div className="analysis-section">
         <AccountPerformanceTable />
         <CategoryTrendsTable />
         <RecurringExpensesTable />
       </div>
-      
+
       {/* Insights panel */}
       <InsightsPanel />
     </div>
@@ -448,7 +448,7 @@ POST /api/financial-trends/cube/refresh
 class InsightGenerator {
   async generateSavingsInsights(trends: SavingsTrend[]): Promise<Insight[]> {
     const insights: Insight[] = []
-    
+
     // Detect savings rate improvements
     const savingsRateImprovement = this.detectSavingsRateImprovement(trends)
     if (savingsRateImprovement) {
@@ -460,7 +460,7 @@ class InsightGenerator {
         actions: ['Continue current spending patterns', 'Consider increasing savings goals']
       })
     }
-    
+
     // Detect spending spikes
     const spendingSpikes = this.detectSpendingSpikes(trends)
     for (const spike of spendingSpikes) {
@@ -472,7 +472,7 @@ class InsightGenerator {
         actions: ['Review transactions in this category', 'Set up budget alerts']
       })
     }
-    
+
     return insights
   }
 }
@@ -514,20 +514,20 @@ BEGIN
     PERFORM update_cube_for_transaction(NEW);
     RETURN NEW;
   END IF;
-  
+
   -- Handle UPDATE
   IF TG_OP = 'UPDATE' THEN
     PERFORM update_cube_for_transaction(OLD, 'DELETE');
     PERFORM update_cube_for_transaction(NEW, 'INSERT');
     RETURN NEW;
   END IF;
-  
+
   -- Handle DELETE
   IF TG_OP = 'DELETE' THEN
     PERFORM update_cube_for_transaction(OLD, 'DELETE');
     RETURN OLD;
   END IF;
-  
+
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
@@ -578,5 +578,5 @@ CREATE TRIGGER transaction_cube_update
 
 ---
 
-**Status**: 📋 Planning Complete - Ready for Implementation  
+**Status**: 📋 Planning Complete - Ready for Implementation
 **Next Action**: Begin Phase 1 with database schema creation and core service development
