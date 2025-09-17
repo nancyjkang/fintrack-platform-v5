@@ -109,6 +109,10 @@ interface CubeQuery {
   filters?: {
     dateRange?: { start: Date, end: Date }
     amountRange?: { min: Decimal, max: Decimal }
+    type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    categoryId?: number
+    accountId?: number
+    recurring?: boolean
   }
   orderBy?: { field: string, direction: 'ASC' | 'DESC' }[]
   limit?: number
