@@ -11,7 +11,7 @@ import {
   Tooltip, 
   Legend 
 } from 'recharts';
-import { createUTCDate } from '@/lib/utils/date-utils';
+import { createUTCDate, formatDateForDisplay } from '@/lib/utils/date-utils';
 import type { BalanceHistoryData } from '@/types/balance-history';
 
 interface AccountBalanceChartProps {
@@ -54,21 +54,16 @@ export function AccountBalanceChart({
   };
 
   // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) => {
+    if (active && payload && payload.length && label) {
       const [year, month, day] = label.split('-').map(Number);
       const date = createUTCDate(year, month - 1, day);
-      const formattedDate = date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+      const formattedDate = formatDateForDisplay(date);
 
       return (
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 mb-2">{formattedDate}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index: number) => (
             <div key={index} className="flex items-center gap-2 text-sm">
               <div 
                 className="w-3 h-3 rounded-full" 

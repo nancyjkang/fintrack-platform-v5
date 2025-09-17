@@ -121,9 +121,9 @@ export function BalanceHistoryFilters({
     // Update the date filters with a flag to indicate this came from time period
     if (value) {
       const { startDate, endDate } = getDateRange(value);
-      onFiltersChange({ startDate, endDate, fromTimePeriod: true });
+      onFiltersChange({ startDate, endDate, fromTimePeriod: true } as Partial<FilterType> & { fromTimePeriod: boolean });
     } else {
-      onFiltersChange({ startDate: '', endDate: '', fromTimePeriod: true });
+      onFiltersChange({ startDate: '', endDate: '', fromTimePeriod: true } as Partial<FilterType> & { fromTimePeriod: boolean });
     }
   };
 

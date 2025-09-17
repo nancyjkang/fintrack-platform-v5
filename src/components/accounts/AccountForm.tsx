@@ -113,7 +113,7 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
   }
 
   // Handle input changes
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
