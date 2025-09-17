@@ -52,6 +52,6 @@ This release includes transaction management improvements, deployment workflow e
 
 ---
 
-**Live Demo**: [URL will be updated after deployment]
+**Live Demo**: https://fintrack-platform-v5-iw78snp0y-lumifin.vercel.appQueued
 
 **Rollback Command**: `vercel rollback --previous`
