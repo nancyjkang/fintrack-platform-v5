@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { AccountBalanceHistoryService } from '@/lib/services/account-balance-history.service'
 import { verifyAuth } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
@@ -44,7 +44,7 @@ export async function POST(
         : `Account balance is already in sync at $${result.oldBalance}`
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in sync-balance API:', error)
     return handleApiError(error)
   }

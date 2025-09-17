@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { AccountBalanceHistoryService } from '@/lib/services/account-balance-history.service'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
 import { verifyAuth } from '@/lib/auth'
@@ -71,7 +71,7 @@ export async function GET(
     // 7. Return successful response
     return createSuccessResponse(balanceSummary, 'Balance summary retrieved successfully')
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Balance summary API error:', error)
     return handleApiError(error)
   }

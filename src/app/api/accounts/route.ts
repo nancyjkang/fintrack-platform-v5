@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Filter out null values from the filters
     const filters = Object.fromEntries(
-      Object.entries(filtersResult.data).filter(([_, value]) => value !== null)
+      Object.entries(filtersResult.data).filter(([, value]) => value !== null)
     )
 
     const accounts = await AccountService.getAccounts(tenantId, filters)
