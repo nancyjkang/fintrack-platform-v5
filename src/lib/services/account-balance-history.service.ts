@@ -110,11 +110,11 @@ export class AccountBalanceHistoryService extends BaseService {
     // Sort transactions by date ascending for calculation
     // For transactions on the same date, sort by ID (deterministic) then description (readable)
     const sortedTransactions = [...transactions].sort((a, b) => {
-      const dateA = parseAndConvertToUTC(a.date.toString()).getTime();
-      const dateB = parseAndConvertToUTC(b.date.toString()).getTime();
+      const dateA = toUTCDateString(a.date);
+      const dateB = toUTCDateString(b.date);
 
       if (dateA !== dateB) {
-        return dateA - dateB; // Primary: sort by date
+        return dateA.localeCompare(dateB); // Primary: sort by date
       }
 
       if (a.id !== b.id) {
@@ -172,11 +172,11 @@ export class AccountBalanceHistoryService extends BaseService {
     // Sort transactions by date ascending for calculation
     // For transactions on the same date, sort by ID (deterministic) then description (readable)
     const sortedTransactions = [...transactions].sort((a, b) => {
-      const dateA = parseAndConvertToUTC(a.date.toString()).getTime();
-      const dateB = parseAndConvertToUTC(b.date.toString()).getTime();
+      const dateA = toUTCDateString(a.date);
+      const dateB = toUTCDateString(b.date);
 
       if (dateA !== dateB) {
-        return dateA - dateB; // Primary: sort by date
+        return dateA.localeCompare(dateB); // Primary: sort by date
       }
 
       if (a.id !== b.id) {
@@ -219,7 +219,7 @@ export class AccountBalanceHistoryService extends BaseService {
 
     // Return sorted by date descending (newest first)
     return transactionsWithBalance.sort((a, b) =>
-      parseAndConvertToUTC(b.date.toString()).getTime() - parseAndConvertToUTC(a.date.toString()).getTime()
+      toUTCDateString(b.date).localeCompare(toUTCDateString(a.date))
     );
   }
 
@@ -262,9 +262,9 @@ export class AccountBalanceHistoryService extends BaseService {
    */
   private calculateFromAnchor(
     transactions: Transaction[],
-    anchor: any
+    anchor: { anchor_date: Date; balance: string | number }
   ): Array<Transaction & { balance: number }> {
-    const anchorDate = anchor.anchor_date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+    const anchorDate = toUTCDateString(anchor.anchor_date);
     const anchorBalance = Number(anchor.balance);
 
 
@@ -313,7 +313,7 @@ export class AccountBalanceHistoryService extends BaseService {
 
     // Return sorted by date descending (newest first)
     return transactionsWithBalance.sort((a, b) =>
-      parseAndConvertToUTC(b.date.toString()).getTime() - parseAndConvertToUTC(a.date.toString()).getTime()
+      toUTCDateString(b.date).localeCompare(toUTCDateString(a.date))
     );
   }
 
@@ -336,7 +336,7 @@ export class AccountBalanceHistoryService extends BaseService {
 
       // Calculate the correct balance using our anchor-based method
       const currentDate = getCurrentUTCDate();
-      const currentDateString = currentDate.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+      const currentDateString = toUTCDateString(currentDate);
       const calculatedBalance = await this.calculateBalanceAtDate(tenantId, accountId, currentDateString);
       const newBalance = calculatedBalance.balance;
 

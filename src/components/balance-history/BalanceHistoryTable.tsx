@@ -2,7 +2,7 @@
 
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { BalanceHistoryData } from '@/types/balance-history';
-import { formatDateForDisplay, parseAndConvertToUTC } from '@/lib/utils/date-utils';
+import { formatDateForDisplay, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils';
 
 interface BalanceHistoryTableProps {
   data: BalanceHistoryData[];
@@ -51,7 +51,7 @@ export function BalanceHistoryTable({ data }: BalanceHistoryTableProps) {
   }
 
   // Sort data by date (most recent first)
-  const sortedData = [...data].sort((a, b) => parseAndConvertToUTC(b.date).getTime() - parseAndConvertToUTC(a.date).getTime());
+  const sortedData = [...data].sort((a, b) => toUTCDateString(b.date).localeCompare(toUTCDateString(a.date)));
 
   return (
     <div className="overflow-hidden">

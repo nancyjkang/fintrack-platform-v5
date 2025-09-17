@@ -37,7 +37,7 @@ export function AccountsPageContent() {
         const accountsData = Array.isArray(response.data)
           ? response.data
           : (response.data as { items?: unknown[] }).items || response.data
-        setAccounts(accountsData)
+        setAccounts(accountsData as Account[])
       } else {
         throw new Error(response.error || 'Failed to fetch accounts')
       }
