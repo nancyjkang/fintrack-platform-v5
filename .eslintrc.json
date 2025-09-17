@@ -62,7 +62,8 @@
       "files": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
       "rules": {
         "no-restricted-syntax": "off",
-        "no-restricted-globals": "off"
+        "no-restricted-globals": "off",
+        "@typescript-eslint/no-explicit-any": "off"
       }
     }
   ]
