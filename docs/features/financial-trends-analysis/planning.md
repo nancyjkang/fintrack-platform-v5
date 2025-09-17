@@ -85,7 +85,7 @@ ON financial_cube(tenant_id, is_recurring, period_start);
 // Core interfaces
 interface FinancialCubeDimensions {
   tenant_id: string
-  period_type: PeriodType
+  period_type: 'WEEKLY' | 'MONTHLY'
   period_start: Date
   period_end: Date
   transaction_type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
@@ -100,6 +100,18 @@ interface FinancialCubeFacts {
   total_amount: Decimal
   transaction_count: number
   avg_transaction_amount: Decimal
+}
+
+interface CubeAggregation {
+  dimensions: FinancialCubeDimensions
+  total_amount: Decimal
+  transaction_count: number
+}
+
+interface Period {
+  type: 'WEEKLY' | 'MONTHLY'
+  start: Date
+  end: Date
 }
 
 interface CubeQuery {
@@ -418,7 +430,1032 @@ POST /api/financial-trends/cube/refresh
 
 ---
 
+## 🔄 **Data Synchronization Strategy**
+
+### **Real-time Cube Updates**
+
+#### **Transaction Event Triggers**
+```typescript
+class TransactionService {
+  async createTransaction(data: TransactionData) {
+    const transaction = await this.prisma.transaction.create({ data })
+
+    // Trigger cube update asynchronously (non-blocking)
+    this.eventEmitter.emit('transaction.created', transaction)
+
+    return transaction
+  }
+
+  async updateTransaction(id: string, data: Partial<TransactionData>) {
+    const oldTransaction = await this.getTransaction(id)
+    const newTransaction = await this.prisma.transaction.update({ where: { id }, data })
+
+    // Handle cube updates for both old and new states
+    this.eventEmitter.emit('transaction.updated', { old: oldTransaction, new: newTransaction })
+
+    return newTransaction
+  }
+}
+
+class FinancialCubeService {
+  constructor() {
+    // Listen for transaction events
+    this.eventEmitter.on('transaction.created', this.handleTransactionCreated.bind(this))
+    this.eventEmitter.on('transaction.updated', this.handleTransactionUpdated.bind(this))
+    this.eventEmitter.on('transaction.deleted', this.handleTransactionDeleted.bind(this))
+  }
+
+  async handleTransactionCreated(transaction: Transaction) {
+    await this.updateCubeForTransactions([transaction])
+  }
+
+  async handleTransactionUpdated({ old, new: newTxn }: { old: Transaction, new: Transaction }) {
+    // Rebuild cube for both old and new transactions to handle all affected periods/accounts
+    const affectedTransactions = [old, newTxn]
+    await this.updateCubeForTransactions(affectedTransactions)
+  }
+
+  async handleTransactionDeleted(transaction: Transaction) {
+    // Just rebuild the affected periods/accounts (transaction no longer exists in DB)
+    await this.updateCubeForTransactions([transaction])
+  }
+
+  private async updateCubeForTransaction(transaction: Transaction, operation: 'ADD' | 'SUBTRACT') {
+    const periods = this.generateAllPeriodsForTransaction(transaction)
+
+    for (const period of periods) {
+      await this.upsertCubeRecord({
+        ...this.buildCubeDimensions(transaction, period),
+        operation,
+        amount: transaction.amount,
+        transaction_count: 1
+      })
+    }
+  }
+
+  async updateCubeForTransactions(transactions: Transaction[]) {
+    // SIMPLE & RELIABLE APPROACH: Rebuild affected cube records from scratch
+    //
+    // Benefits of this approach:
+    // ✅ Simple to understand and debug
+    // ✅ Always produces correct results (no incremental errors)
+    // ✅ Handles edge cases naturally (deletes, updates, category changes)
+    // ✅ Self-healing (fixes any existing inconsistencies)
+    // ✅ Parallel execution for performance
+    // ✅ Minimal complexity - just delete + rebuild
+    // ✅ No need to track ADD/SUBTRACT operations - we rebuild from source!
+    //
+    // Trade-off: Slightly more database queries, but much more reliable
+
+    const tenantId = transactions[0]?.tenant_id
+    if (!tenantId) return
+
+    // Step 1: Get distinct periods affected by these transactions
+    const distinctPeriods = this.getDistinctPeriodsForTransactions(transactions)
+
+    // Step 2: Get distinct accounts affected by these transactions
+    const distinctAccountIds = [...new Set(transactions.map(t => t.account_id))]
+
+    // Step 3: For each period/account combination, rebuild the cube records
+    const rebuildPromises = []
+
+    for (const period of distinctPeriods) {
+      for (const accountId of distinctAccountIds) {
+        rebuildPromises.push(
+          this.rebuildCubeForPeriodAccount(tenantId, period, accountId)
+        )
+      }
+    }
+
+    // Execute all rebuilds in parallel for maximum performance
+    await Promise.all(rebuildPromises)
+  }
+
+  private async rebuildCubeForPeriodAccount(
+    tenantId: string,
+    period: Period,
+    accountId: number
+  ) {
+    // Step 1: Delete existing cube records for this period/account
+    await this.prisma.financialTrendsCube.deleteMany({
+      where: {
+        tenant_id: tenantId,
+        period_type: period.type,
+        period_start: period.start,
+        account_id: accountId
+      }
+    })
+
+    // Step 2: Get ALL transactions for this account in this period from source
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        tenant_id: tenantId,
+        account_id: accountId,
+        date: {
+          gte: period.start,
+          lte: period.end
+        }
+      },
+      include: {
+        category: true,
+        account: true
+      }
+    })
+
+    // Step 3: Rebuild cube records by aggregating transactions
+    const cubeRecords = this.aggregateTransactionsToCubeRecords(
+      transactions,
+      period,
+      tenantId
+    )
+
+    // Step 4: Insert new cube records
+    if (cubeRecords.length > 0) {
+      await this.prisma.financialTrendsCube.createMany({
+        data: cubeRecords
+      })
+    }
+  }
+
+  private aggregateTransactionsToCubeRecords(
+    transactions: Transaction[],
+    period: Period,
+    tenantId: string
+  ): any[] {
+    // Group transactions by cube dimensions
+    const groups = new Map<string, {
+      dimensions: any,
+      transactions: Transaction[]
+    }>()
+
+    for (const transaction of transactions) {
+      const dimensions = {
+        tenant_id: tenantId,
+        period_type: period.type,
+        period_start: period.start,
+        period_end: period.end,
+        transaction_type: transaction.type,
+        category_id: transaction.category_id,
+        category_name: transaction.category?.name || 'Uncategorized',
+        is_recurring: transaction.is_recurring || false,
+        account_id: transaction.account_id,
+        account_name: transaction.account?.name || 'Unknown Account'
+      }
+
+      const key = this.buildCubeKey(dimensions)
+      const existing = groups.get(key) || { dimensions, transactions: [] }
+      existing.transactions.push(transaction)
+      groups.set(key, existing)
+    }
+
+    // Convert groups to cube records
+    return Array.from(groups.values()).map(group => {
+      const totalAmount = group.transactions.reduce(
+        (sum, t) => sum.plus(new Decimal(t.amount)),
+        new Decimal(0)
+      )
+      const transactionCount = group.transactions.length
+      const avgAmount = transactionCount > 0
+        ? totalAmount.dividedBy(transactionCount)
+        : new Decimal(0)
+
+      return {
+        ...group.dimensions,
+        total_amount: totalAmount,
+        transaction_count: transactionCount,
+        avg_transaction_amount: avgAmount
+      }
+    })
+  }
+
+  private getDistinctPeriodsForTransactions(transactions: Transaction[]): Period[] {
+    if (transactions.length === 0) return []
+
+    // Find the date range of all transactions
+    const dates = transactions.map(t => new Date(t.date))
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())))
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())))
+
+    // Generate all possible periods that could contain these transactions
+    const periods: Period[] = []
+
+    // Generate weekly periods
+    let currentWeekStart = startOfWeek(minDate)
+    while (currentWeekStart <= maxDate) {
+      periods.push({
+        type: 'WEEKLY',
+        start: currentWeekStart,
+        end: endOfWeek(currentWeekStart)
+      })
+      currentWeekStart = addWeeks(currentWeekStart, 1)
+    }
+
+    // Generate monthly periods
+    let currentMonthStart = startOfMonth(minDate)
+    while (currentMonthStart <= maxDate) {
+      periods.push({
+        type: 'MONTHLY',
+        start: currentMonthStart,
+        end: endOfMonth(currentMonthStart)
+      })
+      currentMonthStart = addMonths(currentMonthStart, 1)
+    }
+
+    return periods
+  }
+
+
+  private buildCubeKey(dimensions: FinancialCubeDimensions): string {
+    return [
+      dimensions.tenant_id,
+      dimensions.period_type,
+      dimensions.period_start.toISOString(),
+      dimensions.transaction_type,
+      dimensions.category_id || 'null',
+      dimensions.account_id,
+      dimensions.is_recurring
+    ].join('|')
+  }
+
+  private async batchUpsertCubeRecords(aggregations: CubeAggregation[]) {
+    // Use Prisma's batch operations for efficiency
+    const upsertPromises = aggregations.map(agg =>
+      this.prisma.financialTrendsCube.upsert({
+        where: {
+          tenant_id_period_type_period_start_transaction_type_category_id_account_id_is_recurring: {
+            tenant_id: agg.dimensions.tenant_id,
+            period_type: agg.dimensions.period_type,
+            period_start: agg.dimensions.period_start,
+            transaction_type: agg.dimensions.transaction_type,
+            category_id: agg.dimensions.category_id,
+            account_id: agg.dimensions.account_id,
+            is_recurring: agg.dimensions.is_recurring
+          }
+        },
+        update: {
+          total_amount: { increment: agg.total_amount },
+          transaction_count: { increment: agg.transaction_count },
+          avg_transaction_amount: {
+            // Recalculate average
+            set: this.prisma.$queryRaw`total_amount / NULLIF(transaction_count, 0)`
+          }
+        },
+        create: {
+          ...agg.dimensions,
+          total_amount: agg.total_amount,
+          transaction_count: agg.transaction_count,
+          avg_transaction_amount: agg.transaction_count > 0 ? agg.total_amount.dividedBy(agg.transaction_count) : new Decimal(0)
+        }
+      })
+    )
+
+    // Execute all upserts in parallel
+    await Promise.all(upsertPromises)
+  }
+
+  private generateAllPeriodsForTransaction(transaction: Transaction) {
+    const date = new Date(transaction.date)
+    return [
+      { type: 'WEEKLY', start: startOfWeek(date), end: endOfWeek(date) },
+      { type: 'MONTHLY', start: startOfMonth(date), end: endOfMonth(date) }
+    ]
+  }
+}
+```
+
+#### **Batch Processing for High Volume**
+```typescript
+class CubeUpdateQueue {
+  private updateQueue: Map<string, TransactionUpdate[]> = new Map()
+
+  async queueUpdate(transaction: Transaction, operation: 'ADD' | 'SUBTRACT') {
+    const key = `${transaction.tenant_id}:${transaction.date}`
+    const updates = this.updateQueue.get(key) || []
+    updates.push({ transaction, operation })
+    this.updateQueue.set(key, updates)
+
+    // Process queue every 5 seconds or when it reaches 100 items
+    this.scheduleProcessing()
+  }
+
+  private async processBatch(updates: TransactionUpdate[]) {
+    // Group by cube dimensions and aggregate
+    const aggregatedUpdates = this.aggregateUpdates(updates)
+
+    // Single database operation per cube record
+    for (const [key, aggregation] of aggregatedUpdates) {
+      await this.upsertCubeRecord(key, aggregation)
+    }
+  }
+}
+```
+
+### **Data Consistency Guarantees**
+
+#### **Eventual Consistency Model**
+- **Immediate**: Transaction CRUD operations complete instantly
+- **Near Real-time**: Cube updates within 1-5 seconds
+- **Reconciliation**: Daily batch job ensures 100% accuracy
+
+#### **Conflict Resolution**
+```typescript
+class CubeReconciliationService {
+  async dailyReconciliation(tenantId: string, date: Date) {
+    // Rebuild cube data from source transactions
+    const actualData = await this.calculateActualCubeData(tenantId, date)
+    const cubeData = await this.getCubeData(tenantId, date)
+
+    // Identify and fix discrepancies
+    const discrepancies = this.findDiscrepancies(actualData, cubeData)
+    if (discrepancies.length > 0) {
+      await this.correctCubeData(discrepancies)
+      this.logger.warn(`Fixed ${discrepancies.length} cube discrepancies for ${tenantId}`)
+    }
+  }
+}
+```
+
+---
+
+## 📊 **Period Granularity & User Flexibility**
+
+### **Pre-computed Standard Periods**
+
+Store these periods in the cube for optimal query performance:
+
+| Period Type | Description | Use Case | Storage Impact |
+|-------------|-------------|----------|----------------|
+| **WEEKLY** | Monday-Sunday | Weekly budgeting, payday cycles, short-term trends | ~4x monthly records |
+| **MONTHLY** | Calendar months | Monthly budgets, bill cycles, primary analysis | Base storage unit |
+
+**Aggregate on-demand from monthly data:**
+- **QUARTERLY**: Q1, Q2, Q3, Q4 (aggregate 3 months)
+- **YEARLY**: Calendar years (aggregate 12 months)
+- **DAILY**: Individual transactions (query transaction table directly)
+
+### **Dynamic User-Chosen Periods**
+
+Aggregate standard periods on-demand for custom views:
+
+#### **Supported Custom Periods**
+```typescript
+type CustomPeriodType =
+  | 'BI_WEEKLY'     // Aggregate 2 weeks of weekly data
+  | 'QUARTERLY'     // Aggregate 3 months of monthly data
+  | 'YEARLY'        // Aggregate 12 months of monthly data
+  | 'SEMI_MONTHLY'  // 1st-15th, 16th-end of month
+  | 'PAY_PERIOD'    // User-defined pay cycles
+  | 'CUSTOM_RANGE'  // Any date range
+  | 'ROLLING_30'    // Rolling 30-day periods
+  | 'FISCAL_YEAR'   // User's fiscal year
+
+class PeriodAggregationService {
+  async getCustomPeriodData(
+    tenantId: string,
+    customPeriod: CustomPeriodType,
+    startDate: Date,
+    endDate: Date
+  ) {
+    switch (customPeriod) {
+      case 'BI_WEEKLY':
+        return this.aggregateBiWeekly(tenantId, startDate, endDate)
+      case 'PAY_PERIOD':
+        return this.aggregateByPayPeriod(tenantId, startDate, endDate)
+      case 'CUSTOM_RANGE':
+        return this.aggregateCustomRange(tenantId, startDate, endDate)
+    }
+  }
+
+  private async aggregateBiWeekly(tenantId: string, start: Date, end: Date) {
+    // Aggregate weekly data into 2-week chunks
+    return this.prisma.$queryRaw`
+      SELECT
+        FLOOR(DATEDIFF(period_start, ${start}) / 14) as bi_week_number,
+        SUM(total_amount) as total_amount,
+        SUM(transaction_count) as transaction_count,
+        category_name,
+        account_name,
+        transaction_type
+      FROM financial_trends_cube
+      WHERE tenant_id = ${tenantId}
+        AND period_type = 'WEEKLY'
+        AND period_start BETWEEN ${start} AND ${end}
+      GROUP BY bi_week_number, category_name, account_name, transaction_type
+    `
+  }
+
+  private async aggregateQuarterly(tenantId: string, start: Date, end: Date) {
+    // Aggregate monthly data into quarters
+    return this.prisma.$queryRaw`
+      SELECT
+        QUARTER(period_start) as quarter_number,
+        YEAR(period_start) as year,
+        SUM(total_amount) as total_amount,
+        SUM(transaction_count) as transaction_count,
+        category_name,
+        account_name,
+        transaction_type
+      FROM financial_trends_cube
+      WHERE tenant_id = ${tenantId}
+        AND period_type = 'MONTHLY'
+        AND period_start BETWEEN ${start} AND ${end}
+      GROUP BY quarter_number, year, category_name, account_name, transaction_type
+    `
+  }
+
+  private async aggregateYearly(tenantId: string, start: Date, end: Date) {
+    // Aggregate monthly data into years
+    return this.prisma.$queryRaw`
+      SELECT
+        YEAR(period_start) as year,
+        SUM(total_amount) as total_amount,
+        SUM(transaction_count) as transaction_count,
+        category_name,
+        account_name,
+        transaction_type
+      FROM financial_trends_cube
+      WHERE tenant_id = ${tenantId}
+        AND period_type = 'MONTHLY'
+        AND period_start BETWEEN ${start} AND ${end}
+      GROUP BY year, category_name, account_name, transaction_type
+    `
+  }
+}
+```
+
+### **User Interface Design**
+
+#### **Period Selection Component**
+```typescript
+interface PeriodSelectorProps {
+  onPeriodChange: (period: PeriodConfig) => void
+  defaultPeriod?: PeriodConfig
+}
+
+interface PeriodConfig {
+  type: 'STANDARD' | 'CUSTOM'
+  standardType?: 'WEEKLY' | 'MONTHLY'
+  customType?: CustomPeriodType
+  startDate?: Date
+  endDate?: Date
+  payPeriodConfig?: PayPeriodConfig
+}
+
+const PeriodSelector: React.FC<PeriodSelectorProps> = ({ onPeriodChange }) => {
+  return (
+    <div className="period-selector">
+      <TabGroup>
+        <Tab label="Standard">
+          <Select options={[
+            { value: 'WEEKLY', label: 'Weekly' },
+            { value: 'MONTHLY', label: 'Monthly' }
+          ]} />
+        </Tab>
+        <Tab label="Custom">
+          <Select options={[
+            { value: 'BI_WEEKLY', label: 'Bi-weekly' },
+            { value: 'QUARTERLY', label: 'Quarterly' },
+            { value: 'YEARLY', label: 'Yearly' },
+            { value: 'PAY_PERIOD', label: 'Pay Period' },
+            { value: 'CUSTOM_RANGE', label: 'Custom Range' }
+          ]} />
+        </Tab>
+      </TabGroup>
+    </div>
+  )
+}
+```
+
+### **Performance Optimization Strategy**
+
+#### **Query Optimization by Period Type**
+```typescript
+class TrendsQueryService {
+  async getTrends(config: PeriodConfig, filters: TrendFilters) {
+    if (config.type === 'STANDARD') {
+      // Direct cube query - fastest
+      return this.getStandardPeriodTrends(config.standardType!, filters)
+    } else {
+      // Aggregate from daily data - slower but flexible
+      return this.getCustomPeriodTrends(config.customType!, filters)
+    }
+  }
+
+  private async getStandardPeriodTrends(periodType: StandardPeriodType, filters: TrendFilters) {
+    // Single query to pre-computed cube data
+    return this.prisma.financialTrendsCube.findMany({
+      where: {
+        tenant_id: filters.tenantId,
+        period_type: periodType,
+        period_start: { gte: filters.startDate },
+        period_end: { lte: filters.endDate }
+      }
+    })
+  }
+}
+```
+
+### **Recommended User Experience**
+
+1. **Default to Monthly**: Most users think in monthly terms
+2. **Quick Toggle**: Easy switching between Weekly/Monthly (standard periods)
+3. **Custom for Power Users**: Quarterly, Yearly, and advanced options in custom section
+4. **Performance Indicators**: Show loading states for custom aggregations
+5. **Smart Defaults**: Remember user's preferred period type
+
+### **Benefits of Simplified Approach**
+
+#### **Storage Efficiency**
+- **60% Less Storage**: Only 2 periods per transaction vs 5 in original design
+- **Faster Writes**: Each transaction creates 2 cube records instead of 5
+- **Reduced Complexity**: Simpler sync logic and fewer edge cases
+
+#### **Performance Benefits**
+```typescript
+// Storage comparison per transaction:
+// Original: 5 records (DAILY + WEEKLY + MONTHLY + QUARTERLY + YEARLY)
+// Optimized: 2 records (WEEKLY + MONTHLY)
+// = 60% storage reduction
+
+// Query performance:
+// Standard periods (WEEKLY/MONTHLY): <100ms (direct cube query)
+// Custom periods (QUARTERLY/YEARLY): 200-300ms (aggregate monthly data)
+// Daily details: Query transaction table directly (no cube overhead)
+```
+
+#### **Practical Usage Alignment**
+- **Weekly**: Short-term budgeting, payday cycles
+- **Monthly**: Primary financial planning period (bills, budgets)
+- **Quarterly/Yearly**: Aggregate monthly data (still fast, <300ms)
+- **Daily**: Use transaction table directly for detailed drill-downs
+
+This approach gives us **optimal performance for 80% of use cases** while maintaining **full flexibility for advanced analysis**! 🎯
+
+---
+
+## ⚡ **Query Optimization & Efficient Algorithms**
+
+### **Database Schema Optimization**
+
+#### **Composite Indexes for Fast Lookups**
+```sql
+-- Primary composite index for most common queries
+CREATE INDEX idx_cube_tenant_period_type_start
+ON financial_trends_cube (tenant_id, period_type, period_start);
+
+-- Category analysis index
+CREATE INDEX idx_cube_tenant_category_period
+ON financial_trends_cube (tenant_id, category_id, period_type, period_start);
+
+-- Account analysis index
+CREATE INDEX idx_cube_tenant_account_period
+ON financial_trends_cube (tenant_id, account_id, period_type, period_start);
+
+-- Transaction type filtering index
+CREATE INDEX idx_cube_tenant_txn_type_period
+ON financial_trends_cube (tenant_id, transaction_type, period_type, period_start);
+
+-- Covering index for summary queries (includes all facts)
+CREATE INDEX idx_cube_covering
+ON financial_trends_cube (tenant_id, period_type, period_start)
+INCLUDE (total_amount, transaction_count, avg_transaction_amount);
+```
+
+#### **Partitioning Strategy**
+```sql
+-- Partition by tenant_id for multi-tenant isolation and performance
+CREATE TABLE financial_trends_cube (
+  -- ... columns ...
+) PARTITION BY HASH(tenant_id) PARTITIONS 16;
+
+-- Optional: Sub-partition by period_start for time-based queries
+ALTER TABLE financial_trends_cube
+PARTITION BY RANGE (YEAR(period_start))
+SUBPARTITION BY HASH(tenant_id) SUBPARTITIONS 4;
+```
+
+### **Query Optimization Algorithms**
+
+#### **Smart Query Planning Service**
+```typescript
+class CubeQueryOptimizer {
+  async optimizeQuery(query: CubeQuery): Promise<OptimizedQuery> {
+    // 1. Analyze query patterns
+    const queryPattern = this.analyzeQueryPattern(query)
+
+    // 2. Choose optimal execution strategy
+    const strategy = this.selectExecutionStrategy(queryPattern)
+
+    // 3. Apply query optimizations
+    return this.applyOptimizations(query, strategy)
+  }
+
+  private analyzeQueryPattern(query: CubeQuery): QueryPattern {
+    return {
+      selectivity: this.calculateSelectivity(query.filters),
+      aggregationLevel: this.determineAggregationLevel(query.groupBy),
+      timeRange: this.analyzeTimeRange(query.dateRange),
+      dimensionCardinality: this.estimateCardinality(query.dimensions)
+    }
+  }
+
+  private selectExecutionStrategy(pattern: QueryPattern): ExecutionStrategy {
+    // High selectivity + small time range = Direct cube query
+    if (pattern.selectivity > 0.8 && pattern.timeRange.days < 90) {
+      return 'DIRECT_CUBE_QUERY'
+    }
+
+    // Low selectivity + large time range = Materialized view
+    if (pattern.selectivity < 0.3 && pattern.timeRange.days > 365) {
+      return 'MATERIALIZED_VIEW'
+    }
+
+    // Medium complexity = Optimized aggregation
+    return 'OPTIMIZED_AGGREGATION'
+  }
+}
+```
+
+#### **Intelligent Caching Strategy**
+```typescript
+class CubeQueryCache {
+  private cache = new Map<string, CachedResult>()
+  private readonly TTL_BY_PERIOD = {
+    'WEEKLY': 1000 * 60 * 30,    // 30 minutes (data changes frequently)
+    'MONTHLY': 1000 * 60 * 60 * 2, // 2 hours (more stable)
+    'QUARTERLY': 1000 * 60 * 60 * 6, // 6 hours (very stable)
+    'YEARLY': 1000 * 60 * 60 * 12   // 12 hours (extremely stable)
+  }
+
+  async getCachedOrExecute<T>(
+    query: CubeQuery,
+    executor: () => Promise<T>
+  ): Promise<T> {
+    const cacheKey = this.buildCacheKey(query)
+    const cached = this.cache.get(cacheKey)
+
+    if (cached && !this.isExpired(cached, query)) {
+      return cached.data as T
+    }
+
+    const result = await executor()
+
+    // Cache with appropriate TTL based on query characteristics
+    const ttl = this.calculateTTL(query)
+    this.cache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now(),
+      ttl
+    })
+
+    return result
+  }
+
+  private calculateTTL(query: CubeQuery): number {
+    // Longer TTL for historical data, shorter for recent data
+    const isHistorical = query.dateRange.end < subDays(new Date(), 30)
+    const baseTTL = this.TTL_BY_PERIOD[query.periodType] || 1000 * 60 * 60
+
+    return isHistorical ? baseTTL * 4 : baseTTL
+  }
+}
+```
+
+### **Advanced Query Patterns**
+
+#### **Efficient Aggregation Queries**
+```typescript
+class OptimizedCubeQueries {
+  // Pattern 1: Time-series aggregation with minimal data transfer
+  async getTimeSeriesTrends(
+    tenantId: string,
+    periodType: PeriodType,
+    dateRange: DateRange,
+    groupBy: string[]
+  ) {
+    // Use window functions for efficient time-series calculations
+    return this.prisma.$queryRaw`
+      WITH period_data AS (
+        SELECT
+          period_start,
+          ${Prisma.raw(groupBy.join(', '))},
+          SUM(total_amount) as amount,
+          SUM(transaction_count) as count,
+          -- Calculate running totals efficiently
+          SUM(SUM(total_amount)) OVER (
+            PARTITION BY ${Prisma.raw(groupBy.join(', '))}
+            ORDER BY period_start
+            ROWS UNBOUNDED PRECEDING
+          ) as running_total
+        FROM financial_trends_cube
+        WHERE tenant_id = ${tenantId}
+          AND period_type = ${periodType}
+          AND period_start BETWEEN ${dateRange.start} AND ${dateRange.end}
+        GROUP BY period_start, ${Prisma.raw(groupBy.join(', '))}
+      )
+      SELECT
+        *,
+        -- Calculate period-over-period changes
+        LAG(amount) OVER (
+          PARTITION BY ${Prisma.raw(groupBy.join(', '))}
+          ORDER BY period_start
+        ) as previous_amount,
+        amount - LAG(amount) OVER (
+          PARTITION BY ${Prisma.raw(groupBy.join(', '))}
+          ORDER BY period_start
+        ) as amount_change
+      FROM period_data
+      ORDER BY ${Prisma.raw(groupBy.join(', '))}, period_start
+    `
+  }
+
+  // Pattern 2: Top-N queries with efficient sorting
+  async getTopCategories(
+    tenantId: string,
+    periodType: PeriodType,
+    dateRange: DateRange,
+    limit: number = 10
+  ) {
+    // Use subquery to limit data before aggregation
+    return this.prisma.$queryRaw`
+      SELECT
+        category_name,
+        SUM(total_amount) as total_spent,
+        SUM(transaction_count) as total_transactions,
+        AVG(avg_transaction_amount) as avg_amount
+      FROM (
+        SELECT *
+        FROM financial_trends_cube
+        WHERE tenant_id = ${tenantId}
+          AND period_type = ${periodType}
+          AND transaction_type = 'EXPENSE'
+          AND period_start BETWEEN ${dateRange.start} AND ${dateRange.end}
+        ORDER BY total_amount DESC
+        LIMIT ${limit * 10} -- Pre-filter to reduce aggregation load
+      ) filtered_data
+      GROUP BY category_name
+      ORDER BY total_spent DESC
+      LIMIT ${limit}
+    `
+  }
+
+  // Pattern 3: Multi-dimensional drill-down with progressive disclosure
+  async getDrillDownData(
+    tenantId: string,
+    baseDimensions: Partial<FinancialCubeDimensions>,
+    drillPath: string[]
+  ) {
+    // Build query dynamically based on drill path
+    const selectFields = ['period_start', ...drillPath]
+    const groupByFields = drillPath
+
+    return this.prisma.$queryRaw`
+      SELECT
+        ${Prisma.raw(selectFields.join(', '))},
+        SUM(total_amount) as total_amount,
+        SUM(transaction_count) as transaction_count,
+        COUNT(DISTINCT period_start) as period_count
+      FROM financial_trends_cube
+      WHERE tenant_id = ${tenantId}
+        ${this.buildDynamicWhere(baseDimensions)}
+      GROUP BY ${Prisma.raw(groupByFields.join(', '))}
+      HAVING SUM(total_amount) > 0 -- Filter out zero amounts
+      ORDER BY total_amount DESC
+      LIMIT 100 -- Reasonable limit for UI performance
+    `
+  }
+}
+```
+
+#### **Query Result Streaming for Large Datasets**
+```typescript
+class StreamingCubeQuery {
+  async *streamLargeResultSet(
+    query: CubeQuery,
+    batchSize: number = 1000
+  ): AsyncGenerator<CubeResult[], void, unknown> {
+    let offset = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const batch = await this.prisma.financialTrendsCube.findMany({
+        where: this.buildWhereClause(query),
+        orderBy: { period_start: 'asc' },
+        skip: offset,
+        take: batchSize
+      })
+
+      if (batch.length === 0) {
+        hasMore = false
+      } else {
+        yield batch
+        offset += batchSize
+        hasMore = batch.length === batchSize
+      }
+    }
+  }
+
+  // Usage: Process large datasets without memory issues
+  async processLargeAnalysis(tenantId: string) {
+    const query = { tenantId, periodType: 'MONTHLY' }
+
+    for await (const batch of this.streamLargeResultSet(query)) {
+      // Process each batch incrementally
+      await this.processBatch(batch)
+    }
+  }
+}
+```
+
+### **Performance Monitoring & Auto-Optimization**
+
+#### **Query Performance Tracker**
+```typescript
+class QueryPerformanceMonitor {
+  private metrics = new Map<string, QueryMetrics>()
+
+  async trackQuery<T>(
+    queryId: string,
+    executor: () => Promise<T>
+  ): Promise<T> {
+    const startTime = performance.now()
+    const startMemory = process.memoryUsage().heapUsed
+
+    try {
+      const result = await executor()
+
+      const duration = performance.now() - startTime
+      const memoryUsed = process.memoryUsage().heapUsed - startMemory
+
+      this.recordMetrics(queryId, {
+        duration,
+        memoryUsed,
+        success: true,
+        resultSize: this.estimateResultSize(result)
+      })
+
+      // Auto-suggest optimizations for slow queries
+      if (duration > 1000) {
+        await this.suggestOptimizations(queryId, duration)
+      }
+
+      return result
+    } catch (error) {
+      this.recordMetrics(queryId, {
+        duration: performance.now() - startTime,
+        memoryUsed: 0,
+        success: false,
+        error: error.message
+      })
+      throw error
+    }
+  }
+
+  private async suggestOptimizations(queryId: string, duration: number) {
+    const suggestions = []
+
+    if (duration > 5000) {
+      suggestions.push('Consider adding materialized view')
+      suggestions.push('Review index usage')
+    }
+
+    if (duration > 2000) {
+      suggestions.push('Add query result caching')
+      suggestions.push('Optimize WHERE clause selectivity')
+    }
+
+    this.logger.warn(`Slow query detected: ${queryId} (${duration}ms)`, {
+      suggestions
+    })
+  }
+}
+```
+
+### **Materialized Views for Complex Aggregations**
+
+#### **Auto-Generated Materialized Views**
+```typescript
+class MaterializedViewManager {
+  async createOptimalViews(tenantId: string) {
+    // Create monthly category summaries (most common query pattern)
+    await this.prisma.$executeRaw`
+      CREATE MATERIALIZED VIEW mv_monthly_category_summary AS
+      SELECT
+        tenant_id,
+        category_id,
+        category_name,
+        DATE_TRUNC('month', period_start) as month,
+        SUM(total_amount) as monthly_total,
+        SUM(transaction_count) as monthly_count,
+        AVG(avg_transaction_amount) as avg_amount
+      FROM financial_trends_cube
+      WHERE period_type = 'MONTHLY'
+      GROUP BY tenant_id, category_id, category_name, DATE_TRUNC('month', period_start)
+    `
+
+    // Create yearly account summaries
+    await this.prisma.$executeRaw`
+      CREATE MATERIALIZED VIEW mv_yearly_account_summary AS
+      SELECT
+        tenant_id,
+        account_id,
+        account_name,
+        YEAR(period_start) as year,
+        SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) as yearly_income,
+        SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END) as yearly_expenses,
+        SUM(CASE WHEN transaction_type = 'TRANSFER' THEN total_amount ELSE 0 END) as yearly_transfers
+      FROM financial_trends_cube
+      WHERE period_type = 'MONTHLY'
+      GROUP BY tenant_id, account_id, account_name, YEAR(period_start)
+    `
+  }
+
+  async refreshViews() {
+    // Refresh materialized views during off-peak hours
+    await this.prisma.$executeRaw`REFRESH MATERIALIZED VIEW mv_monthly_category_summary`
+    await this.prisma.$executeRaw`REFRESH MATERIALIZED VIEW mv_yearly_account_summary`
+  }
+}
+```
+
+### **Query Optimization Best Practices**
+
+#### **Performance Targets**
+- **Simple queries** (single dimension): < 100ms
+- **Complex aggregations** (multiple dimensions): < 500ms
+- **Large time ranges** (1+ years): < 2 seconds
+- **Real-time updates**: < 50ms for cube updates
+
+#### **Optimization Checklist**
+1. **Index Strategy**: Composite indexes matching query patterns
+2. **Caching**: Multi-level caching (Redis + in-memory)
+3. **Partitioning**: Tenant-based partitioning for isolation
+4. **Materialized Views**: Pre-computed common aggregations
+5. **Query Batching**: Combine similar queries when possible
+6. **Result Streaming**: Handle large datasets incrementally
+7. **Performance Monitoring**: Track and optimize slow queries
+
+This comprehensive optimization strategy ensures the cube system can handle **high query loads** while maintaining **sub-second response times** for most analytics queries! 🚀
+
+---
+
 ## 📈 **Analytics & Insights**
+
+### **Core Financial Health Insights**
+
+#### **1. Cash Flow Analysis**
+- **Monthly Income vs Expenses**: Track if living within means with trend indicators
+- **Seasonal Patterns**: Identify months with higher/lower spending for planning
+- **Income Stability**: Detect irregular income patterns requiring budgeting adjustments
+- **Expense Volatility**: Spot months with unusual spending spikes and their causes
+
+#### **2. Spending Behavior Intelligence**
+- **Category Trends**: Which spending categories are growing/shrinking over time
+- **Discretionary vs Essential**: Ratio analysis of needs vs wants spending
+- **Impulse vs Planned**: Recurring vs one-time transaction pattern analysis
+- **Account Usage Patterns**: Which accounts are used for specific spending types
+
+### **Advanced Trend Analysis**
+
+#### **3. Savings & Investment Tracking**
+- **Savings Rate**: Percentage of income saved each period with trend analysis
+- **Transfer Patterns**: Money movement between accounts (emergency fund, investments)
+- **Goal Progress**: Track progress toward financial milestones and targets
+- **Net Worth Trajectory**: Overall financial growth over time with projections
+
+#### **4. Predictive Financial Intelligence**
+- **Spending Forecasts**: AI-powered predictions based on historical patterns
+- **Budget Variance Analysis**: How actual spending compares to typical patterns
+- **Seasonal Adjustments**: Prepare for known seasonal expenses (holidays, taxes)
+- **Cash Flow Projections**: Predict future account balances and potential shortfalls
+
+### **Actionable Optimization Insights**
+
+#### **5. Financial Optimization Opportunities**
+- **Subscription Audit**: Identify recurring charges that might be unnecessary
+- **Category Efficiency**: Find categories where consistent overspending occurs
+- **Account Optimization**: Suggest better account allocation strategies
+- **Timing Intelligence**: Best times for large purchases based on cash flow patterns
+
+#### **6. Risk Detection & Alerts**
+- **Unusual Spending Detection**: Transactions that deviate from normal patterns
+- **Cash Flow Warnings**: Predict potential shortfalls before they happen
+- **Budget Breach Alerts**: Early warning when approaching spending limits
+- **Income Dependency Risk**: Identify over-reliance on specific income sources
+
+### **Comparative & Behavioral Analysis**
+
+#### **7. Multi-Period Comparisons**
+- **Year-over-Year Analysis**: Category spending comparisons across years
+- **Quarter-over-Quarter Trends**: Seasonal business cycle impacts
+- **Month-over-Month Volatility**: Short-term spending pattern changes
+- **Custom Period Comparisons**: User-defined date range analysis
+
+#### **8. Behavioral Pattern Recognition**
+- **Weekend vs Weekday Spending**: Different spending behavior patterns
+- **Payday Effects**: Spending patterns around income dates
+- **Stress Spending Correlation**: Life events impact on spending behavior
+- **Seasonal Habits**: Holiday, vacation, back-to-school spending patterns
 
 ### **Key Metrics to Track**
 
@@ -445,6 +1482,104 @@ POST /api/financial-trends/cube/refresh
    - Subscription optimization opportunities
    - Recurring income stability
    - Recurring vs one-time spending ratios
+
+### **Implementation Priority & Roadmap**
+
+#### **Phase 1: Foundation Insights (Week 1)**
+1. **Basic Trends**: Income/expense over time, category breakdowns
+2. **Cash Flow Health**: Savings rate, monthly net income tracking
+3. **Simple Comparisons**: Month-over-month, year-over-year basics
+
+#### **Phase 2: Pattern Recognition (Week 2)**
+1. **Recurring Analysis**: Recurring vs one-time transaction patterns
+2. **Seasonal Patterns**: Holiday, quarterly, and annual spending cycles
+3. **Account Usage**: Which accounts are used for different purposes
+
+#### **Phase 3: Predictive Analytics (Week 3)**
+1. **Forecasting**: Basic spending and income predictions
+2. **Budget Variance**: Actual vs expected spending alerts
+3. **Cash Flow Projections**: Future balance predictions
+
+#### **Phase 4: Advanced Intelligence (Week 4)**
+1. **Behavioral Insights**: Payday effects, weekend spending patterns
+2. **Risk Detection**: Unusual spending, cash flow warnings
+3. **Optimization**: Subscription audits, category efficiency analysis
+
+#### **Phase 5: Personalized Recommendations (Week 5)**
+1. **Smart Budgeting**: AI-suggested budgets based on history
+2. **Savings Opportunities**: Micro-optimization suggestions
+3. **Investment Timing**: Optimal times for transfers and investments
+
+### **Example Insight Queries**
+
+#### **Cash Flow Health Check**
+```sql
+-- Monthly savings rate trend
+SELECT
+  period_start,
+  SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) as income,
+  SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END) as expenses,
+  (SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) -
+   SUM(CASE WHEN transaction_type = 'EXPENSE' THEN total_amount ELSE 0 END)) /
+   SUM(CASE WHEN transaction_type = 'INCOME' THEN total_amount ELSE 0 END) * 100 as savings_rate
+FROM financial_trends_cube
+WHERE period_type = 'MONTHLY' AND tenant_id = ?
+GROUP BY period_start
+ORDER BY period_start DESC
+LIMIT 12;
+```
+
+#### **Category Spending Trends**
+```sql
+-- Year-over-year category comparison
+SELECT
+  category_name,
+  SUM(CASE WHEN period_start >= '2024-01-01' THEN total_amount ELSE 0 END) as current_year,
+  SUM(CASE WHEN period_start >= '2023-01-01' AND period_start < '2024-01-01' THEN total_amount ELSE 0 END) as previous_year,
+  ((SUM(CASE WHEN period_start >= '2024-01-01' THEN total_amount ELSE 0 END) -
+    SUM(CASE WHEN period_start >= '2023-01-01' AND period_start < '2024-01-01' THEN total_amount ELSE 0 END)) /
+    SUM(CASE WHEN period_start >= '2023-01-01' AND period_start < '2024-01-01' THEN total_amount ELSE 0 END)) * 100 as growth_rate
+FROM financial_trends_cube
+WHERE period_type = 'MONTHLY' AND transaction_type = 'EXPENSE' AND tenant_id = ?
+GROUP BY category_name
+HAVING SUM(CASE WHEN period_start >= '2023-01-01' AND period_start < '2024-01-01' THEN total_amount ELSE 0 END) > 0
+ORDER BY growth_rate DESC;
+```
+
+#### **Recurring Expense Analysis**
+```sql
+-- Subscription and recurring expense audit
+SELECT
+  category_name,
+  account_name,
+  SUM(total_amount) as total_recurring,
+  AVG(total_amount) as avg_monthly,
+  COUNT(DISTINCT period_start) as months_active
+FROM financial_trends_cube
+WHERE is_recurring = true
+  AND transaction_type = 'EXPENSE'
+  AND period_type = 'MONTHLY'
+  AND tenant_id = ?
+  AND period_start >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+GROUP BY category_name, account_name
+ORDER BY total_recurring DESC;
+```
+
+#### **Behavioral Pattern Detection**
+```sql
+-- Payday spending spike analysis
+SELECT
+  DAYOFWEEK(period_start) as day_of_week,
+  AVG(total_amount) as avg_spending,
+  COUNT(*) as transaction_count
+FROM financial_trends_cube
+WHERE transaction_type = 'EXPENSE'
+  AND period_type = 'DAILY'
+  AND tenant_id = ?
+  AND period_start >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+GROUP BY DAYOFWEEK(period_start)
+ORDER BY avg_spending DESC;
+```
 
 ### **Insight Generation Algorithms**
 

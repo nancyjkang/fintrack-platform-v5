@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Calculator } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { AccountForm } from './AccountForm'
+import ReconcileAccountModal, { ReconcileFormData } from './ReconcileAccountModal'
 import { formatDateForDisplay } from '@/lib/utils/date-utils'
 
 interface Account {
@@ -27,6 +28,9 @@ export function AccountsPageContent() {
   const [filter, setFilter] = useState<'active' | 'inactive'>('active')
   const [showForm, setShowForm] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
+  const [showReconcileModal, setShowReconcileModal] = useState(false)
+  const [reconcilingAccount, setReconcilingAccount] = useState<Account | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Fetch accounts
   const fetchAccounts = async () => {
@@ -119,11 +123,35 @@ export function AccountsPageContent() {
     }
   }
 
-  // Handle reconcile account (placeholder for now)
+  // Handle reconcile account
   const handleReconcileAccount = (account: Account) => {
-    // TODO: Implement reconcile functionality
-    console.log('Reconcile account:', account)
-    alert('Reconcile functionality coming soon!')
+    setReconcilingAccount(account)
+    setShowReconcileModal(true)
+    setError(null)
+    setSuccessMessage(null)
+  }
+
+  // Handle reconcile submission
+  const handleReconcileSubmit = async (accountId: number, data: ReconcileFormData) => {
+    try {
+      const response = await api.reconcileAccount(accountId, data)
+
+      if (response.success) {
+        setSuccessMessage(response.data.message)
+        // Refresh accounts to show updated balance
+        await fetchAccounts()
+        setShowReconcileModal(false)
+        setReconcilingAccount(null)
+
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccessMessage(null), 5000)
+      } else {
+        throw new Error(response.error || 'Failed to reconcile account')
+      }
+    } catch (err) {
+      console.error('Reconcile error:', err)
+      throw err // Re-throw to let modal handle the error display
+    }
   }
 
   // Format currency
@@ -187,6 +215,13 @@ export function AccountsPageContent() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-sm text-green-800">{successMessage}</p>
+          </div>
+        )}
+
         {/* Header - matching v4.1 */}
         <div className="mb-8 flex justify-between items-start">
           <div>
@@ -314,6 +349,17 @@ export function AccountsPageContent() {
             onCancel={handleFormCancel}
           />
         )}
+
+        {/* Reconcile Account Modal */}
+        <ReconcileAccountModal
+          account={reconcilingAccount}
+          isOpen={showReconcileModal}
+          onClose={() => {
+            setShowReconcileModal(false)
+            setReconcilingAccount(null)
+          }}
+          onReconcile={handleReconcileSubmit}
+        />
       </div>
     </div>
   )

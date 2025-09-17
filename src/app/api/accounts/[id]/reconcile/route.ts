@@ -6,8 +6,7 @@ import { z } from 'zod'
 // Validation schema
 const ReconcileAccountSchema = z.object({
   newBalance: z.number().finite('New balance must be a valid number'),
-  reconcileDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-  adjustmentType: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']).optional()
+  reconcileDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
 })
 
 /**

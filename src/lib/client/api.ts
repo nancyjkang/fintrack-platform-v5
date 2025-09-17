@@ -280,7 +280,6 @@ class ApiClient {
   async reconcileAccount(id: number, data: {
     newBalance: number
     reconcileDate: string // YYYY-MM-DD format
-    adjustmentType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   }): Promise<ApiResponse<{
     account: unknown
     adjustmentTransaction?: unknown

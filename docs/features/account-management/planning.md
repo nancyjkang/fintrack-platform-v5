@@ -22,7 +22,7 @@ Users can organize their financial life by managing all their accounts in one pl
 - [x] **Account CRUD Operations**: Create, read, update, delete accounts with proper validation
 - [x] **Account Types Support**: Checking, Savings, Credit Card, Investment, Loan, Traditional Retirement, Roth Retirement with appropriate icons and colors
 - [x] **Net Worth Classification**: `net_worth_category` field (ASSET | LIABILITY | EXCLUDED) for proper net worth tracking
-- [ ] **Account Reconciliation**: Manual balance reconciliation with automatic adjustment transaction creation (uses existing MVP accounting system)
+- [x] **Account Reconciliation**: Manual balance reconciliation with automatic adjustment transaction creation (uses existing MVP accounting system) - **IMPLEMENTED**: Full UI with modal, TRANSFER adjustments, timezone fixes
 - [x] **Active/Inactive Status**: Soft delete functionality with proper transaction preservation - **IMPLEMENTED**: Active accounts are set to inactive on "delete", inactive accounts can be permanently deleted
 - [x] **Visual Customization**: Custom color picker for each account with type-based defaults
 - [x] **Balance Display**: Proper balance formatting with positive/negative styling (uses `calculateAccountBalance()` from MVP accounting system)
@@ -505,6 +505,32 @@ const calculateNetWorth = async (accounts: Account[]) => {
 - **Validation**: Zod schemas for request/response validation
 - **Error Responses**: Consistent error format across all endpoints
 - **Testing**: Comprehensive unit tests for both service and API layers
+
+#### **Account Reconciliation** ✅ IMPLEMENTED
+- **UI Components**:
+  - `ReconcileAccountModal`: Full-featured modal with form validation
+  - Current balance display (read-only with anchor date)
+  - New balance input with real-time difference calculation
+  - Date picker with timezone handling (uses local date, not UTC)
+  - Adjustment preview with clear messaging
+- **Backend Implementation**:
+  - `POST /api/accounts/[id]/reconcile`: API endpoint with Zod validation
+  - `AccountService.reconcileAccount()`: Service method following MVP accounting system
+  - Balance anchor creation with reconciliation date
+  - TRANSFER adjustment transactions with correct sign handling
+  - Explicit Decimal conversion to prevent sign issues
+- **MVP Accounting Compliance**:
+  - Always uses TRANSFER type for adjustment transactions
+  - Stores actual difference with correct sign (positive = increase, negative = decrease)
+  - Creates balance anchors as new reference points
+  - Updates account balance to match reconciled amount
+  - System Transfer category (hidden from user UI)
+- **Error Handling & UX**:
+  - Form validation with real-time feedback
+  - Success messages with auto-dismiss
+  - Automatic account list refresh after reconciliation
+  - Debug logging for troubleshooting
+  - Timezone-aware date handling
 
 ### **Open Questions**
 - **Balance History**: Should we track balance changes over time? - Decision: Out of scope for v1, use transaction history

@@ -1,5 +1,6 @@
 import { BaseService } from './base.service'
 import type { Account } from '@prisma/client'
+import { Decimal } from '@prisma/client/runtime/library'
 import { getCurrentUTCDate, parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 export interface CreateAccountData {
@@ -33,7 +34,6 @@ export interface AccountFilters {
 export interface ReconcileAccountData {
   newBalance: number
   reconcileDate: string // YYYY-MM-DD format
-  adjustmentType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
 }
 
 /**
@@ -371,19 +371,30 @@ export class AccountService extends BaseService {
       // Create adjustment transaction if there's a significant difference
       let adjustmentTransaction = null
       if (Math.abs(difference) > 0.01) {
-        const adjustmentType = data.adjustmentType || (difference > 0 ? 'INCOME' : 'EXPENSE')
+        // Always use TRANSFER type for reconciliation adjustments (MVP accounting system)
+        console.log('[Reconcile] Creating adjustment transaction:', {
+          accountId,
+          difference,
+          newBalance: data.newBalance,
+          currentBalance,
+          reconcileDate: reconcileDate.toISOString()
+        })
 
-        // This would ideally use TransactionService, but for now we'll create directly
         adjustmentTransaction = await this.prisma.transaction.create({
           data: {
             tenant_id: tenantId,
             account_id: accountId,
-            amount: Math.abs(difference),
-            description: 'Balance Adjustment',
+            amount: new Decimal(difference), // Explicitly convert to Decimal with correct sign
+            description: 'System Balance Adjustment',
             date: reconcileDate,
-            type: adjustmentType,
-            category_id: null // Could be linked to a "System Adjustment" category
+            type: 'TRANSFER',
+            category_id: null // System Transfer category (to be implemented)
           }
+        })
+
+        console.log('[Reconcile] Adjustment transaction created:', {
+          id: adjustmentTransaction.id,
+          amount: adjustmentTransaction.amount.toString()
         })
       }
 

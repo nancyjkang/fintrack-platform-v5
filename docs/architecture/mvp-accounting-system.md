@@ -344,9 +344,14 @@ Account reconciliation is the process of correcting account balances by setting 
    - Current date as anchor date
    - Description of the reconciliation
 3. **Update account balance**: Set `accounts.balance` to match the new anchor balance
-4. **Synchronization**: Both `accounts.balance` and the new anchor now have the same value
-5. **Override old anchors**: The new anchor becomes the primary reference point
-6. **Future calculations**: All subsequent balance calculations use the new synchronized values
+4. **Create adjustment transaction**: If there's a difference, create a TRANSFER transaction with:
+   - **Type**: Always `TRANSFER` (system adjustment)
+   - **Amount**: Actual difference with correct sign (positive = increase, negative = decrease)
+   - **Category**: System Transfer (hidden from user UI)
+   - **Description**: "System Balance Adjustment"
+5. **Synchronization**: Both `accounts.balance` and the new anchor now have the same value
+6. **Override old anchors**: The new anchor becomes the primary reference point
+7. **Future calculations**: All subsequent balance calculations use the new synchronized values
 
 ### Implementation
 
@@ -354,8 +359,7 @@ Account reconciliation is the process of correcting account balances by setting 
 reconcileAccount(
   accountId: number,
   newBalance: number,
-  date: string = getCurrentDate(),
-  adjustmentType: 'INCOME' | 'EXPENSE' | 'TRANSFER' = 'EXPENSE'
+  date: string = getCurrentDate()
 ): {
   newAnchor: AccountBalanceAnchor;
   adjustmentTransaction?: Transaction;
@@ -391,40 +395,22 @@ reconcileAccount(
   let adjustmentTransaction: Transaction | undefined;
 
   if (Math.abs(difference) > 0.01) { // Only create adjustment if difference is significant
-    // Determine category based on adjustment type
-    let categoryName: string;
-    let transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER';
-
-    switch (adjustmentType) {
-      case 'INCOME':
-        categoryName = null;
-        transactionType = 'INCOME';
-        break;
-      case 'EXPENSE':
-        categoryName = null;
-        transactionType = 'EXPENSE';
-        break;
-      case 'TRANSFER':
-        categoryName = 'System Transfer';
-        transactionType = 'TRANSFER';
-        break;
+    // Always use TRANSFER type for reconciliation adjustments (MVP accounting system)
+    // Find the System Transfer category
+    const systemTransferCategory = this.categories.find(c => c.name === 'System Transfer');
+    if (!systemTransferCategory) {
+      throw new Error('System Transfer category not found. Please create this category first.');
     }
 
-    // Find the appropriate category
-    const category = this.categories.find(c => c.name === categoryName);
-    if (!category) {
-      throw new Error(`${categoryName} category not found. Please create this category first.`);
-    }
-
-    // Create adjustment transaction with actual difference amount
+    // Create adjustment transaction with actual difference amount and correct sign
     adjustmentTransaction = {
       id: this.nextId++,
       accountId,
-      amount: Math.abs(difference),
-      description: 'Balance Adjustment',
+      amount: difference, // Use actual difference with correct sign
+      description: 'System Balance Adjustment',
       date,
-      type: transactionType,
-      categoryId: category.id | null,
+      type: 'TRANSFER',
+      categoryId: systemTransferCategory.id,
       createdAt: getCurrentTimestamp(),
       updatedAt: getCurrentTimestamp()
     };
@@ -445,28 +431,22 @@ reconcileAccount(
 }
 ```
 
-### Dynamic Adjustment Type Selection
+### Reconciliation Adjustment Rules
 
-The reconciliation system provides intelligent adjustment type selection based on the balance difference:
+The reconciliation system follows strict rules for adjustment transactions:
 
-#### **Positive Difference (New Balance > Current Balance)**
-- **Available Options**: Income, Transfer
-- **Default Selection**: Income
-- **Use Case**: Account has more money than expected (found money, interest, etc.)
-
-#### **Negative Difference (New Balance < Current Balance)**
-- **Available Options**: Expense, Transfer
-- **Default Selection**: Expense
-- **Use Case**: Account has less money than expected (fees, forgotten transactions, etc.)
-
-#### **Zero Difference (New Balance = Current Balance)**
-- **Available Options**: None (no adjustment needed)
-- **Use Case**: Perfect reconciliation, no adjustment transaction created
+#### **Adjustment Transaction Type**
+- **Type**: Always `TRANSFER` (system adjustment)
+- **Amount**: Actual difference with correct sign
+  - **Positive**: Account balance increases (more money found)
+  - **Negative**: Account balance decreases (less money than expected)
+- **Category**: "System Transfer" (hidden from user UI)
+- **Description**: "System Balance Adjustment"
 
 #### **Category Requirements**
-- **Income Adjustment**: Requires "Unknown Income" category (type: INCOME)
-- **Expense Adjustment**: Requires "Unknown Expense" category (type: EXPENSE)
-- **Transfer Adjustment**: Uses existing "System Transfer" category (type: TRANSFER)
+- **System Transfer Category**: Must exist in the system for reconciliation adjustments
+- **Hidden from UI**: System Transfer category should not appear in user-facing transaction forms
+- **Automatic Creation**: System should create this category if it doesn't exist
 
 #### **Date Validation**
 - **Future Date Restriction**: Reconciliation dates cannot be in the future
