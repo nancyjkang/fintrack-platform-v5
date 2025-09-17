@@ -3,6 +3,10 @@ import type { FinancialCube, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, format, addWeeks, addMonths } from 'date-fns'
 import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+
+// Configuration: Week start day (0 = Sunday, 1 = Monday)
+// Default to Sunday for US financial convention, but can be changed to Monday (1) for ISO standard
+const WEEK_STARTS_ON = 0 // Sunday
 import type {
   TransactionDelta,
   CubeRelevantFields,
@@ -697,8 +701,8 @@ export class CubeService extends BaseService {
       let periodEnd: Date
 
       if (periodType === 'WEEKLY') {
-        periodStart = startOfWeek(current, { weekStartsOn: 1 }) // Monday start
-        periodEnd = endOfWeek(current, { weekStartsOn: 1 })
+        periodStart = startOfWeek(current, { weekStartsOn: WEEK_STARTS_ON })
+        periodEnd = endOfWeek(current, { weekStartsOn: WEEK_STARTS_ON })
         current = addDays(periodEnd, 1) // Next day
       } else {
         periodStart = startOfMonth(current)
@@ -820,9 +824,13 @@ export class CubeService extends BaseService {
   private async clearSpecificCubeRecords(
     targets: CubeRegenerationTarget[]
   ): Promise<void> {
-    // Build OR conditions for each target using specific criteria
+    if (targets.length === 0) return
+
+    // Extract tenant_id (should be the same for all targets)
+    const tenantId = targets[0].tenantId
+    
+    // Build OR conditions for each target using specific criteria (without tenant_id)
     const orConditions = targets.map(target => ({
-      tenant_id: target.tenantId,
       period_type: target.periodType,
       period_start: target.periodStart,
       transaction_type: target.transactionType,
@@ -831,13 +839,12 @@ export class CubeService extends BaseService {
       // Note: Using specific criteria including is_recurring (no account_id)
     }))
 
-    if (orConditions.length > 0) {
-      await this.prisma.financialCube.deleteMany({
-        where: {
-          OR: orConditions
-        }
-      })
-    }
+    await this.prisma.financialCube.deleteMany({
+      where: {
+        tenant_id: tenantId,
+        OR: orConditions
+      }
+    })
   }
 
   /**
@@ -971,8 +978,8 @@ export class CubeService extends BaseService {
     const periods: Period[] = []
 
     // Generate weekly periods
-    let currentWeekStart = startOfWeek(startDate, { weekStartsOn: 1 }) // Monday start
-    const lastWeekStart = startOfWeek(endDate, { weekStartsOn: 1 })
+    let currentWeekStart = startOfWeek(startDate, { weekStartsOn: WEEK_STARTS_ON })
+    const lastWeekStart = startOfWeek(endDate, { weekStartsOn: WEEK_STARTS_ON })
 
     while (currentWeekStart <= lastWeekStart) {
       periods.push({
@@ -1251,6 +1258,179 @@ export class CubeService extends BaseService {
     }
 
     return unique
+  }
+
+  // ===================================================================
+  // Individual Transaction Cube Integration Methods
+  // ===================================================================
+
+  /**
+   * Add a new transaction to the cube (INSERT operation)
+   * No delta needed - just add the transaction's impact to affected periods
+   */
+  async addTransaction(transaction: any, tenantId: string): Promise<void> {
+    try {
+      // Simple: just regenerate the weekly and monthly periods for this transaction date
+      const date = transaction.date
+
+      // Weekly period - use consistent week start configuration
+      const weekStart = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
+      const weekEnd = endOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
+
+      // Monthly period
+      const monthStart = createUTCDate(date.getUTCFullYear(), date.getUTCMonth(), 1)
+      const monthEnd = createUTCDate(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)
+
+      // Process both periods
+      for (const [periodType, periodStart, periodEnd] of [
+        ['WEEKLY' as const, weekStart, weekEnd],
+        ['MONTHLY' as const, monthStart, monthEnd]
+      ]) {
+        const targets: CubeRegenerationTarget[] = [{
+          tenantId,
+          periodType,
+          periodStart,
+          periodEnd,
+          transactionType: transaction.type,
+          categoryId: transaction.category_id,
+          isRecurring: transaction.is_recurring
+        }]
+
+        await this.clearSpecificCubeRecords(targets)
+        await this.buildCubeForTargets(tenantId, periodStart, periodEnd, periodType, targets)
+      }
+    } catch (error) {
+      console.warn('Failed to add transaction to cube:', error)
+      // Don't throw - cube updates should not fail transaction creation
+    }
+  }
+
+  /**
+   * Update a transaction in the cube (UPDATE operation)
+   * Uses delta to precisely update only affected cube dimensions
+   */
+  async updateTransaction(delta: TransactionDelta, tenantId: string): Promise<void> {
+    try {
+      // Convert the single delta to bulk metadata format for processing
+      const bulkMetadata = this.convertDeltaToBulkMetadata(delta, tenantId)
+      await this.updateCubeWithBulkMetadata(bulkMetadata)
+    } catch (error) {
+      console.warn('Failed to update transaction in cube:', error)
+      // Don't throw - cube updates should not fail transaction updates
+    }
+  }
+
+  /**
+   * Remove a transaction from the cube (DELETE operation)
+   * No delta needed - just remove the transaction's impact from affected periods
+   */
+  async removeTransaction(transaction: any, tenantId: string): Promise<void> {
+    try {
+      // Simple: just regenerate the weekly and monthly periods for this transaction date
+      const date = transaction.date
+
+      // Weekly period - use consistent week start configuration
+      const weekStart = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
+      const weekEnd = endOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
+
+      // Monthly period
+      const monthStart = createUTCDate(date.getUTCFullYear(), date.getUTCMonth(), 1)
+      const monthEnd = createUTCDate(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)
+
+      // Process both periods
+      for (const [periodType, periodStart, periodEnd] of [
+        ['WEEKLY' as const, weekStart, weekEnd],
+        ['MONTHLY' as const, monthStart, monthEnd]
+      ]) {
+        const targets: CubeRegenerationTarget[] = [{
+          tenantId,
+          periodType,
+          periodStart,
+          periodEnd,
+          transactionType: transaction.type,
+          categoryId: transaction.category_id,
+          isRecurring: transaction.is_recurring
+        }]
+
+        await this.clearSpecificCubeRecords(targets)
+        await this.buildCubeForTargets(tenantId, periodStart, periodEnd, periodType, targets)
+      }
+    } catch (error) {
+      console.warn('Failed to remove transaction from cube:', error)
+      // Don't throw - cube updates should not fail transaction deletion
+    }
+  }
+
+  /**
+   * Helper method to convert a single TransactionDelta to BulkUpdateMetadata
+   * This allows UPDATE operations to reuse the existing bulk processing logic
+   */
+  private convertDeltaToBulkMetadata(delta: TransactionDelta, tenantId: string): BulkUpdateMetadata {
+    const changedFields: BulkUpdateMetadata['changedFields'] = []
+
+    // Compare old and new values to identify what actually changed
+    if (delta.oldValues && delta.newValues) {
+      const oldVals = delta.oldValues
+      const newVals = delta.newValues
+
+      if (oldVals.account_id !== newVals.account_id) {
+        changedFields.push({
+          fieldName: 'account_id',
+          oldValue: oldVals.account_id,
+          newValue: newVals.account_id
+        })
+      }
+
+      if (oldVals.category_id !== newVals.category_id) {
+        changedFields.push({
+          fieldName: 'category_id',
+          oldValue: oldVals.category_id,
+          newValue: newVals.category_id
+        })
+      }
+
+      if (!oldVals.amount.equals(newVals.amount)) {
+        changedFields.push({
+          fieldName: 'amount',
+          oldValue: oldVals.amount,
+          newValue: newVals.amount
+        })
+      }
+
+      if (oldVals.date.getTime() !== newVals.date.getTime()) {
+        changedFields.push({
+          fieldName: 'date',
+          oldValue: oldVals.date,
+          newValue: newVals.date
+        })
+      }
+
+      if (oldVals.type !== newVals.type) {
+        changedFields.push({
+          fieldName: 'type',
+          oldValue: oldVals.type,
+          newValue: newVals.type
+        })
+      }
+
+      if (oldVals.is_recurring !== newVals.is_recurring) {
+        changedFields.push({
+          fieldName: 'is_recurring',
+          oldValue: oldVals.is_recurring,
+          newValue: newVals.is_recurring
+        })
+      }
+    }
+
+    return {
+      tenantId,
+      affectedTransactionIds: [delta.transactionId],
+      changedFields,
+      dateRange: {
+        startDate: delta.newValues?.date || delta.oldValues?.date || getCurrentUTCDate(),
+        endDate: delta.newValues?.date || delta.oldValues?.date || getCurrentUTCDate()
+      }
+    }
   }
 }
 

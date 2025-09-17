@@ -35,9 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Populate historical cube data
-    console.log('[API] Calling populateHistoricalData with:', { tenantId: user.tenantId, options })
     const result = await cubeService.populateHistoricalData(user.tenantId, options)
-    console.log('[API] populateHistoricalData result:', result)
 
     return NextResponse.json({
       success: true,

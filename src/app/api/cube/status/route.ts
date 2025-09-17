@@ -9,11 +9,8 @@ import { performance } from 'perf_hooks'
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('[API] /api/cube/status called')
-
     // Authenticate user
     const user = await getCurrentUser(request)
-    console.log('[API] User authenticated:', user ? { tenantId: user.tenantId } : 'null')
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -21,13 +18,10 @@ export async function GET(request: NextRequest) {
 
     const startTime = performance.now()
 
-    console.log('[API] Creating CubeService...')
     const cubeService = new CubeService()
 
     // Get cube statistics
-    console.log('[API] Calling getCubeStatistics with tenantId:', user.tenantId)
     const stats = await cubeService.getCubeStatistics(user.tenantId)
-    console.log('[API] getCubeStatistics completed:', stats)
 
     const endTime = performance.now()
     const duration = Math.round(endTime - startTime)

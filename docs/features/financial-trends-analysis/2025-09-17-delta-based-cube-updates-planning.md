@@ -1040,3 +1040,66 @@ cubesToRegenerate = [
 - **Monitoring overhead** → Efficient metrics collection
 
 This delta-based approach transforms cube updates from a "rebuild everything" problem to a "apply precise changes" solution, enabling real-time financial analytics at scale.
+
+## Individual Transaction Cube Integration Architecture
+
+**Date Added**: 2025-09-17  
+**Context**: Integration of cube updates with individual transaction CRUD operations
+
+### Design Decision: Operation-Specific Approaches
+
+After analysis, we determined that different transaction operations require different cube integration strategies:
+
+#### 1. INSERT Operations (createTransaction)
+**Approach**: Direct transaction addition - no delta needed
+```typescript
+await cubeService.addTransaction(transaction, tenantId)
+```
+
+**Rationale**: 
+- No "before" state exists for new transactions
+- Delta concept doesn't apply (no old values)
+- Simple addition to affected cube periods is sufficient
+
+#### 2. UPDATE Operations (updateTransaction)  
+**Approach**: Delta-based updates with old vs new values
+```typescript
+const delta = {
+  transactionId: id,
+  oldValues: { account_id: 100, category_id: 5, amount: 50.00 },
+  newValues: { account_id: 100, category_id: 8, amount: 75.00 }
+}
+await cubeService.updateTransaction(delta, tenantId)
+```
+
+**Rationale**:
+- Deltas are valuable for precision (only update affected categories/amounts)
+- Enables efficient cube updates (subtract old impact, add new impact)
+- Optimizes performance by avoiding unnecessary regeneration
+
+#### 3. DELETE Operations (deleteTransaction)
+**Approach**: Direct transaction removal - no delta needed  
+```typescript
+await cubeService.removeTransaction(transaction, tenantId)
+```
+
+**Rationale**:
+- Only need to remove the transaction's impact from cube
+- No "after" state exists for deleted transactions
+- Simple subtraction from affected cube periods
+
+### Implementation Benefits
+
+1. **Semantic Clarity**: Each operation uses the most appropriate approach
+2. **Performance Optimization**: No unnecessary delta creation for INSERT/DELETE
+3. **Precision**: UPDATE operations get full delta benefits for targeted updates
+4. **Maintainability**: Clear separation of concerns between operation types
+
+### Rejected Approach: Unified Delta System
+
+We considered using deltas for all operations but rejected this because:
+- INSERT operations with `oldValue: null` for all fields is wasteful and confusing
+- DELETE operations with `newValue: null` for all fields adds unnecessary complexity
+- Forces inappropriate abstractions where simpler direct methods are clearer
+
+This operation-specific approach provides the right tool for each job while maintaining the delta benefits where they matter most (UPDATE operations).

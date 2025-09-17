@@ -181,6 +181,9 @@ export class TransactionService extends BaseService {
         }
       })
 
+      // Update cube with new transaction
+      await cubeService.addTransaction(transaction, tenantId)
+
       return transaction
     } catch (error) {
       return this.handleError(error, 'TransactionService.createTransaction')
@@ -533,4 +536,5 @@ export class TransactionService extends BaseService {
       dateRange
     }
   }
+
 }
