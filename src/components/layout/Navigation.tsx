@@ -131,9 +131,9 @@ const getNavigationItems = (userEmail?: string) => {
       icon: Code,
       submenu: [
         { name: 'API Test', href: '/dev/api-test', icon: Code },
-        { name: 'Database Inspector', href: '/dev-tools/database', icon: Database },
-        { name: 'Audit Logs', href: '/dev-tools/audit', icon: FileText },
-        { name: 'System Health', href: '/dev-tools/health', icon: BarChart3 }
+        { name: 'Cube Operations', href: '/dev/cube-operations', icon: Database },
+        { name: 'Balance Consistency', href: '/dev/balance-consistency-test', icon: BarChart3 },
+        { name: 'System Health', href: '/dev-tools/health', icon: TrendingUp }
       ]
     });
   }

@@ -51,16 +51,8 @@ export class CubeService extends BaseService {
     accountId?: number // Optional: build only for specific account
   ): Promise<void> {
     // Aggregate transaction data for this period
-    const aggregations = await this.prisma.$queryRaw<Array<{
-      transaction_type: string
-      category_id: number | null
-      category_name: string
-      account_id: number
-      account_name: string
-      is_recurring: boolean
-      total_amount: Decimal
-      transaction_count: bigint
-    }>>`
+    // Build the query dynamically based on whether accountId is provided
+    const baseQuery = `
       SELECT
         t.type as transaction_type,
         t.category_id,
@@ -73,17 +65,35 @@ export class CubeService extends BaseService {
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       INNER JOIN accounts a ON t.account_id = a.id
-      WHERE t.tenant_id = ${tenantId}
-        AND t.date >= ${periodStart}
-        AND t.date <= ${periodEnd}
-        ${accountId ? `AND t.account_id = ${accountId}` : ''}
+      WHERE t.tenant_id = $1
+        AND t.date >= $2
+        AND t.date <= $3`
+    
+    const accountFilter = accountId ? ` AND t.account_id = $4` : ''
+    const groupByClause = `
       GROUP BY
         t.type,
         t.category_id,
         t.account_id,
         t.is_recurring
-      HAVING COUNT(*) > 0
-    `
+      HAVING COUNT(*) > 0`
+    
+    const fullQuery = baseQuery + accountFilter + groupByClause
+    
+    const queryParams = accountId 
+      ? [tenantId, periodStart, periodEnd, accountId]
+      : [tenantId, periodStart, periodEnd]
+    
+    const aggregations = await this.prisma.$queryRawUnsafe<Array<{
+      transaction_type: string
+      category_id: number | null
+      category_name: string
+      account_id: number
+      account_name: string
+      is_recurring: boolean
+      total_amount: Decimal
+      transaction_count: bigint
+    }>>(fullQuery, ...queryParams)
 
     // Insert aggregated data into cube
     const cubeRecords: Prisma.FinancialCubeCreateManyInput[] = aggregations.map(agg => ({
@@ -128,18 +138,26 @@ export class CubeService extends BaseService {
     timeElapsed: number
     accountsProcessed?: number
   }> {
+    console.log('[populateHistoricalData] Starting with tenantId:', tenantId, 'options:', options)
     const startTime = performance.now()
 
     // Default options
+    console.log('[populateHistoricalData] Getting earliest transaction date...')
+    const earliestDate = await this.getEarliestTransactionDate(tenantId, options.accountId)
+    console.log('[populateHistoricalData] Earliest transaction date:', earliestDate)
+
     const {
-      startDate = await this.getEarliestTransactionDate(tenantId, options.accountId),
+      startDate = earliestDate,
       endDate = getCurrentUTCDate(),
       clearExisting = false,
       batchSize = 100,
       accountId
     } = options
 
+    console.log('[populateHistoricalData] Final date range:', { startDate, endDate })
+
     if (!startDate) {
+      console.log('[populateHistoricalData] No startDate found, returning early')
       return {
         periodsProcessed: 0,
         recordsCreated: 0,
@@ -260,6 +278,98 @@ export class CubeService extends BaseService {
         { account_name: 'asc' }
       ]
     })
+  }
+
+  /**
+   * Clear all cube data for a tenant
+   */
+  async clearAllData(tenantId: string): Promise<number> {
+    const result = await this.prisma.financialCube.deleteMany({
+      where: { tenant_id: tenantId }
+    })
+    return result.count
+  }
+
+  /**
+   * Get cube statistics for a tenant
+   */
+  async getCubeStatistics(tenantId: string): Promise<{
+    totalRecords: number
+    weeklyRecords: number
+    monthlyRecords: number
+    dateRange: { earliest: Date | null; latest: Date | null }
+    accountCount: number
+    categoryCount: number
+    lastUpdated: Date | null
+  }> {
+    try {
+      console.log('[getCubeStatistics] Starting with tenantId:', tenantId)
+
+      // Get total records
+      console.log('[getCubeStatistics] Querying total records...')
+      const totalRecords = await this.prisma.financialCube.count({
+        where: { tenant_id: tenantId }
+      })
+      console.log('[getCubeStatistics] Total records result:', totalRecords)
+
+      // Get records by period type
+      console.log('[getCubeStatistics] Querying weekly records...')
+      const weeklyRecords = await this.prisma.financialCube.count({
+        where: {
+          tenant_id: tenantId,
+          period_type: 'WEEKLY'
+        }
+      })
+      console.log('[getCubeStatistics] Weekly records result:', weeklyRecords)
+
+      console.log('[getCubeStatistics] Querying monthly records...')
+      const monthlyRecords = await this.prisma.financialCube.count({
+        where: {
+          tenant_id: tenantId,
+          period_type: 'MONTHLY'
+        }
+      })
+      console.log('[getCubeStatistics] Monthly records result:', monthlyRecords)
+
+    // Get date range
+    const dateRangeResult = await this.prisma.financialCube.aggregate({
+      where: { tenant_id: tenantId },
+      _min: { period_start: true },
+      _max: { period_start: true }
+    })
+
+    // Get distinct counts
+    const distinctCounts = await this.prisma.financialCube.groupBy({
+      by: ['account_id', 'category_id'],
+      where: { tenant_id: tenantId }
+    })
+
+    const accountCount = new Set(distinctCounts.map(d => d.account_id)).size
+    const categoryCount = new Set(distinctCounts.filter(d => d.category_id).map(d => d.category_id)).size
+
+    // Get last updated (most recent record)
+    const lastRecord = await this.prisma.financialCube.findFirst({
+      where: { tenant_id: tenantId },
+      orderBy: { created_at: 'desc' },
+      select: { created_at: true }
+    })
+
+      return {
+        totalRecords,
+        weeklyRecords,
+        monthlyRecords,
+        dateRange: {
+          earliest: dateRangeResult._min.period_start,
+          latest: dateRangeResult._max.period_start
+        },
+        accountCount,
+        categoryCount,
+        lastUpdated: lastRecord?.created_at || null
+      }
+    } catch (error) {
+      console.error('Error in getCubeStatistics:', error)
+      throw new Error(`Failed to get cube statistics: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   /**

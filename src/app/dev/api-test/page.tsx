@@ -54,6 +54,42 @@ const API_ENDPOINTS = [
     value: '/api/health',
     method: 'GET',
     description: 'System health check'
+  },
+  {
+    name: 'Cube Status',
+    value: '/api/cube/status',
+    method: 'GET',
+    description: 'Get financial cube statistics and status'
+  },
+  {
+    name: 'Cube Populate',
+    value: '/api/cube/populate',
+    method: 'POST',
+    description: 'Populate cube data for date range'
+  },
+  {
+    name: 'Cube Rebuild',
+    value: '/api/cube/rebuild',
+    method: 'POST',
+    description: 'Rebuild cube data for date range'
+  },
+  {
+    name: 'Trends - Categories',
+    value: '/api/trends/categories',
+    method: 'GET',
+    description: 'Get category trends from cube'
+  },
+  {
+    name: 'Trends - Accounts',
+    value: '/api/trends/accounts',
+    method: 'GET',
+    description: 'Get account trends from cube'
+  },
+  {
+    name: 'Trends - Income/Expense',
+    value: '/api/trends/income-expense',
+    method: 'GET',
+    description: 'Get income vs expense trends from cube'
   }
 ];
 
