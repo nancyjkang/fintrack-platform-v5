@@ -2,7 +2,7 @@
  * Version and deployment information utilities
  */
 
-import { getCurrentUTCDate } from './date-utils'
+import { getCurrentUTCDate, toISOString } from './date-utils'
 
 export interface VersionInfo {
   version: string
@@ -28,7 +28,7 @@ export const getVersionInfo = (): VersionInfo => {
   const environment = process.env.DEPLOYMENT_ENV || nodeEnv
 
   // Build and git information (typically set by CI/CD)
-  const buildTime = process.env.BUILD_TIME || getCurrentUTCDate().toISOString()
+  const buildTime = process.env.BUILD_TIME || toISOString(getCurrentUTCDate())
   const gitCommit = process.env.GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || 'unknown'
   const gitBranch = process.env.GIT_BRANCH || process.env.VERCEL_GIT_COMMIT_REF || 'unknown'
 
