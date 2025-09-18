@@ -1,6 +1,6 @@
 {
   "name": "fintrack-platform-v5",
-  "version": "5.0.2",
+  "version": "5.1.0",
   "description": "Next-generation personal finance platform with intelligent benchmarking",
   "private": true,
   "scripts": {
