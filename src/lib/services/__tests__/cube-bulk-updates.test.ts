@@ -501,14 +501,14 @@ describe('TransactionService - Bulk Updates', () => {
 
     it('should reject date changes (cube integration limitation)', async () => {
       mockPrisma.transaction.findMany.mockResolvedValue([
-        { 
-          id: 1, 
-          account_id: 1, 
-          category_id: 5, 
-          amount: new Decimal('100'), 
-          date: new Date('2024-01-15'), 
-          type: 'EXPENSE', 
-          is_recurring: false 
+        {
+          id: 1,
+          account_id: 1,
+          category_id: 5,
+          amount: new Decimal('100'),
+          date: new Date('2024-01-15'),
+          type: 'EXPENSE',
+          is_recurring: false
         }
       ])
 
