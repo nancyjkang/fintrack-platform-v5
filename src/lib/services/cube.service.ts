@@ -2,7 +2,7 @@ import { BaseService } from './base.service'
 import type { FinancialCube, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, format, addWeeks, addMonths } from 'date-fns'
-import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
 
 // Configuration: Week start day (0 = Sunday, 1 = Monday)
 // Default to Sunday for US financial convention, but can be changed to Monday (1) for ISO standard
@@ -358,7 +358,7 @@ export class CubeService extends BaseService {
           periodsProcessed++
 
         } catch (error) {
-          console.error(`Error processing period ${period.start.toISOString()} - ${period.end.toISOString()}:`, error)
+          console.error(`Error processing period ${toUTCDateString(period.start)} - ${toUTCDateString(period.end)}:`, error)
           // Continue with next period rather than failing entire operation
         }
       }
@@ -784,7 +784,7 @@ export class CubeService extends BaseService {
     const groups = new Map<string, CubeRegenerationTarget[]>()
 
     for (const target of targets) {
-      const key = `${target.tenantId}-${target.periodType}-${target.periodStart.toISOString()}`
+      const key = `${target.tenantId}-${target.periodType}-${toUTCDateString(target.periodStart)}`
 
       if (!groups.has(key)) {
         groups.set(key, [])
@@ -859,7 +859,7 @@ export class CubeService extends BaseService {
         ? endOfWeek(target.periodStart, { weekStartsOn: 1 })
         : endOfMonth(target.periodStart)
 
-      const key = `${target.periodType}-${target.periodStart.toISOString()}`
+      const key = `${target.periodType}-${toUTCDateString(target.periodStart)}`
 
       if (!periodSet.has(key)) {
         periodSet.add(key)
@@ -1245,7 +1245,7 @@ export class CubeService extends BaseService {
       const key = JSON.stringify({
         tenantId: target.tenantId,
         periodType: target.periodType,
-        periodStart: target.periodStart.toISOString(),
+        periodStart: toUTCDateString(target.periodStart),
         transactionType: target.transactionType,
         categoryId: target.categoryId,
         isRecurring: target.isRecurring

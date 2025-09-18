@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { handleApiError } from '@/lib/api-response'
 import { TransactionService } from '@/lib/services/transaction.service'
-import { getCurrentUTCDate, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { getCurrentUTCDate, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
 
 // Validation schemas
 const bulkUpdateSchema = z.object({
@@ -32,7 +32,7 @@ const bulkDeleteSchema = z.object({
 export async function GET(request: NextRequest) {
   return NextResponse.json({
     message: 'Bulk API endpoint is working!',
-    timestamp: getCurrentUTCDate().toISOString(),
+    timestamp: toUTCDateString(getCurrentUTCDate()),
     url: request.url
   })
 }
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest) {
           error: 'Validation failed',
           message: 'Invalid request data',
           data: validationResult.error.issues,
-          timestamp: getCurrentUTCDate().toISOString()
+          timestamp: toUTCDateString(getCurrentUTCDate())
         },
         { status: 400 }
       )
@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest) {
         updatedCount: transactionIds.length,
         updatedAt: getCurrentUTCDate()
       },
-      timestamp: getCurrentUTCDate().toISOString()
+      timestamp: toUTCDateString(getCurrentUTCDate())
     })
 
   } catch (error) {
@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest) {
         success: false,
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: getCurrentUTCDate().toISOString()
+        timestamp: toUTCDateString(getCurrentUTCDate())
       },
       { status: 500 }
     )
@@ -117,7 +117,7 @@ export async function DELETE(request: NextRequest) {
           error: 'Validation failed',
           message: 'Invalid request data',
           data: validationResult.error.issues,
-          timestamp: getCurrentUTCDate().toISOString()
+          timestamp: toUTCDateString(getCurrentUTCDate())
         },
         { status: 400 }
       )
@@ -137,7 +137,7 @@ export async function DELETE(request: NextRequest) {
         requestedCount: transactionIds.length,
         deletedAt: getCurrentUTCDate()
       },
-      timestamp: getCurrentUTCDate().toISOString()
+      timestamp: toUTCDateString(getCurrentUTCDate())
     })
 
   } catch (error) {
@@ -146,7 +146,7 @@ export async function DELETE(request: NextRequest) {
         success: false,
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: getCurrentUTCDate().toISOString()
+        timestamp: toUTCDateString(getCurrentUTCDate())
       },
       { status: 500 }
     )
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: getCurrentUTCDate().toISOString()
+        timestamp: toUTCDateString(getCurrentUTCDate())
       },
       { status: 500 }
     )

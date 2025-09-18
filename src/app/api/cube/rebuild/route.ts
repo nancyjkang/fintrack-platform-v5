@@ -3,6 +3,7 @@ import { cubeService } from '@/lib/services/cube.service'
 import { getCurrentUser } from '@/lib/auth/jwt'
 import { z } from 'zod'
 import { parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { differenceInDays } from 'date-fns'
 
 // Request body validation schema
 const RebuildCubeSchema = z.object({
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if date range is reasonable (not more than 2 years)
-    const daysDiff = Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    const daysDiff = Math.abs(differenceInDays(end, start))
     if (daysDiff > 730) { // 2 years
       return NextResponse.json({
         error: 'Date range too large: maximum 2 years allowed'
