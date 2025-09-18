@@ -1,0 +1,96 @@
+# 🚀 Staging Deployment Workflow
+# Automatically deploys to Vercel staging when code is pushed to release branches
+
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - 'release/*'
+  pull_request:
+    branches:
+      - 'release/*'
+    types: [closed]
+
+jobs:
+  deploy-staging:
+    if: github.event_name == 'push' || (github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Run pre-deployment checks
+        run: |
+          npm run build
+          npm run test
+          npm run lint
+          npm audit --audit-level moderate
+
+      - name: 🚀 Deploy to Vercel Staging
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
+      - name: 📝 Update deployment documentation
+        run: |
+          # Extract version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          COMMIT_SHA=${GITHUB_SHA:0:7}
+          DEPLOY_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          # Update staging.md with new deployment info
+          sed -i "s/- \*\*Version\*\*:.*/- **Version**: v$VERSION/" docs/deployment-tracking/staging.md
+          sed -i "s/- \*\*Branch\*\*:.*/- **Branch**: $BRANCH_NAME/" docs/deployment-tracking/staging.md
+          sed -i "s/- \*\*Commit\*\*:.*/- **Commit**: $COMMIT_SHA/" docs/deployment-tracking/staging.md
+          sed -i "s/- \*\*Deployed\*\*:.*/- **Deployed**: $DEPLOY_DATE/" docs/deployment-tracking/staging.md
+
+          # Update deployment status
+          sed -i "s/| Staging.*/| Staging | ✅ v$VERSION | $DEPLOY_DATE | Ready for QA |/" docs/deployment-tracking/DEPLOYMENT_STATUS.md
+
+      - name: 💾 Commit documentation updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add docs/deployment-tracking/
+          git diff --staged --quiet || git commit -m "docs: update staging deployment to v$(node -p "require('./package.json').version")"
+          git push
+
+      - name: 📢 Notify team
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          text: |
+            🚀 Staging Deployment Complete!
+            Version: v${{ steps.version.outputs.version }}
+            Branch: ${{ github.ref_name }}
+            URL: https://fintrack-platform-v5-925eg4vey-lumifin.vercel.app
+            Status: ${{ job.status }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: 🧪 Run smoke tests
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+
+          # Basic health check
+          curl -f https://fintrack-platform-v5-925eg4vey-lumifin.vercel.app/api/health || exit 1
+
+          echo "✅ Smoke tests passed!"
