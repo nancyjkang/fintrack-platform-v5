@@ -1334,7 +1334,7 @@ export class CubeService extends BaseService {
         ['WEEKLY', weekStart, weekEnd],
         ['MONTHLY', monthStart, monthEnd]
       ]
-      
+
       for (const [periodType, periodStart, periodEnd] of periods) {
         const targets: CubeRegenerationTarget[] = [{
           tenantId,
@@ -1394,8 +1394,8 @@ export class CubeService extends BaseService {
       if (oldVals.date.valueOf() !== newVals.date.valueOf()) {
         changedFields.push({
           fieldName: 'date',
-          oldValue: oldVals.date.toISOString(),
-          newValue: newVals.date.toISOString()
+          oldValue: toUTCDateString(oldVals.date),
+          newValue: toUTCDateString(newVals.date)
         })
       }
 

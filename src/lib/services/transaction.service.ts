@@ -1,6 +1,6 @@
 import { BaseService } from './base.service'
 import type { Transaction, Account, Category } from '@prisma/client'
-import { getCurrentUTCDate, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { getCurrentUTCDate } from '@/lib/utils/date-utils'
 import { cubeService, CubeService } from './cube.service'
 import type { CubeRelevantFields, BulkUpdateMetadata } from '@/lib/types/cube-delta.types'
 import { Decimal } from '@prisma/client/runtime/library'
