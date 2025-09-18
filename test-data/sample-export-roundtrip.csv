@@ -1,0 +1,11 @@
+Date,Description,Amount,Category,Recurring,Notes
+2024-01-15,Grocery Store,-150.00,Groceries,false,Weekly shopping
+2024-01-16,Salary Deposit,3500.00,Income,true,Monthly salary
+2024-01-17,Gas Station,-45.99,Transportation,false,Fuel
+2024-01-18,Coffee Shop,-5.50,Food & Dining,false,Morning coffee
+2024-01-19,Electric Bill,-125.00,Utilities,true,January bill
+2024-01-20,ATM Withdrawal,-100.00,Cash,false,Weekend cash
+2024-01-21,Restaurant,-89.50,Food & Dining,false,Dinner with friends
+2024-01-22,Rent Payment,-1200.00,Housing,true,Monthly rent
+2024-01-23,Netflix Subscription,-15.99,Entertainment,true,Monthly subscription
+2024-01-24,Freelance Income,750.00,Income,false,Project payment
