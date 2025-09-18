@@ -1,4 +1,4 @@
-import { BaseService } from '../base.service'
+import { BaseService } from '../base'
 import type {
   CSVFormat,
   ColumnMapping,

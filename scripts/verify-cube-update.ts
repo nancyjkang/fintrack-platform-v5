@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
-import { CubeService } from '../src/lib/services/cube.service'
+import { CubeService } from '../src/lib/services/cube'
 
 const prisma = new PrismaClient()
 

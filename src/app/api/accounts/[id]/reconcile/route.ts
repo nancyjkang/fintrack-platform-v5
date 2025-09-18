@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { AccountService, type ReconcileAccountData } from '@/lib/services/account.service'
+import { AccountService, type ReconcileAccountData } from '@/lib/services/account'
 import { verifyAuth } from '@/lib/auth'
 import { z } from 'zod'
 

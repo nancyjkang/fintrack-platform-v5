@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/session'
-import { CubeService } from '@/lib/services/cube.service'
+import { CubeService } from '@/lib/services/cube'
 import { performance } from 'perf_hooks'
 
 /**

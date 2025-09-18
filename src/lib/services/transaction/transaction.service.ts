@@ -1,7 +1,7 @@
-import { BaseService } from './base.service'
+import { BaseService } from '../base'
 import type { Transaction, Account, Category } from '@prisma/client'
 import { getCurrentUTCDate } from '@/lib/utils/date-utils'
-import { cubeService, CubeService } from './cube.service'
+import { cubeService, CubeService } from '../cube'
 import type { CubeRelevantFields, BulkUpdateMetadata } from '@/lib/types/cube-delta.types'
 import { Decimal } from '@prisma/client/runtime/library'
 
@@ -600,3 +600,6 @@ export class TransactionService extends BaseService {
   }
 
 }
+
+// Export singleton instance
+export const transactionService = new TransactionService()

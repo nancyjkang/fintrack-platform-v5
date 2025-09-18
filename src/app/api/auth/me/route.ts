@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
-import { UserService } from '@/lib/services/user.service'
+import { UserService } from '@/lib/services/user'
 
 /**
  * GET /api/auth/me - Get current user information

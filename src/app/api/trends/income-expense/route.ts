@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cubeService } from '@/lib/services/cube.service'
+import { cubeService } from '@/lib/services/cube'
 import { getCurrentUser } from '@/lib/auth/jwt'
 import { parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
 import { z } from 'zod'

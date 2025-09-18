@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService } from '../base'
 import type { Category } from '@prisma/client'
 
 export interface CreateCategoryData {
@@ -334,3 +334,6 @@ export class CategoryService extends BaseService {
     return createdCategories
   }
 }
+
+// Export singleton instance
+export const categoryService = new CategoryService()

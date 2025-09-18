@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService } from '../base'
 import type { FinancialCube, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, format, addWeeks, addMonths } from 'date-fns'

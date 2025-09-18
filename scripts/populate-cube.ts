@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
-import { cubeService } from '../src/lib/services/cube.service'
+import { cubeService } from '../src/lib/services/cube'
 import { parseAndConvertToUTC, getCurrentUTCDate } from '../src/lib/utils/date-utils'
 
 const prisma = new PrismaClient()

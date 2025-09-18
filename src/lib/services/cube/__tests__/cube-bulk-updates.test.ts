@@ -17,7 +17,7 @@ jest.mock('@/lib/prisma', () => ({
 }))
 
 import { CubeService } from '../cube.service'
-import { TransactionService } from '../transaction.service'
+import { TransactionService } from '../../transaction'
 import type { BulkUpdateMetadata, CubeRelevantFields } from '@/lib/types/cube-delta.types'
 import { getCurrentUTCDate } from '@/lib/utils/date-utils'
 import { Decimal } from '@prisma/client/runtime/library'
