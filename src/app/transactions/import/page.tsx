@@ -18,7 +18,7 @@ interface ProgressStepProps {
   isLast?: boolean
 }
 
-function ProgressStep({ id, title, stepNumber, isActive, isCompleted, isLast }: ProgressStepProps) {
+function ProgressStep({ title, stepNumber, isActive, isCompleted, isLast }: ProgressStepProps) {
   return (
     <div className="flex items-center">
       <div className={`flex items-center ${isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-400'}`}>

@@ -202,7 +202,7 @@ export class CSVImportService extends BaseService {
     const result: string[] = []
     let current = ''
     let inQuotes = false
-    let quoteChar = '"'
+      const quoteChar = '"'
 
     for (let i = 0; i < row.length; i++) {
       const char = row[i]
