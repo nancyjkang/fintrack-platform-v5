@@ -691,18 +691,18 @@ export default function TransactionsList({
                                 categorySelect.className = categorySelect.className.replace(
                                   'bg-gray-100 text-gray-500 cursor-not-allowed', ''
                                 ) + ' bg-gray-100 text-gray-500 cursor-not-allowed';
-                                noChangeOption.textContent = "Can't change (mixed types)";
+                                noChangeOption.textContent = "Can&apos;t change (mixed types)";
                               } else {
                                 categorySelect.disabled = false;
                                 categorySelect.className = categorySelect.className.replace(
                                   'bg-gray-100 text-gray-500 cursor-not-allowed', ''
                                 );
-                                noChangeOption.textContent = "Don't change";
+                                noChangeOption.textContent = "Don&apos;t change";
                               }
                             }
                           }}
                         >
-                          <option value="no-change">Don't change</option>
+                          <option value="no-change">Don&apos;t change</option>
                           <option value="INCOME">Income</option>
                           <option value="EXPENSE">Expense</option>
                           <option value="TRANSFER">Transfer</option>
@@ -724,7 +724,7 @@ export default function TransactionsList({
                           disabled={defaultType === 'no-change'}
                         >
                           <option value="no-change">
-                            {defaultType === 'no-change' ? "Can't change (mixed types)" : "Don't change"}
+                            {defaultType === 'no-change' ? "Can&apos;t change (mixed types)" : "Don&apos;t change"}
                           </option>
                           <option value="remove">Remove category</option>
                           {filteredCategories.map(category => (
@@ -751,7 +751,7 @@ export default function TransactionsList({
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                           defaultValue={defaultRecurring}
                         >
-                          <option value="no-change">Don't change</option>
+                          <option value="no-change">Don&apos;t change</option>
                           <option value="recurring">Mark as recurring</option>
                           <option value="nonRecurring">Mark as non-recurring</option>
                         </select>

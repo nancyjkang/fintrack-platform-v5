@@ -191,7 +191,7 @@ export class CubeService extends BaseService {
 
     // Add category filter - handle null categories properly
     let categoryFilter = ''
-    let queryParams = [tenantId, periodStart, periodEnd, transactionType, isRecurring]
+    const queryParams = [tenantId, periodStart, periodEnd, transactionType, isRecurring]
 
     if (categoryIds.length > 0) {
       const nonNullCategories = categoryIds.filter(id => id !== null)
