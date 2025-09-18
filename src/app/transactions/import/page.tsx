@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { csvImportService } from '@/lib/services/csv-import'
 import type { ParseResult, ColumnMapping } from '@/lib/types/csv-import.types'
-import { formatDateForDisplay } from '@/lib/utils/date-utils'
+import { formatDateForDisplay, parseAndConvertToUTC, addDays, subtractDays } from '@/lib/utils/date-utils'
 import AppLayout from '@/components/layout/AppLayout'
 import { api } from '@/lib/client/api'
 
@@ -96,8 +96,12 @@ export default function ImportTransactionsPage() {
       const csvDates = dataLines.map(line => {
         const cells = line.split(',')
         const dateStr = cells[columnMapping.date]
-        return new Date(dateStr)
-      }).filter(date => !isNaN(date.getTime()))
+        try {
+          return parseAndConvertToUTC(dateStr)
+        } catch {
+          return null
+        }
+      }).filter(date => date !== null) as Date[]
 
       if (csvDates.length === 0) {
         console.warn('No valid dates found in CSV data')
@@ -105,14 +109,12 @@ export default function ImportTransactionsPage() {
         return
       }
 
-      const minDate = new Date(Math.min(...csvDates.map(d => d.getTime())))
-      const maxDate = new Date(Math.max(...csvDates.map(d => d.getTime())))
+      const minDate = csvDates.reduce((min, date) => date < min ? date : min, csvDates[0])
+      const maxDate = csvDates.reduce((max, date) => date > max ? date : max, csvDates[0])
 
       // Add a small buffer (1 day before and after) to catch edge cases
-      const dateFrom = new Date(minDate)
-      dateFrom.setDate(dateFrom.getDate() - 1)
-      const dateTo = new Date(maxDate)
-      dateTo.setDate(dateTo.getDate() + 1)
+      const dateFrom = subtractDays(minDate, 1) // 1 day before
+      const dateTo = addDays(maxDate, 1) // 1 day after
 
       const dateFromStr = dateFrom.toISOString().split('T')[0]
       const dateToStr = dateTo.toISOString().split('T')[0]
@@ -127,61 +129,34 @@ export default function ImportTransactionsPage() {
         }
       })
 
-      // Fetch ALL transactions within the CSV date range for complete duplicate detection
-      let allTransactions: any[] = []
-      let currentPage = 1
-      let totalPages = 1
+      // Fetch existing transactions within the CSV date range for duplicate detection
+      console.log('🔍 Fetching existing transactions for duplicate check...')
 
-      console.log('🔍 Starting to fetch all existing transactions for duplicate check...')
-
-      // Fetch all pages of transactions using the authenticated API client
-      do {
-        try {
-          const response = await api.getTransactions({
-            account_id: parseInt(selectedAccountId),
-            date_from: dateFromStr,
-            date_to: dateToStr,
-            limit: 1000,
-            page: currentPage
-          })
-
-          if (response.success && response.data) {
-            const transactions = response.data.transactions || []
-            const pagination = response.data.pagination || {}
-
-            allTransactions = allTransactions.concat(transactions)
-            totalPages = pagination.totalPages || 1
-
-            console.log(`🔍 Fetched page ${currentPage}/${totalPages}:`, {
-              pageTransactions: transactions.length,
-              totalSoFar: allTransactions.length,
-              totalExpected: pagination.total
-            })
-
-            currentPage++
-          } else {
-            console.error('Failed to fetch existing transactions:', response.error || 'Unknown error')
-            break
-          }
-        } catch (error) {
-          console.error(`Error fetching page ${currentPage}:`, error)
-          break
-        }
-      } while (currentPage <= totalPages)
-
-      console.log('🔍 Completed fetching all existing transactions:', {
-        accountId: selectedAccountId,
-        totalCount: allTransactions.length,
-        dateRange: `${dateFromStr} to ${dateToStr}`,
-        pagesFetched: currentPage - 1,
-        sampleTransactions: allTransactions.slice(0, 5).map(t => ({
-          date: formatDateForDisplay(t.date),
-          description: t.description,
-          amount: t.amount
-        }))
+      const response = await api.getTransactions({
+        account_id: selectedAccountId,
+        date_from: dateFromStr,
+        date_to: dateToStr
       })
 
-      setExistingTransactions(allTransactions)
+      if (response.success && response.data) {
+        const transactions = response.data.transactions || []
+
+        console.log('🔍 Fetched existing transactions for duplicate check:', {
+          accountId: selectedAccountId,
+          count: transactions.length,
+          dateRange: `${dateFromStr} to ${dateToStr}`,
+          sampleTransactions: transactions.slice(0, 5).map(t => ({
+            date: formatDateForDisplay(t.date),
+            description: t.description,
+            amount: t.amount
+          }))
+        })
+
+        setExistingTransactions(transactions)
+      } else {
+        console.error('Failed to fetch existing transactions:', response.error || 'Unknown error')
+        setExistingTransactions([])
+      }
     } catch (error) {
       console.error('Error fetching existing transactions:', error)
     } finally {
@@ -468,14 +443,21 @@ export default function ImportTransactionsPage() {
   }
 
   const handleUploadStep = async () => {
-    if (!file || !selectedAccountId || !csvContent) return
+    console.log('🚀 handleUploadStep called', { file: !!file, selectedAccountId, csvContentLength: csvContent?.length })
+
+    if (!file || !selectedAccountId || !csvContent) {
+      console.log('❌ Missing required data:', { file: !!file, selectedAccountId, csvContent: !!csvContent })
+      return
+    }
 
     setIsLoading(true)
     setError('')
 
     try {
+      console.log('🔍 About to parse CSV, content preview:', csvContent.substring(0, 200))
       // Parse CSV with automatic detection
       const result = await csvImportService.parseCSV(csvContent)
+      console.log('📊 Parse result:', result)
 
       if (result.transactions.length === 0) {
         setError('No valid transactions found in the CSV file')
@@ -975,7 +957,7 @@ export default function ImportTransactionsPage() {
           </div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="text-2xl font-bold text-yellow-900">{duplicateTransactions.length}</div>
-            <div className="text-sm text-yellow-700">Potential Duplicates</div>
+            <div className="text-sm text-yellow-700">Duplicates</div>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="text-2xl font-bold text-blue-900">{processedTransactions.length}</div>
@@ -1045,7 +1027,7 @@ export default function ImportTransactionsPage() {
 
             {duplicateTransactions.length > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h4 className="font-semibold text-yellow-900 mb-2">🔍 Potential Duplicates</h4>
+                <h4 className="font-semibold text-yellow-900 mb-2">🔍 Duplicates</h4>
                 <p className="text-sm text-yellow-800">
                   {duplicateTransactions.length} transaction{duplicateTransactions.length === 1 ? '' : 's'} appear to be duplicate{duplicateTransactions.length === 1 ? '' : 's'} based on date, description, and amount. Review carefully before importing.
                 </p>
@@ -1117,9 +1099,9 @@ export default function ImportTransactionsPage() {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        transaction.recurring === 'true' || transaction.recurring === true ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                        String(transaction.recurring).toLowerCase() === 'true' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {transaction.recurring === 'true' || transaction.recurring === true ? 'Yes' : 'No'}
+                        {String(transaction.recurring).toLowerCase() === 'true' ? 'Yes' : 'No'}
                       </span>
                     </td>
                   </tr>
@@ -1373,44 +1355,40 @@ export default function ImportTransactionsPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/transactions')}
-            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
-          >
-            ← Back to Transactions
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Import Transactions</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Import transactions from your bank or financial institution CSV files.
-          </p>
-        </div>
+      {/* Header */}
+      <div className="mb-8">
+        <button
+          onClick={() => router.push('/transactions')}
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+        >
+          ← Back to Transactions
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">Import Transactions</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Import transactions from your bank or financial institution CSV files.
+        </p>
+      </div>
 
-        {/* Progress Steps */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex items-center justify-between">
-            {steps.map((stepInfo, index) => (
-              <ProgressStep
-                key={stepInfo.id}
-                id={stepInfo.id}
-                title={stepInfo.title}
-                stepNumber={stepInfo.stepNumber}
-                isActive={isStepActive(stepInfo.id)}
-                isCompleted={isStepCompleted(stepInfo.id)}
-                isLast={index === steps.length - 1}
-              />
-            ))}
-          </div>
+      {/* Progress Steps */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex items-center justify-between">
+          {steps.map((stepInfo, index) => (
+            <ProgressStep
+              key={stepInfo.id}
+              id={stepInfo.id}
+              title={stepInfo.title}
+              stepNumber={stepInfo.stepNumber}
+              isActive={isStepActive(stepInfo.id)}
+              isCompleted={isStepCompleted(stepInfo.id)}
+              isLast={index === steps.length - 1}
+            />
+          ))}
         </div>
+      </div>
 
-        {/* Step Content */}
-        <div className="bg-white rounded-lg shadow p-6">
-          {renderStepContent()}
-        </div>
-        </div>
+      {/* Step Content */}
+      <div className="bg-white rounded-lg shadow p-6">
+        {renderStepContent()}
       </div>
     </AppLayout>
   )

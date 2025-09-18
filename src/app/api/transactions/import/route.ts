@@ -58,7 +58,9 @@ export async function POST(request: NextRequest) {
       duplicatesSkipped: 0
     }
 
-    // Process transactions one by one to handle errors gracefully
+    // Validate and prepare transactions for bulk processing
+    const validTransactions: any[] = []
+    
     for (let i = 0; i < transactions.length; i++) {
       const transaction = transactions[i]
 
@@ -114,8 +116,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Create the transaction
-        await TransactionService.createTransaction(auth.tenantId, {
+        // Add to valid transactions for bulk processing
+        validTransactions.push({
           account_id: parseInt(transaction.accountId),
           amount: transaction.amount,
           description: transaction.description,
@@ -125,13 +127,32 @@ export async function POST(request: NextRequest) {
           is_recurring: transaction.isRecurring || false
         })
 
-        result.imported++
-
       } catch (error) {
-        console.error(`Error importing transaction ${i + 1}:`, error)
+        console.error(`Error validating transaction ${i + 1}:`, error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         result.errors.push(`Transaction ${i + 1}: ${errorMessage}`)
         result.skipped++
+      }
+    }
+
+    // Bulk create all valid transactions with trend cube integration
+    if (validTransactions.length > 0) {
+      try {
+        console.log(`Bulk creating ${validTransactions.length} transactions with trend cube integration...`)
+        
+        const bulkResult = await TransactionService.bulkCreateTransactions(
+          validTransactions,
+          auth.tenantId
+        )
+        
+        result.imported = bulkResult.createdCount
+        
+        console.log(`✅ Bulk import completed: ${result.imported} transactions created with trend cube updated`)
+      } catch (error) {
+        console.error('Bulk create failed:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Bulk import failed'
+        result.errors.push(`Bulk import error: ${errorMessage}`)
+        result.skipped += validTransactions.length
       }
     }
 

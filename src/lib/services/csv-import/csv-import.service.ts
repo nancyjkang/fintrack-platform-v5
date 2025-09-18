@@ -62,6 +62,8 @@ export class CSVImportService extends BaseService {
 
       // Auto-detect columns
       const detectedColumns = this.detectColumns(headers)
+      console.log('🔍 Headers:', headers)
+      console.log('🔍 Detected columns:', detectedColumns)
 
       // Parse data rows
       const dataRows = lines.slice(detectedFormat.hasHeader ? 1 : 0)
@@ -244,8 +246,10 @@ export class CSVImportService extends BaseService {
         detected.date = index
       }
 
-      // Description detection
-      if (['description', 'memo', 'reference', 'payee', 'merchant'].some(pattern =>
+      // Description detection (prioritize exact matches)
+      if (lowerHeader === 'description') {
+        detected.description = index
+      } else if (!detected.description && ['memo', 'reference', 'payee', 'merchant'].some(pattern =>
         lowerHeader.includes(pattern))) {
         detected.description = index
       }
@@ -257,20 +261,21 @@ export class CSVImportService extends BaseService {
       }
 
       // Debit detection
-      if (['debit', 'withdrawal', 'out'].some(pattern =>
+      if (['debit', 'withdrawal', 'out', 'amount debit', 'amount_debit'].some(pattern =>
         lowerHeader.includes(pattern))) {
         detected.debit = index
       }
 
       // Credit detection
-      if (['credit', 'deposit', 'in'].some(pattern =>
+      if (['credit', 'deposit', 'in', 'amount credit', 'amount_credit'].some(pattern =>
         lowerHeader.includes(pattern))) {
         detected.credit = index
       }
 
-      // Category detection
-      if (['category', 'type', 'classification'].some(pattern =>
-        lowerHeader.includes(pattern))) {
+      // Category detection (prioritize exact matches)
+      if (lowerHeader === 'category' || lowerHeader === 'classification') {
+        detected.category = index
+      } else if (!detected.category && lowerHeader === 'type') {
         detected.category = index
       }
 
@@ -280,10 +285,14 @@ export class CSVImportService extends BaseService {
         detected.recurring = index
       }
 
-      // Notes detection
-      if (['notes', 'memo', 'comment'].some(pattern =>
-        lowerHeader.includes(pattern))) {
+      // Notes detection (prioritize dedicated notes fields, then memo if available)
+      if (lowerHeader === 'notes' || lowerHeader === 'comment') {
         detected.notes = index
+      } else if (!detected.notes && lowerHeader === 'memo') {
+        // Only use memo for notes if it wasn't already used for description
+        if (detected.description !== index) {
+          detected.notes = index
+        }
       }
     })
 
@@ -380,22 +389,31 @@ export class CSVImportService extends BaseService {
     detectedColumns: ParseResult['detectedColumns'],
     amountDetection?: AmountDetection
   ): ParsedTransaction | null {
+    console.log('🔍 parseTransactionRow input:', { row, detectedColumns, amountDetection })
+
     // Must have date and description at minimum
     if (detectedColumns.date === undefined || detectedColumns.description === undefined) {
+      console.log('❌ Missing date or description columns:', { date: detectedColumns.date, description: detectedColumns.description })
       return null
     }
 
     const date = row[detectedColumns.date]?.trim()
     const description = row[detectedColumns.description]?.trim()
+    console.log('🔍 Extracted data:', { date, description, dateIndex: detectedColumns.date, descIndex: detectedColumns.description })
 
     if (!date || !description) {
+      console.log('❌ Empty date or description:', { date, description })
       return null
     }
 
     // Calculate amount
     let amount = 0
+    console.log('🔍 Amount calculation - detected columns:', { amount: detectedColumns.amount, debit: detectedColumns.debit, credit: detectedColumns.credit })
+
     if (detectedColumns.amount !== undefined) {
-      amount = parseFloat(row[detectedColumns.amount] || '0')
+      const rawAmount = row[detectedColumns.amount] || '0'
+      amount = parseFloat(rawAmount)
+      console.log('🔍 Single amount column:', { rawAmount, parsedAmount: amount, columnIndex: detectedColumns.amount })
     } else if (detectedColumns.debit !== undefined || detectedColumns.credit !== undefined) {
       const debitValue = detectedColumns.debit !== undefined ?
         parseFloat(row[detectedColumns.debit] || '0') : 0
@@ -423,10 +441,11 @@ export class CSVImportService extends BaseService {
     }
 
     if (isNaN(amount)) {
+      console.log('❌ Invalid amount (NaN):', { amount, rawAmount: row[detectedColumns.amount] })
       throw new Error('Invalid amount value')
     }
 
-    return {
+    const result = {
       date,
       description,
       amount,
@@ -434,6 +453,9 @@ export class CSVImportService extends BaseService {
       recurring: detectedColumns.recurring !== undefined ? this.parseRecurringValue(row[detectedColumns.recurring]?.trim()) : undefined,
       notes: detectedColumns.notes !== undefined ? row[detectedColumns.notes]?.trim() : undefined
     }
+
+    console.log('✅ Successfully parsed transaction:', result)
+    return result
   }
 
   /**
