@@ -78,21 +78,110 @@ export default function ImportTransactionsPage() {
 
   // Fetch existing transactions for duplicate checking
   const fetchExistingTransactions = async () => {
-    if (!selectedAccountId) return
+    if (!selectedAccountId || !csvContent || !columnMapping) return
 
     setIsCheckingDuplicates(true)
     try {
-      const response = await api.getTransactions({
-        account_id: selectedAccountId,
-        // Get more transactions to ensure comprehensive duplicate checking
-        // Note: The API client doesn't support limit parameter, so we'll get the default pagination
+      // Get CSV data for date range calculation
+      const csvLines = csvContent.split('\n').filter(line => line.trim())
+      const dataLines = csvLines.slice(1) // Skip header
+
+      if (dataLines.length === 0) {
+        console.warn('No data lines found in CSV')
+        setExistingTransactions([])
+        return
+      }
+
+      // Calculate date range from the CSV data
+      const csvDates = dataLines.map(line => {
+        const cells = line.split(',')
+        const dateStr = cells[columnMapping.date]
+        return new Date(dateStr)
+      }).filter(date => !isNaN(date.getTime()))
+
+      if (csvDates.length === 0) {
+        console.warn('No valid dates found in CSV data')
+        setExistingTransactions([])
+        return
+      }
+
+      const minDate = new Date(Math.min(...csvDates.map(d => d.getTime())))
+      const maxDate = new Date(Math.max(...csvDates.map(d => d.getTime())))
+
+      // Add a small buffer (1 day before and after) to catch edge cases
+      const dateFrom = new Date(minDate)
+      dateFrom.setDate(dateFrom.getDate() - 1)
+      const dateTo = new Date(maxDate)
+      dateTo.setDate(dateTo.getDate() + 1)
+
+      const dateFromStr = dateFrom.toISOString().split('T')[0]
+      const dateToStr = dateTo.toISOString().split('T')[0]
+
+      console.log('🔍 Fetching transactions in date range:', {
+        accountId: selectedAccountId,
+        dateFrom: dateFromStr,
+        dateTo: dateToStr,
+        csvDateRange: {
+          min: minDate.toISOString().split('T')[0],
+          max: maxDate.toISOString().split('T')[0]
+        }
       })
 
-      if (response.success && response.data) {
-        setExistingTransactions(response.data.transactions || [])
-      } else {
-        console.error('Failed to fetch existing transactions:', response.error || 'Unknown error')
-      }
+      // Fetch ALL transactions within the CSV date range for complete duplicate detection
+      let allTransactions: any[] = []
+      let currentPage = 1
+      let totalPages = 1
+
+      console.log('🔍 Starting to fetch all existing transactions for duplicate check...')
+
+      // Fetch all pages of transactions using the authenticated API client
+      do {
+        try {
+          const response = await api.getTransactions({
+            account_id: parseInt(selectedAccountId),
+            date_from: dateFromStr,
+            date_to: dateToStr,
+            limit: 1000,
+            page: currentPage
+          })
+
+          if (response.success && response.data) {
+            const transactions = response.data.transactions || []
+            const pagination = response.data.pagination || {}
+
+            allTransactions = allTransactions.concat(transactions)
+            totalPages = pagination.totalPages || 1
+
+            console.log(`🔍 Fetched page ${currentPage}/${totalPages}:`, {
+              pageTransactions: transactions.length,
+              totalSoFar: allTransactions.length,
+              totalExpected: pagination.total
+            })
+
+            currentPage++
+          } else {
+            console.error('Failed to fetch existing transactions:', response.error || 'Unknown error')
+            break
+          }
+        } catch (error) {
+          console.error(`Error fetching page ${currentPage}:`, error)
+          break
+        }
+      } while (currentPage <= totalPages)
+
+      console.log('🔍 Completed fetching all existing transactions:', {
+        accountId: selectedAccountId,
+        totalCount: allTransactions.length,
+        dateRange: `${dateFromStr} to ${dateToStr}`,
+        pagesFetched: currentPage - 1,
+        sampleTransactions: allTransactions.slice(0, 5).map(t => ({
+          date: formatDateForDisplay(t.date),
+          description: t.description,
+          amount: t.amount
+        }))
+      })
+
+      setExistingTransactions(allTransactions)
     } catch (error) {
       console.error('Error fetching existing transactions:', error)
     } finally {
@@ -324,7 +413,7 @@ export default function ImportTransactionsPage() {
           const isValid = !!(transaction.date && transaction.description && finalAmount !== 0)
 
           return isValid ? {
-            accountId: selectedAccountId.toString(),
+            accountId: selectedAccountId,
             date: transaction.date,
             description: transaction.description,
             amount: finalAmount,
@@ -341,7 +430,6 @@ export default function ImportTransactionsPage() {
       setImportProgress(10)
 
       // Call import API with authentication
-      console.log('Importing transactions:', transactionsToImport)
       const accessToken = api.getAccessToken()
       const response = await fetch('/api/transactions/import', {
         method: 'POST',
@@ -363,7 +451,6 @@ export default function ImportTransactionsPage() {
       }
 
       const result = await response.json()
-      console.log('Import result:', result)
       setImportResult(result.data)
       setImportProgress(100)
 
@@ -860,19 +947,6 @@ export default function ImportTransactionsPage() {
     return (
       <div>
         {/* Target Account Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            <span className="font-medium">Target Account:</span> {(() => {
-              const account = accounts.find(a => a.id.toString() === selectedAccountId)
-              if (!account) return 'Account not found'
-              const balance = typeof account.balance === 'number' ? account.balance.toFixed(2) : parseFloat(account.balance || '0').toFixed(2)
-              return `${account.name} (${account.type}) - $${balance}`
-            })()}
-          </div>
-        </div>
 
         {/* Loading indicator for duplicate checking */}
         {isCheckingDuplicates && (
@@ -982,7 +1056,7 @@ export default function ImportTransactionsPage() {
 
         {/* Transaction Preview Table */}
         <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Transaction Preview (showing first 10)</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Transaction Preview</h4>
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -993,10 +1067,11 @@ export default function ImportTransactionsPage() {
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recurring</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {processedTransactions.slice(0, 10).map((transaction, index) => (
+                {processedTransactions.map((transaction, index) => (
                   <tr key={index} className={`${
                     !transaction.isValid ? 'bg-red-50' :
                     transaction.isDuplicate ? 'bg-yellow-50' :
@@ -1009,7 +1084,7 @@ export default function ImportTransactionsPage() {
                         </span>
                       ) : transaction.isDuplicate ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Duplicate?
+                          Duplicate
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -1025,7 +1100,7 @@ export default function ImportTransactionsPage() {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">
                       <span className={transaction.finalAmount >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {transaction.finalAmount >= 0 ? '+' : ''}${Math.abs(transaction.finalAmount).toFixed(2)}
+                        {transaction.finalAmount >= 0 ? '+' : '-'}${Math.abs(transaction.finalAmount).toFixed(2)}
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
@@ -1040,15 +1115,22 @@ export default function ImportTransactionsPage() {
                     <td className="px-3 py-2 text-sm text-gray-500 max-w-xs truncate" title={transaction.category || 'Uncategorized'}>
                       {transaction.category || 'Uncategorized'}
                     </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        transaction.recurring === 'true' || transaction.recurring === true ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {transaction.recurring === 'true' || transaction.recurring === true ? 'Yes' : 'No'}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {processedTransactions.length > 10 && (
+          {processedTransactions.length > 0 && (
             <p className="text-sm text-gray-500 mt-2 text-center">
-              Showing 10 of {processedTransactions.length} transactions. All transactions will be processed during import.
+              Showing all {processedTransactions.length} transactions that will be processed during import.
             </p>
           )}
         </div>
@@ -1057,6 +1139,7 @@ export default function ImportTransactionsPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <h4 className="font-semibold text-blue-900 mb-2">📊 Import Summary</h4>
           <div className="text-sm text-blue-800 space-y-1">
+            <p>• <span className="font-semibold">Target account:</span> {accounts.find(a => a.id.toString() === selectedAccountId)?.name}</p>
             <p>• {validTransactions.length} valid transactions will be imported</p>
             <div className="ml-4 text-xs space-y-1">
               <p className="flex items-center gap-2">
@@ -1082,9 +1165,8 @@ export default function ImportTransactionsPage() {
             </div>
             <p>• {invalidTransactions.length} invalid transactions will be skipped</p>
             {duplicateTransactions.length > 0 && (
-              <p>• {duplicateTransactions.length} potential duplicates detected - review recommended</p>
+              <p>• {duplicateTransactions.length} duplicate transactions detected - will be automatically skipped</p>
             )}
-            <p>• Target account: {accounts.find(a => a.id.toString() === selectedAccountId)?.name}</p>
             {transferTransactions.length > 0 && (
               <div className="mt-2 p-2 bg-blue-100 rounded text-xs">
                 <p className="font-medium text-blue-900">💡 Transfer Detection Active</p>
@@ -1115,7 +1197,7 @@ export default function ImportTransactionsPage() {
                 Importing... ({importProgress}%)
               </>
             ) : (
-              `Import ${validTransactions.length} Transaction${validTransactions.length === 1 ? '' : 's'}`
+              `Import ${validTransactions.filter(t => !t.isDuplicate).length} Transaction${validTransactions.filter(t => !t.isDuplicate).length === 1 ? '' : 's'}`
             )}
           </button>
         </div>

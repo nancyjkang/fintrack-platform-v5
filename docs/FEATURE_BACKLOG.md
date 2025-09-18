@@ -378,9 +378,19 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
   - **Documentation**: [PRD](docs/features/prd-plaid-integration.md)
 
 - **System Health Dashboard** - 📋 Backlog
-  - **Estimate**: 2 days
-  - **Value**: Medium
-  - **Notes**: Performance monitoring
+  - **Estimate**: 3 days (enhanced scope)
+  - **Value**: High (Production Monitoring)
+  - **Dependencies**: None
+  - **Notes**: **Comprehensive system monitoring and health checks** including database connectivity, API performance, page accessibility, and system resources. **Enhanced scope includes automated page health monitoring** for all application routes with deployment pipeline integration.
+  - **Key Features**:
+    - **Page Health Monitoring**: Automated checks for all routes (/, /dashboard, /transactions, etc.) returning 200 OK
+    - **API Health Checks**: Database connectivity, response times, system resources (memory, uptime)
+    - **Deployment Validation**: Pre/post-deployment health verification in CI/CD pipeline
+    - **Real-time Monitoring**: `/api/health/pages` endpoint for continuous monitoring
+    - **Performance Metrics**: Response time tracking and alerting for degraded performance
+    - **Scheduled Monitoring**: GitHub Actions workflow for periodic health checks
+    - **Alert Integration**: Slack/email notifications for failed health checks
+    - **Development Tools**: Local health check scripts and pre-commit hooks
 
 - **Data Migration Tools** - 📋 Backlog
   - **Estimate**: 3 days

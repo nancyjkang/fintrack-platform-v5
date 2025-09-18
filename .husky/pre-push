@@ -23,6 +23,38 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ TypeScript compilation passed"
 
+# Mock data detection check (excluding test files)
+echo "🔍 Checking for mock data and TODO comments..."
+MOCK_FILES=$(grep -r -l --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --exclude-dir="__tests__" --exclude="*.test.*" --exclude="*.spec.*" \
+  -e "Mock.*data" \
+  -e "mock.*=" \
+  -e "will be replaced" \
+  -e "TODO.*replace" \
+  -e "hardcoded.*data" \
+  -e "fake.*data" \
+  src/ 2>/dev/null || true)
+
+if [ ! -z "$MOCK_FILES" ]; then
+  echo "🚫 PUSH REJECTED: Mock data or TODO comments found in:"
+  echo "$MOCK_FILES"
+  echo ""
+  echo "💡 Found suspicious patterns that may indicate mock data:"
+  grep -n --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+    --exclude-dir="__tests__" --exclude="*.test.*" --exclude="*.spec.*" \
+    -e "Mock.*data" \
+    -e "mock.*=" \
+    -e "will be replaced" \
+    -e "TODO.*replace" \
+    -e "hardcoded.*data" \
+    -e "fake.*data" \
+    $MOCK_FILES 2>/dev/null || true
+  echo ""
+  echo "💡 Please replace mock data with real API calls before pushing"
+  exit 1
+fi
+echo "✅ No mock data patterns detected"
+
 # ESLint check
 echo "🔍 Running ESLint checks..."
 npm run lint
