@@ -373,7 +373,7 @@ describe('CubeService', () => {
         category_id: 2,
         amount: new Decimal('100.00'),
         date: new Date('2024-01-15'),
-        type: 'EXPENSE',
+        type: 'EXPENSE' as const,
         is_recurring: false
       }
       const userId = 'user-456'
@@ -401,7 +401,7 @@ describe('CubeService', () => {
         category_id: 2,
         amount: new Decimal('100.00'),
         date: new Date('2024-01-15'),
-        type: 'EXPENSE',
+        type: 'EXPENSE' as const,
         is_recurring: false
       }
       const newValues: CubeRelevantFields = {
@@ -409,7 +409,7 @@ describe('CubeService', () => {
         category_id: 3,
         amount: new Decimal('150.00'),
         date: new Date('2024-01-16'),
-        type: 'EXPENSE',
+        type: 'EXPENSE' as const,
         is_recurring: true
       }
 
@@ -461,7 +461,7 @@ describe('CubeService', () => {
     const mockTransaction = {
       id: 123,
       date: new Date('2024-01-15T00:00:00.000Z'), // Monday
-      type: 'EXPENSE',
+      type: 'EXPENSE' as const,
       category_id: 5,
       is_recurring: false,
       amount: new Decimal('100.00')

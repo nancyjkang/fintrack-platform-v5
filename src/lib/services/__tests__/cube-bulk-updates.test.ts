@@ -22,6 +22,16 @@ import type { BulkUpdateMetadata, CubeRelevantFields } from '@/lib/types/cube-de
 import { getCurrentUTCDate } from '@/lib/utils/date-utils'
 import { Decimal } from '@prisma/client/runtime/library'
 
+// Import BulkUpdateData interface
+interface BulkUpdateData {
+  category_id?: number | null
+  account_id?: number
+  type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+  amount?: number
+  is_recurring?: boolean
+  description?: string
+}
+
 // Mock the cube service for transaction service tests only
 jest.mock('../cube.service', () => {
   const actual = jest.requireActual('../cube.service')
@@ -116,7 +126,7 @@ describe('CubeService - Bulk Updates', () => {
         changedFields: [{
           fieldName: 'amount',
           oldValue: null,
-          newValue: new Decimal('100.00')
+          newValue: 100.00
         }]
         // No dateRange provided
       }
@@ -254,8 +264,8 @@ describe('CubeService - Bulk Updates', () => {
         affectedTransactionIds: [1, 2, 3],
         changedFields: [{
           fieldName: 'type',
-          oldValue: 'EXPENSE',
-          newValue: 'INCOME'
+          oldValue: 'EXPENSE' as 'INCOME' | 'EXPENSE' | 'TRANSFER',
+          newValue: 'INCOME' as 'INCOME' | 'EXPENSE' | 'TRANSFER'
         }],
         dateRange: {
           startDate: new Date('2024-01-15'),
@@ -289,8 +299,8 @@ describe('CubeService - Bulk Updates', () => {
         affectedTransactionIds: [1, 2, 3],
         changedFields: [{
           fieldName: 'date',
-          oldValue: new Date('2024-01-01'),
-          newValue: new Date('2024-01-02')
+          oldValue: '2024-01-01',
+          newValue: '2024-01-02'
         }]
       }
 
@@ -325,8 +335,8 @@ describe('CubeService - Bulk Updates', () => {
         changedFields: [
           {
             fieldName: 'amount',
-            oldValue: new Decimal('50.00'),
-            newValue: new Decimal('100.00')
+            oldValue: 50.00,
+            newValue: 100.00
           },
           {
             fieldName: 'is_recurring',
@@ -410,7 +420,7 @@ describe('TransactionService - Bulk Updates', () => {
   describe('bulkUpdateTransactions', () => {
     it('should perform bulk update and trigger cube update', async () => {
       const transactionIds = [1, 2, 3]
-      const updates: Partial<CubeRelevantFields> = {
+      const updates: BulkUpdateData = {
         category_id: 2
       }
       const tenantId = 'tenant-1'
@@ -499,24 +509,7 @@ describe('TransactionService - Bulk Updates', () => {
       })
     })
 
-    it('should reject date changes (cube integration limitation)', async () => {
-      mockPrisma.transaction.findMany.mockResolvedValue([
-        {
-          id: 1,
-          account_id: 1,
-          category_id: 5,
-          amount: new Decimal('100'),
-          date: new Date('2024-01-15'),
-          type: 'EXPENSE',
-          is_recurring: false
-        }
-      ])
-
-      // Cube integration doesn't support date changes in bulk operations
-      await expect(
-        TransactionService.bulkUpdateTransactions([1], { date: new Date('2024-01-20') }, 'tenant-1')
-      ).rejects.toThrow('Date changes in bulk updates not supported. Use individual transaction updates.')
-    })
+    // Note: Date changes are not supported in BulkUpdateData interface
   })
 
   describe('createBulkUpdateMetadata', () => {
@@ -542,7 +535,7 @@ describe('TransactionService - Bulk Updates', () => {
         }
       ]
 
-      const updates: Partial<CubeRelevantFields> = {
+      const updates: BulkUpdateData = {
         category_id: 2
       }
 

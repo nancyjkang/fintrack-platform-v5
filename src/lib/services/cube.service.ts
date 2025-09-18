@@ -16,6 +16,16 @@ import type {
   BulkUpdateMetadata
 } from '@/lib/types/cube-delta.types'
 
+// Transaction interface for cube operations
+interface CubeTransaction {
+  id: number
+  date: Date
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+  category_id: number | null
+  is_recurring: boolean
+  amount?: number | Decimal
+}
+
 // Core interfaces for cube operations
 
 /**
@@ -303,7 +313,7 @@ export class CubeService extends BaseService {
 
     // Clear existing cube data if requested
     if (clearExisting) {
-      const deleteWhere: any = { tenant_id: tenantId }
+      const deleteWhere: Prisma.FinancialCubeWhereInput = { tenant_id: tenantId }
       if (accountId) {
         deleteWhere.account_id = accountId
       }
@@ -523,7 +533,7 @@ export class CubeService extends BaseService {
       isRecurring?: boolean
     } = {}
   ): Promise<Array<{
-    [key: string]: any
+    [key: string]: string | Date | number | boolean | null | Decimal
     total_amount: Decimal
     transaction_count: number
   }>> {
@@ -546,7 +556,7 @@ export class CubeService extends BaseService {
 
     // Execute dynamic query
     const results = await this.prisma.$queryRawUnsafe<Array<{
-      [key: string]: any
+      [key: string]: string | Date | number | boolean | null | Decimal | bigint
       total_amount: Decimal
       transaction_count: bigint
     }>>(`
@@ -670,7 +680,7 @@ export class CubeService extends BaseService {
     periodType: 'WEEKLY' | 'MONTHLY',
     accountId?: number // Optional: clear only for specific account
   ): Promise<void> {
-    const whereClause: any = {
+    const whereClause: Prisma.FinancialCubeWhereInput = {
       tenant_id: tenantId,
       period_type: periodType,
       period_start: {
@@ -724,7 +734,7 @@ export class CubeService extends BaseService {
    * Get the earliest transaction date for a tenant (optionally for specific account)
    */
   private async getEarliestTransactionDate(tenantId: string, accountId?: number): Promise<Date | null> {
-    const whereClause: any = { tenant_id: tenantId }
+    const whereClause: Prisma.TransactionWhereInput = { tenant_id: tenantId }
     if (accountId) {
       whereClause.account_id = accountId
     }
@@ -748,7 +758,7 @@ export class CubeService extends BaseService {
     periodEnd: Date,
     accountId?: number
   ): Promise<number> {
-    const whereClause: any = {
+    const whereClause: Prisma.FinancialCubeWhereInput = {
       tenant_id: tenantId,
       period_type: periodType,
       period_start: periodStart,
@@ -1034,7 +1044,7 @@ export class CubeService extends BaseService {
                   periodStart: period.start,
                   periodEnd: period.end,
                   transactionType: transactionType,
-                  categoryId: change.oldValue,
+                  categoryId: change.oldValue as number | null,
                   isRecurring: isRecurring
                 })
               }
@@ -1046,7 +1056,7 @@ export class CubeService extends BaseService {
                   periodStart: period.start,
                   periodEnd: period.end,
                   transactionType: transactionType,
-                  categoryId: change.newValue,
+                  categoryId: change.newValue as number | null,
                   isRecurring: isRecurring
                 })
               }
@@ -1087,7 +1097,7 @@ export class CubeService extends BaseService {
                 periodType: period.type,
                 periodStart: period.start,
                 periodEnd: period.end,
-                transactionType: change.oldValue,
+                transactionType: change.oldValue as 'INCOME' | 'EXPENSE' | 'TRANSFER',
                 categoryId: categoryId,
                 isRecurring: isRecurring
               })
@@ -1098,7 +1108,7 @@ export class CubeService extends BaseService {
                 periodType: period.type,
                 periodStart: period.start,
                 periodEnd: period.end,
-                transactionType: change.newValue,
+                transactionType: change.newValue as 'INCOME' | 'EXPENSE' | 'TRANSFER',
                 categoryId: categoryId,
                 isRecurring: isRecurring
               })
@@ -1141,7 +1151,7 @@ export class CubeService extends BaseService {
                 periodEnd: period.end,
                 transactionType: transactionType,
                 categoryId: categoryId,
-                isRecurring: change.oldValue
+                isRecurring: change.oldValue as boolean
               })
 
               // New recurring flag
@@ -1152,7 +1162,7 @@ export class CubeService extends BaseService {
                 periodEnd: period.end,
                 transactionType: transactionType,
                 categoryId: categoryId,
-                isRecurring: change.newValue
+                isRecurring: change.newValue as boolean
               })
             }
           }
@@ -1268,7 +1278,7 @@ export class CubeService extends BaseService {
    * Add a new transaction to the cube (INSERT operation)
    * No delta needed - just add the transaction's impact to affected periods
    */
-  async addTransaction(transaction: any, tenantId: string): Promise<void> {
+  async addTransaction(transaction: CubeTransaction, tenantId: string): Promise<void> {
     return this.syncTransactionToCube(transaction, tenantId, 'add')
   }
 
@@ -1291,7 +1301,7 @@ export class CubeService extends BaseService {
    * Remove a transaction from the cube (DELETE operation)
    * No delta needed - just remove the transaction's impact from affected periods
    */
-  async removeTransaction(transaction: any, tenantId: string): Promise<void> {
+  async removeTransaction(transaction: CubeTransaction, tenantId: string): Promise<void> {
     return this.syncTransactionToCube(transaction, tenantId, 'remove')
   }
 
@@ -1303,7 +1313,7 @@ export class CubeService extends BaseService {
    * since both operations require the same cube regeneration approach.
    */
   private async syncTransactionToCube(
-    transaction: any,
+    transaction: CubeTransaction,
     tenantId: string,
     operation: 'add' | 'remove'
   ): Promise<void> {
@@ -1320,10 +1330,12 @@ export class CubeService extends BaseService {
       const monthEnd = createUTCDate(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)
 
       // Process both periods
-      for (const [periodType, periodStart, periodEnd] of [
-        ['WEEKLY' as const, weekStart, weekEnd],
-        ['MONTHLY' as const, monthStart, monthEnd]
-      ]) {
+      const periods: Array<['WEEKLY' | 'MONTHLY', Date, Date]> = [
+        ['WEEKLY', weekStart, weekEnd],
+        ['MONTHLY', monthStart, monthEnd]
+      ]
+      
+      for (const [periodType, periodStart, periodEnd] of periods) {
         const targets: CubeRegenerationTarget[] = [{
           tenantId,
           periodType,
@@ -1374,16 +1386,16 @@ export class CubeService extends BaseService {
       if (!oldVals.amount.equals(newVals.amount)) {
         changedFields.push({
           fieldName: 'amount',
-          oldValue: oldVals.amount,
-          newValue: newVals.amount
+          oldValue: oldVals.amount.toNumber(),
+          newValue: newVals.amount.toNumber()
         })
       }
 
-      if (oldVals.date.getTime() !== newVals.date.getTime()) {
+      if (oldVals.date.valueOf() !== newVals.date.valueOf()) {
         changedFields.push({
           fieldName: 'date',
-          oldValue: oldVals.date,
-          newValue: newVals.date
+          oldValue: oldVals.date.toISOString(),
+          newValue: newVals.date.toISOString()
         })
       }
 

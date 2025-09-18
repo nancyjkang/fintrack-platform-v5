@@ -90,13 +90,13 @@ export default function CubeOperationsPage() {
     try {
       let url = '';
       let method = 'POST';
-      let body: any = null;
+      let body: string | null = null;
 
       switch (operationType) {
         case 'populate':
           url = '/api/cube/populate';
           // Only send dates if they're filled in (for auto-detection)
-          const populateBody: any = { clearExisting: true };
+          const populateBody: { clearExisting: boolean; startDate?: string; endDate?: string } = { clearExisting: true };
           if (startDate) populateBody.startDate = startDate;
           if (endDate) populateBody.endDate = endDate;
           body = JSON.stringify(populateBody);

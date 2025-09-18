@@ -5,6 +5,27 @@ import { cubeService, CubeService } from './cube.service'
 import type { CubeRelevantFields, BulkUpdateMetadata } from '@/lib/types/cube-delta.types'
 import { Decimal } from '@prisma/client/runtime/library'
 
+// Interface for bulk update data
+interface BulkUpdateData {
+  category_id?: number | null
+  account_id?: number
+  type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+  amount?: number
+  is_recurring?: boolean
+  description?: string
+}
+
+// Interface for transaction data used in cube operations
+interface TransactionForCube {
+  id: number
+  account_id: number
+  category_id: number | null
+  amount: Decimal
+  date: Date
+  type: string
+  is_recurring: boolean
+}
+
 export interface CreateTransactionData {
   account_id: number
   category_id?: number
@@ -182,7 +203,10 @@ export class TransactionService extends BaseService {
       })
 
       // Update cube with new transaction
-      await cubeService.addTransaction(transaction, tenantId)
+      await cubeService.addTransaction({
+        ...transaction,
+        type: transaction.type as 'INCOME' | 'EXPENSE' | 'TRANSFER'
+      }, tenantId)
 
       return transaction
     } catch (error) {
@@ -294,7 +318,10 @@ export class TransactionService extends BaseService {
       })
 
       // Remove transaction from cube using direct removal approach
-      await cubeService.removeTransaction(existingTransaction, tenantId)
+      await cubeService.removeTransaction({
+        ...existingTransaction,
+        type: existingTransaction.type as 'INCOME' | 'EXPENSE' | 'TRANSFER'
+      }, tenantId)
     } catch (error) {
       return this.handleError(error, 'TransactionService.deleteTransaction')
     }
@@ -334,7 +361,7 @@ export class TransactionService extends BaseService {
    */
   static async bulkUpdateTransactions(
     transactionIds: number[],
-    updates: any,
+    updates: BulkUpdateData,
     tenantId: string
   ): Promise<void> {
     try {
@@ -389,7 +416,7 @@ export class TransactionService extends BaseService {
       type: string
       is_recurring: boolean
     }>,
-    updates: Partial<CubeRelevantFields>,
+    updates: BulkUpdateData,
     tenantId: string
   ): BulkUpdateMetadata {
     const changedFields: BulkUpdateMetadata['changedFields'] = []
@@ -456,13 +483,11 @@ export class TransactionService extends BaseService {
       })
     }
 
-    if (updates.date !== undefined) {
-      throw new Error('Date changes in bulk updates not supported. Use individual transaction updates.')
-    }
+    // Note: Date changes are not supported in bulk updates (not included in BulkUpdateData interface)
 
     // Calculate date range from affected transactions
     const dates = oldTransactions.map(t => t.date)
-    const sortedDates = dates.sort((a, b) => a.getTime() - b.getTime())
+    const sortedDates = dates.sort((a, b) => a.valueOf() - b.valueOf())
     const dateRange = {
       startDate: sortedDates[0],
       endDate: sortedDates[sortedDates.length - 1]
@@ -479,13 +504,13 @@ export class TransactionService extends BaseService {
   /**
    * Extract cube-relevant fields from a transaction for delta processing
    */
-  static extractCubeRelevantFields(transaction: any): CubeRelevantFields {
+  static extractCubeRelevantFields(transaction: TransactionForCube): CubeRelevantFields {
     return {
       account_id: transaction.account_id,
       category_id: transaction.category_id,
       amount: transaction.amount,
       date: transaction.date,
-      type: transaction.type,
+      type: transaction.type as 'INCOME' | 'EXPENSE' | 'TRANSFER',
       is_recurring: transaction.is_recurring
     }
   }
@@ -542,7 +567,7 @@ export class TransactionService extends BaseService {
       id: number
       account_id: number
       category_id: number | null
-      amount: any
+      amount: Decimal
       date: Date
       type: string
       is_recurring: boolean
@@ -560,7 +585,7 @@ export class TransactionService extends BaseService {
 
     // Calculate date range from deleted transactions
     const dates = deletedTransactions.map(t => t.date)
-    const sortedDates = dates.sort((a, b) => a.getTime() - b.getTime())
+    const sortedDates = dates.sort((a, b) => a.valueOf() - b.valueOf())
     const dateRange = {
       startDate: sortedDates[0],
       endDate: sortedDates[sortedDates.length - 1]

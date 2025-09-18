@@ -2,10 +2,21 @@
 
 import React from 'react'
 
+interface TrendData {
+  period_start: string
+  period_type: string
+  transaction_type: string
+  category_name: string
+  account_name: string
+  is_recurring: boolean
+  total_amount: number
+  transaction_count: number
+}
+
 interface TrendsSummaryProps {
   // TODO: Define proper props when implementing
-  data?: any
-  trends?: any[]
+  data?: Record<string, unknown>
+  trends?: TrendData[]
 }
 
 export function TrendsSummary({ data }: TrendsSummaryProps) {

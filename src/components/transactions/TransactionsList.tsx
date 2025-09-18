@@ -247,7 +247,11 @@ export default function TransactionsList({
   }, []);
 
   // Bulk update handler
-  const handleBulkUpdate = useCallback(async (updates: any) => {
+  const handleBulkUpdate = useCallback(async (updates: {
+    category_id?: number | null;
+    type?: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+    is_recurring?: boolean;
+  }) => {
     if (selectedTransactions.size === 0) return;
 
     setBulkUpdateLoading(true);
@@ -618,12 +622,16 @@ export default function TransactionsList({
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
 
-              const updates: any = {};
+              const updates: {
+                category_id?: number | null;
+                type?: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+                is_recurring?: boolean;
+              } = {};
 
               // Handle transaction type
               const type = formData.get('type') as string;
               if (type && type !== 'no-change') {
-                updates.type = type;
+                updates.type = type as 'INCOME' | 'EXPENSE' | 'TRANSFER';
               }
 
               // Handle category

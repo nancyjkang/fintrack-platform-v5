@@ -14,7 +14,7 @@ interface TrendsFiltersProps {
     accountIds?: number[]
     isRecurring?: boolean
   }
-  onChange: (filters: any) => void
+  onChange: (filters: Record<string, unknown>) => void
   onRefresh: () => void
 }
 
@@ -50,7 +50,7 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
             ? categoriesRes.data
             : categoriesRes.data.categories || []
 
-          setCategories(categories.map((cat: any) => ({
+          setCategories(categories.map((cat: { id: number; name: string; type: string }) => ({
             id: cat.id,
             name: cat.name
           })))
@@ -65,7 +65,7 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
     fetchFilterData()
   }, [])
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: string, value: string | number | boolean | Date | number[] | null) => {
     onChange({ [key]: value })
   }
 

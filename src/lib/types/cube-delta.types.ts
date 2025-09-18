@@ -56,8 +56,8 @@ export interface BulkUpdateMetadata {
   affectedTransactionIds: number[]
   changedFields: {
     fieldName: keyof CubeRelevantFields
-    oldValue: any
-    newValue: any
+    oldValue: string | number | boolean | Date | Decimal | null
+    newValue: string | number | boolean | Date | Decimal | null
   }[]
   dateRange?: {
     startDate: Date
