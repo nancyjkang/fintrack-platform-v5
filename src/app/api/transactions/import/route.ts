@@ -59,7 +59,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate and prepare transactions for bulk processing
-    const validTransactions: any[] = []
+    const validTransactions: Array<{
+      account_id: number
+      amount: number
+      description: string
+      date: Date
+      type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+      category_id?: number
+      is_recurring: boolean
+    }> = []
     
     for (let i = 0; i < transactions.length; i++) {
       const transaction = transactions[i]

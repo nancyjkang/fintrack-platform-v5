@@ -636,7 +636,15 @@ export class TransactionService extends BaseService {
   static async bulkCreateTransactions(
     transactions: CreateTransactionData[],
     tenantId: string
-  ): Promise<{ createdCount: number; createdTransactions: any[] }> {
+  ): Promise<{ createdCount: number; createdTransactions: Array<{
+    id: number
+    account_id: number
+    category_id: number | null
+    amount: Decimal
+    date: Date
+    type: string
+    is_recurring: boolean
+  }> }> {
     try {
       if (transactions.length === 0) {
         return { createdCount: 0, createdTransactions: [] }
@@ -712,10 +720,8 @@ export class TransactionService extends BaseService {
 
     // Calculate date range for efficient cube processing
     const dates = createdTransactions.map(tx => tx.date)
-    const minTime = Math.min(...dates.map(d => d.getTime()))
-    const maxTime = Math.max(...dates.map(d => d.getTime()))
-    const startDate = dates.find(d => d.getTime() === minTime) || getCurrentUTCDate()
-    const endDate = dates.find(d => d.getTime() === maxTime) || getCurrentUTCDate()
+    const startDate = dates.reduce((min, date) => date < min ? date : min, dates[0]) || getCurrentUTCDate()
+    const endDate = dates.reduce((max, date) => date > max ? date : max, dates[0]) || getCurrentUTCDate()
 
     return {
       tenantId,

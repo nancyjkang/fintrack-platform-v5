@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { csvImportService } from '@/lib/services/csv-import'
 import type { ParseResult, ColumnMapping } from '@/lib/types/csv-import.types'
-import { formatDateForDisplay, parseAndConvertToUTC, addDays, subtractDays } from '@/lib/utils/date-utils'
+import { formatDateForDisplay, parseAndConvertToUTC, addDays, subtractDays, toUTCDateString } from '@/lib/utils/date-utils'
 import AppLayout from '@/components/layout/AppLayout'
 import { api } from '@/lib/client/api'
 
@@ -116,16 +116,16 @@ export default function ImportTransactionsPage() {
       const dateFrom = subtractDays(minDate, 1) // 1 day before
       const dateTo = addDays(maxDate, 1) // 1 day after
 
-      const dateFromStr = dateFrom.toISOString().split('T')[0]
-      const dateToStr = dateTo.toISOString().split('T')[0]
+      const dateFromStr = toUTCDateString(dateFrom)
+      const dateToStr = toUTCDateString(dateTo)
 
       console.log('🔍 Fetching transactions in date range:', {
         accountId: selectedAccountId,
         dateFrom: dateFromStr,
         dateTo: dateToStr,
         csvDateRange: {
-          min: minDate.toISOString().split('T')[0],
-          max: maxDate.toISOString().split('T')[0]
+          min: toUTCDateString(minDate),
+          max: toUTCDateString(maxDate)
         }
       })
 
