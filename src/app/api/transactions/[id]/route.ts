@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
-import { TransactionService } from '@/lib/services/transaction.service'
+import { TransactionService } from '@/lib/services/transaction'
 import { isValidDateString, parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 // Validation schemas

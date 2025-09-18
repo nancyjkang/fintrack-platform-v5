@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { AccountBalanceHistoryService } from '@/lib/services/account-balance-history.service'
-import { TransactionService } from '@/lib/services/transaction.service'
+import { AccountBalanceHistoryService } from '@/lib/services/account'
+import { TransactionService } from '@/lib/services/transaction'
 import { verifyAuth } from '@/lib/auth'
 import { handleApiError } from '@/lib/api-response'
 import { createUTCDate, getCurrentUTCDate, subtractDays, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'

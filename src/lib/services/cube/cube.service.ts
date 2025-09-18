@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService } from '../base'
 import type { FinancialCube, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, format, addWeeks, addMonths } from 'date-fns'
@@ -790,16 +790,46 @@ export class CubeService extends BaseService {
   /**
    * Group cube regeneration targets by period for efficient batch processing
    */
-  private groupCubesByPeriod(targets: CubeRegenerationTarget[]): Map<string, CubeRegenerationTarget[]> {
-    const groups = new Map<string, CubeRegenerationTarget[]>()
+  private groupCubesByPeriod(targets: CubeRegenerationTarget[]): Map<number, {
+    tenantId: string
+    periodType: 'WEEKLY' | 'MONTHLY'
+    periodStart: Date
+    targets: CubeRegenerationTarget[]
+  }> {
+    const groups = new Map<number, {
+      tenantId: string
+      periodType: 'WEEKLY' | 'MONTHLY'
+      periodStart: Date
+      targets: CubeRegenerationTarget[]
+    }>()
+
+    let keyCounter = 0
 
     for (const target of targets) {
-      const key = `${target.tenantId}-${target.periodType}-${toUTCDateString(target.periodStart)}`
+      // Find existing group with matching tenant, period type, and period start
+      let existingKey: number | undefined
 
-      if (!groups.has(key)) {
-        groups.set(key, [])
+      for (const [key, group] of groups) {
+        if (group.tenantId === target.tenantId && 
+            group.periodType === target.periodType && 
+            group.periodStart.valueOf() === target.periodStart.valueOf()) {
+          existingKey = key
+          break
+        }
       }
-      groups.get(key)!.push(target)
+
+      if (existingKey !== undefined) {
+        // Add to existing group
+        groups.get(existingKey)!.targets.push(target)
+      } else {
+        // Create new group with incremental numeric key
+        groups.set(keyCounter++, {
+          tenantId: target.tenantId,
+          periodType: target.periodType,
+          periodStart: target.periodStart,
+          targets: [target]
+        })
+      }
     }
 
     return groups
@@ -809,11 +839,14 @@ export class CubeService extends BaseService {
    * Regenerate cube records for the affected periods
    * This clears and rebuilds only the specific cube records that need updating
    */
-  private async regenerateCubeRecords(periodGroups: Map<string, CubeRegenerationTarget[]>): Promise<void> {
-    for (const [periodKey, targets] of periodGroups) {
-      // Parse period info from the key (format: "tenantId-periodType-periodStartISO")
-      const [tenantId, periodType, periodStartISO] = periodKey.split('-')
-      const periodStart = parseAndConvertToUTC(periodStartISO)
+  private async regenerateCubeRecords(periodGroups: Map<number, {
+    tenantId: string
+    periodType: 'WEEKLY' | 'MONTHLY'
+    periodStart: Date
+    targets: CubeRegenerationTarget[]
+  }>): Promise<void> {
+    for (const [, periodGroup] of periodGroups) {
+      const { tenantId, periodType, periodStart, targets } = periodGroup
 
       // Calculate period end
       const periodEnd = periodType === 'WEEKLY'
@@ -824,7 +857,7 @@ export class CubeService extends BaseService {
       await this.clearSpecificCubeRecords(targets)
 
       // Rebuild cube data for the specific targets only
-      await this.buildCubeForTargets(tenantId, periodStart, periodEnd, periodType as 'WEEKLY' | 'MONTHLY', targets)
+      await this.buildCubeForTargets(tenantId, periodStart, periodEnd, periodType, targets)
     }
   }
 

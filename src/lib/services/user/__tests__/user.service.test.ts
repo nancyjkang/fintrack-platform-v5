@@ -20,7 +20,7 @@ jest.mock('@/lib/auth', () => ({
   hashPassword: jest.fn(),
 }))
 
-import { UserService } from '../user/user.service'
+import { UserService } from '../user.service'
 import { prisma } from '@/lib/prisma'
 import { createUTCDate } from '@/lib/utils/date-utils'
 import { hashPassword } from '@/lib/auth'

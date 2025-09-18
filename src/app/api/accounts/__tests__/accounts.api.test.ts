@@ -5,11 +5,11 @@ import { GET as getNetWorth } from '../net-worth/route'
 import { POST as reconcileAccount } from '../[id]/reconcile/route'
 
 // Mock the dependencies
-jest.mock('@/lib/services/account.service')
+jest.mock('@/lib/services/account')
 jest.mock('@/lib/auth')
 jest.mock('@/lib/utils/date-utils')
 
-import { AccountService } from '@/lib/services/account.service'
+import { AccountService } from '@/lib/services/account'
 import { verifyAuth } from '@/lib/auth'
 import { parseAndConvertToUTC, createUTCDate } from '@/lib/utils/date-utils'
 import { Decimal } from '@prisma/client/runtime/library'

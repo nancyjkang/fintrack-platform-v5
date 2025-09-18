@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService } from '../base'
 import type { Account } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { getCurrentUTCDate, parseAndConvertToUTC } from '@/lib/utils/date-utils'
@@ -410,3 +410,6 @@ export class AccountService extends BaseService {
     }
   }
 }
+
+// Export singleton instance
+export const accountService = new AccountService()

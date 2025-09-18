@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService } from '../base'
 import { prisma } from '@/lib/prisma'
 import type { Account, Transaction } from '@prisma/client'
 import {
@@ -659,3 +659,6 @@ export class AccountBalanceHistoryService extends BaseService {
     return Array.from(uniqueDates).sort();
   }
 }
+
+// Export singleton instance
+export const accountBalanceHistoryService = new AccountBalanceHistoryService()

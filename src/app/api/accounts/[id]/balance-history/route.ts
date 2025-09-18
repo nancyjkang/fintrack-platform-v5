@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { AccountBalanceHistoryService } from '@/lib/services/account-balance-history.service'
+import { AccountBalanceHistoryService } from '@/lib/services/account'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
 import { verifyAuth } from '@/lib/auth'
 import { createUTCDate } from '@/lib/utils/date-utils'

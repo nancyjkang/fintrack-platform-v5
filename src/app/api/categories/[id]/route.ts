@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { CategoryService } from '@/lib/services/category.service'
+import { CategoryService } from '@/lib/services/category'
 import { verifyAuth } from '@/lib/auth'
 import { z } from 'zod'
 

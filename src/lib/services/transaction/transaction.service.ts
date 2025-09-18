@@ -1,7 +1,7 @@
-import { BaseService } from './base.service'
+import { BaseService } from '../base'
 import type { Transaction, Account, Category } from '@prisma/client'
 import { getCurrentUTCDate } from '@/lib/utils/date-utils'
-import { cubeService, CubeService } from './cube.service'
+import { cubeService, CubeService } from '../cube'
 import type { CubeRelevantFields, BulkUpdateMetadata } from '@/lib/types/cube-delta.types'
 import { Decimal } from '@prisma/client/runtime/library'
 
@@ -58,6 +58,8 @@ export interface TransactionFilters {
   // eslint-disable-next-line no-restricted-globals
   date_to?: Date
   search?: string
+  sort_field?: string
+  sort_direction?: string
 }
 
 export interface TransactionWithRelations extends Transaction {
@@ -105,15 +107,44 @@ export class TransactionService extends BaseService {
         }
       }
 
+      // Build orderBy clause based on sort parameters
+      let orderBy: Record<string, string | Record<string, string>> = { date: 'desc' } // Default sorting
+
+      if (filters?.sort_field && filters?.sort_direction) {
+        const sortField = filters.sort_field as string
+        const sortDirection = filters.sort_direction as 'asc' | 'desc'
+
+        switch (sortField) {
+          case 'date':
+            orderBy = { date: sortDirection }
+            break
+          case 'description':
+            orderBy = { description: sortDirection }
+            break
+          case 'amount':
+            orderBy = { amount: sortDirection }
+            break
+          case 'type':
+            orderBy = { type: sortDirection }
+            break
+          case 'category':
+            orderBy = { category: { name: sortDirection } }
+            break
+          case 'account':
+            orderBy = { account: { name: sortDirection } }
+            break
+          default:
+            orderBy = { date: 'desc' }
+        }
+      }
+
       const transactions = await this.prisma.transaction.findMany({
         where,
         include: {
           account: true,
           category: true
         },
-        orderBy: {
-          date: 'desc'
-        }
+        orderBy
       })
 
       return transactions
@@ -599,4 +630,111 @@ export class TransactionService extends BaseService {
     }
   }
 
+  /**
+   * Bulk create transactions with efficient cube updates (for imports)
+   */
+  static async bulkCreateTransactions(
+    transactions: CreateTransactionData[],
+    tenantId: string
+  ): Promise<{ createdCount: number; createdTransactions: Array<{
+    id: number
+    account_id: number
+    category_id: number | null
+    amount: Decimal
+    date: Date
+    type: string
+    is_recurring: boolean
+  }> }> {
+    try {
+      if (transactions.length === 0) {
+        return { createdCount: 0, createdTransactions: [] }
+      }
+
+      // 1. Prepare transaction data for bulk insert
+      const transactionData = transactions.map(tx => ({
+        tenant_id: tenantId,
+        account_id: tx.account_id,
+        amount: tx.amount,
+        description: tx.description,
+        date: tx.date,
+        type: tx.type,
+        category_id: tx.category_id || null,
+        is_recurring: tx.is_recurring || false,
+        created_at: getCurrentUTCDate(),
+        updated_at: getCurrentUTCDate()
+      }))
+
+      // 2. Bulk insert transactions
+      const createdTransactions = await this.prisma.transaction.createManyAndReturn({
+        data: transactionData
+      })
+
+      // 3. Create bulk metadata for cube updates
+      const bulkMetadata = this.createBulkCreateMetadata(createdTransactions, tenantId)
+
+      // 4. Update cube efficiently with bulk metadata
+      await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
+
+      return {
+        createdCount: createdTransactions.length,
+        createdTransactions
+      }
+
+    } catch (error) {
+      return this.handleError(error, 'TransactionService.bulkCreateTransactions')
+    }
+  }
+
+  /**
+   * Create bulk create metadata from new transactions
+   */
+  private static createBulkCreateMetadata(
+    createdTransactions: Array<{
+      id: number
+      account_id: number
+      category_id: number | null
+      amount: Decimal
+      date: Date
+      type: string
+      is_recurring: boolean
+    }>,
+    tenantId: string
+  ): BulkUpdateMetadata {
+    if (createdTransactions.length === 0) {
+      return {
+        tenantId,
+        affectedTransactionIds: [],
+        changedFields: []
+      }
+    }
+
+    // For bulk creates, we indicate that all cube-relevant fields have changed
+    // This will cause the cube service to regenerate all affected periods
+    const changedFields: {
+      fieldName: keyof CubeRelevantFields
+      oldValue: string | number | boolean | Date | Decimal | null
+      newValue: string | number | boolean | Date | Decimal | null
+    }[] = [
+      { fieldName: 'amount', oldValue: null, newValue: null }
+    ]
+
+    // Calculate date range for efficient cube processing
+    const dates = createdTransactions.map(tx => tx.date)
+    const startDate = dates.reduce((min, date) => date < min ? date : min, dates[0]) || getCurrentUTCDate()
+    const endDate = dates.reduce((max, date) => date > max ? date : max, dates[0]) || getCurrentUTCDate()
+
+    return {
+      tenantId,
+      affectedTransactionIds: createdTransactions.map(tx => tx.id),
+      changedFields,
+      dateRange: {
+        startDate,
+        endDate
+      }
+    }
+  }
+
 }
+
+// Export singleton instance
+export const transactionService = new TransactionService()

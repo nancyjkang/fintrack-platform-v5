@@ -1,4 +1,4 @@
-import { BaseService } from '../base.service'
+import { BaseService } from '../base/base.service'
 import { hashPassword } from '@/lib/auth'
 import type { User, Tenant, Membership } from '@prisma/client'
 
@@ -143,3 +143,6 @@ export class UserService extends BaseService {
     }
   }
 }
+
+// Export singleton instance
+export const userService = new UserService()

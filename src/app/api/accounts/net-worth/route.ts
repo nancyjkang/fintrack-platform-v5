@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { AccountService } from '@/lib/services/account.service'
+import { AccountService } from '@/lib/services/account'
 import { verifyAuth } from '@/lib/auth'
 
 /**
