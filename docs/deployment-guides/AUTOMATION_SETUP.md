@@ -105,7 +105,7 @@ Edit the workflow files to match your actual Vercel URLs:
   run: |
     curl -f https://your-actual-staging-url.vercel.app/api/health || exit 1
 
-# In production-deploy.yml  
+# In production-deploy.yml
 # URLs are automatically extracted from Vercel deployment
 ```
 
@@ -133,13 +133,13 @@ Edit the workflow files to match your actual Vercel URLs:
   run: |
     # API health check
     curl -f "$DEPLOY_URL/api/health" || exit 1
-    
+
     # Database connectivity check
     curl -f "$DEPLOY_URL/api/health/database" || exit 1
-    
+
     # Authentication check
     curl -f "$DEPLOY_URL/api/auth/status" || exit 1
-    
+
     echo "✅ All health checks passed!"
 ```
 
@@ -170,13 +170,13 @@ Edit the workflow files to match your actual Vercel URLs:
   if: failure()
   run: |
     echo "🚨 Deployment failed, initiating rollback..."
-    
+
     # Get previous successful deployment
     PREVIOUS_DEPLOYMENT=$(vercel ls --token=${{ secrets.VERCEL_TOKEN }} | grep "READY" | head -2 | tail -1 | awk '{print $1}')
-    
+
     # Promote previous deployment
     vercel promote $PREVIOUS_DEPLOYMENT --token=${{ secrets.VERCEL_TOKEN }}
-    
+
     echo "✅ Rollback completed to: $PREVIOUS_DEPLOYMENT"
 ```
 
