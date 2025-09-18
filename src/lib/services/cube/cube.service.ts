@@ -810,9 +810,9 @@ export class CubeService extends BaseService {
       let existingKey: number | undefined
 
       for (const [key, group] of groups) {
-        if (group.tenantId === target.tenantId &&
-            group.periodType === target.periodType &&
-            group.periodStart.getTime() === target.periodStart.getTime()) {
+        if (group.tenantId === target.tenantId && 
+            group.periodType === target.periodType && 
+            group.periodStart.valueOf() === target.periodStart.valueOf()) {
           existingKey = key
           break
         }

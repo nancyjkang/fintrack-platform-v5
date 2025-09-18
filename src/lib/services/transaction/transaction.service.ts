@@ -108,7 +108,7 @@ export class TransactionService extends BaseService {
       }
 
       // Build orderBy clause based on sort parameters
-      let orderBy: any = { date: 'desc' } // Default sorting
+      let orderBy: Record<string, string | Record<string, string>> = { date: 'desc' } // Default sorting
 
       if (filters?.sort_field && filters?.sort_direction) {
         const sortField = filters.sort_field as string
