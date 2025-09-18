@@ -115,6 +115,237 @@ No new migrations required - Category table already existed from schema design p
 - [x] **Performance**: Parallel API calls, responsive UI updates
 - [x] **Mobile**: Responsive design verified
 
+### **QA Test Cases**
+
+#### **Test Case 1: Category Creation and Validation**
+**Objective**: Verify that users can create new categories with proper validation
+
+**Prerequisites**:
+- User is logged in
+- Navigate to Settings > Categories
+
+**Test Steps**:
+1. Click "Add Category" button
+2. Enter category name "Groceries"
+3. Select type "EXPENSE"
+4. Choose a green color (#10B981)
+5. Click "Save"
+6. Verify category appears in EXPENSE tab
+7. Attempt to create duplicate category with same name
+8. Verify validation error appears
+9. Try creating category with empty name
+10. Verify validation prevents submission
+
+**Expected Results**:
+- New category created successfully with correct name, type, and color
+- Duplicate name validation prevents creation
+- Empty name validation works
+- Category appears in correct type tab
+- Form resets after successful creation
+
+**Priority**: High
+
+---
+
+#### **Test Case 2: Category Editing and Updates**
+**Objective**: Verify that existing categories can be modified
+
+**Prerequisites**:
+- At least one category exists
+- User is logged in and on Categories page
+
+**Test Steps**:
+1. Click "Edit" button on an existing category
+2. Change the category name to "Updated Groceries"
+3. Change the color to blue (#3B82F6)
+4. Keep the same type
+5. Click "Save"
+6. Verify changes are reflected immediately
+7. Refresh the page
+8. Verify changes persist after refresh
+
+**Expected Results**:
+- Category name updates successfully
+- Color changes are applied and visible
+- Changes persist after page refresh
+- Category remains in correct type tab
+- No duplicate validation errors for same category
+
+**Priority**: High
+
+---
+
+#### **Test Case 3: Category Deletion with Transaction Validation**
+**Objective**: Verify category deletion works correctly and prevents deletion when transactions exist
+
+**Prerequisites**:
+- Category with no transactions exists
+- Category with transactions exists
+- User is logged in
+
+**Test Steps**:
+1. Attempt to delete category with no transactions
+2. Confirm deletion in modal
+3. Verify category is removed from list
+4. Attempt to delete category that has transactions
+5. Verify deletion is prevented with appropriate message
+6. Check that category with transactions remains in list
+
+**Expected Results**:
+- Categories without transactions can be deleted successfully
+- Categories with transactions cannot be deleted
+- Clear error message explains why deletion failed
+- UI provides alternative (merge) for categories with transactions
+- Deletion confirmation modal appears before actual deletion
+
+**Priority**: High
+
+---
+
+#### **Test Case 4: Category Merging Functionality**
+**Objective**: Verify that categories can be merged and transactions are transferred correctly
+
+**Prerequisites**:
+- Two categories of same type exist
+- Source category has at least 2 transactions
+- User is logged in
+
+**Test Steps**:
+1. Click "Merge" button on source category
+2. Select target category from dropdown
+3. Verify transaction count preview shows correct numbers
+4. Confirm merge operation
+5. Verify source category is deleted
+6. Verify target category now shows increased transaction count
+7. Navigate to transactions and verify they show new category
+8. Attempt to merge categories of different types
+9. Verify validation prevents cross-type merging
+
+**Expected Results**:
+- Merge operation transfers all transactions correctly
+- Source category is deleted after merge
+- Target category transaction count increases appropriately
+- Cross-type merging is prevented with clear error
+- Transaction history shows updated category assignments
+
+**Priority**: High
+
+---
+
+#### **Test Case 5: Category Type Filtering and Navigation**
+**Objective**: Verify tab-based filtering works correctly for different category types
+
+**Prerequisites**:
+- Categories exist for all three types (INCOME, EXPENSE, TRANSFER)
+- User is logged in
+
+**Test Steps**:
+1. Navigate to Categories page
+2. Verify "All" tab shows all categories
+3. Click "INCOME" tab
+4. Verify only income categories are displayed
+5. Click "EXPENSE" tab
+6. Verify only expense categories are displayed
+7. Click "TRANSFER" tab
+8. Verify only transfer categories are displayed
+9. Add new category while on EXPENSE tab
+10. Verify new category defaults to EXPENSE type
+
+**Expected Results**:
+- Tab filtering works correctly for each type
+- Category counts in tabs are accurate
+- Smart default type selection based on active tab
+- Smooth transitions between tabs
+- No categories lost during tab switching
+
+**Priority**: Medium
+
+---
+
+#### **Test Case 6: Mobile Responsiveness and Touch Interactions**
+**Objective**: Verify category management works properly on mobile devices
+
+**Prerequisites**:
+- Mobile device or browser dev tools set to mobile view
+- Categories exist in system
+
+**Test Steps**:
+1. Access Categories page on mobile device
+2. Verify tabs are accessible and tappable
+3. Test scrolling through category list
+4. Tap "Add Category" button
+5. Verify modal opens and is properly sized
+6. Test color picker on touch interface
+7. Complete category creation on mobile
+8. Test edit and delete actions on mobile
+9. Verify merge modal works on small screen
+
+**Expected Results**:
+- All UI elements are properly sized for mobile
+- Touch interactions work smoothly
+- Modals are responsive and usable
+- Text is readable without zooming
+- No horizontal scrolling required
+- All functionality available on mobile
+
+**Priority**: Medium
+
+---
+
+#### **Test Case 7: Performance and Concurrent Operations**
+**Objective**: Verify system handles multiple operations and performs well
+
+**Prerequisites**:
+- Multiple categories exist (10+)
+- User is logged in
+
+**Test Steps**:
+1. Navigate to Categories page and measure load time
+2. Verify categories and usage stats load concurrently
+3. Rapidly switch between tabs multiple times
+4. Create multiple categories in quick succession
+5. Perform edit operations on different categories simultaneously (multiple browser tabs)
+6. Test system with 50+ categories
+7. Verify search/filtering remains responsive
+
+**Expected Results**:
+- Page loads in under 500ms
+- Parallel API calls complete efficiently
+- Tab switching is smooth and responsive
+- Multiple operations don't cause conflicts
+- System remains responsive with many categories
+- No memory leaks or performance degradation
+
+**Priority**: Low
+
+---
+
+#### **Test Case 8: Error Handling and Recovery**
+**Objective**: Verify system handles errors gracefully and provides recovery options
+
+**Prerequisites**:
+- User is logged in
+- Network connectivity can be controlled
+
+**Test Steps**:
+1. Attempt category creation with network disconnected
+2. Verify appropriate error message appears
+3. Reconnect network and retry operation
+4. Test with invalid API responses (if possible)
+5. Attempt operations with expired authentication
+6. Verify system handles server errors gracefully
+7. Test recovery after temporary failures
+
+**Expected Results**:
+- Clear error messages for network issues
+- Retry mechanisms work properly
+- Authentication errors redirect to login
+- No data loss during error conditions
+- User can recover from error states
+- System remains stable after errors
+
+**Priority**: Medium
+
 ---
 
 ## 🚀 **Deployment**

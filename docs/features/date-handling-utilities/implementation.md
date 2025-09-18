@@ -100,6 +100,55 @@ isValidDateString(dateString: string): boolean
 - **CI/CD Integration**: Prevents deployment of date violations
 - **Developer Feedback**: Clear error messages guide proper usage
 
+## QA Test Cases
+
+### Test Case 1: Date Display Consistency Across Application
+**Objective**: Verify dates are displayed consistently throughout the user interface
+
+**Prerequisites**: 
+- User is logged in
+- Transactions with various dates exist
+
+**Test Steps**:
+1. Navigate to Transactions page and note date format
+2. Navigate to Accounts page and check date displays
+3. Check Account Balance History dates
+4. View Category Management page dates
+5. Create a new transaction and verify date display
+6. Compare date formats across all pages
+
+**Expected Results**:
+- All dates show in consistent format (e.g., MM/DD/YYYY or DD/MM/YYYY)
+- Date format matches user's locale/preferences
+- No discrepancies in date display between features
+- Dates are readable and properly formatted
+
+**Priority**: High
+
+---
+
+### Test Case 2: Timezone Handling for User Dates
+**Objective**: Verify dates display correctly in user's local timezone
+
+**Prerequisites**: 
+- User is logged in
+- Test from different timezones (if possible)
+
+**Test Steps**:
+1. Create a transaction with today's date
+2. Note the date displayed in the application
+3. Check that date matches user's local date
+4. If possible, test from different timezone
+5. Verify dates remain consistent for the user
+
+**Expected Results**:
+- Dates display in user's local timezone
+- Today's date shows as today for the user
+- No unexpected date shifts or timezone errors
+- Consistent behavior regardless of user location
+
+**Priority**: High
+
 ## 📊 **Metrics & Results**
 
 ### **Before Implementation**

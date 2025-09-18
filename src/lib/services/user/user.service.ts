@@ -1,4 +1,4 @@
-import { BaseService } from '../base'
+import { BaseService } from '../base/base.service'
 import { hashPassword } from '@/lib/auth'
 import type { User, Tenant, Membership } from '@prisma/client'
 

@@ -26,7 +26,7 @@ This document contains the prioritized list of all features to be implemented, s
 
 ### **🔥 Priority 1: Critical Path (Work on These First)**
 
-- **Schema Design** - ✅ Complete
+- **Schema Design** - ✅ Completed
   - **Estimate**: 2 days (actual: 1 day)
   - **Completed**: 2025-09-15 14:05
   - **Version**: v5.0.0
@@ -35,7 +35,7 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: Phase 1 of Database Schema Rebuild - clean v4.1-based schema with multi-tenant support
   - **Documentation**: [Planning](docs/features/schema-design/planning.md) | [Implementation](docs/features/schema-design/implementation.md) | [Overall Project](docs/features/database-schema-rebuild/planning.md)
 
-- **API Updates for New Schema** - ✅ Complete
+- **API Updates for New Schema** - ✅ Completed
   - **Estimate**: 3 days (actual: 1 day)
   - **Completed**: 2025-09-15 14:50
   - **Version**: v5.0.0
@@ -44,7 +44,7 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: Phase 2 of database rebuild - service layer architecture + API updates + comprehensive unit tests
   - **Documentation**: [Planning](docs/features/api-updates-for-new-schema/planning.md) | [Implementation](docs/features/api-updates-for-new-schema/implementation.md) | [Execution Log](docs/features/api-updates-for-new-schema/execution-log.md)
 
-- **Date Handling Utilities** - ✅ Complete
+- **Date Handling Utilities** - ✅ Completed
   - **Estimate**: 2 days | **Actual**: 2 days
   - **Completed**: 2025-09-15
   - **Version**: v5.0.1
@@ -56,22 +56,22 @@ This document contains the prioritized list of all features to be implemented, s
 - **Category Management** - ✅ Complete
   - **Estimate**: 2 days | **Actual**: 1 day
   - **Completed**: 2025-01-15 17:45
-  - **Last Updated**: 2025-01-15
   - **Version**: v5.0.1
+  - **Last Updated**: 2025-01-15
   - **Dependencies**: Transaction CRUD (paused to implement this first)
   - **Notes**: Complete category CRUD operations with merge functionality, smart defaults, and transaction count display
   - **Documentation**: [Planning](docs/features/category-management/planning.md) | [Implementation](docs/features/category-management/implementation.md)
 
-- **Account Management** - ✅ Complete (Including Reconciliation)
+- **Account Management** - ✅ Completed (Including Reconciliation)
   - **Estimate**: 3 days (actual: 2.5 days)
   - **Completed**: 2025-09-17
-  - **Last Updated**: 2025-09-17
   - **Version**: v5.0.1
+  - **Last Updated**: 2025-09-17
   - **Dependencies**: API Updates for New Schema ✅, MVP Accounting System ✅
   - **Notes**: **COMPREHENSIVE FEATURE COMPLETE** ✅ Complete account CRUD operations with UI ✅ Smart delete logic ✅ v4.1 layout compatibility ✅ **Account Reconciliation UI** with modal, timezone fixes, TRANSFER adjustments, and proper Decimal sign handling ✅ Balance anchor creation ✅ MVP accounting system compliance
   - **Documentation**: [Planning](docs/features/account-management/planning.md) | [Implementation](docs/features/account-management/implementation.md)
 
-- **Transaction CRUD** - ✅ Complete (Core Features) / 🔧 In Progress (v4.1 Alignment)
+- **Transaction CRUD** - ✅ Completed
   - **Estimate**: 4 days (API: 0.5 days actual, UI Core: 2.5 days actual, v4.1 Alignment: 1.1 days actual, Accounting Fixes: 0.5 days actual)
   - **Completed**: 2025-09-16 18:30 (Core UI + v4.1 improvements + accounting fixes)
   - **Version**: v5.0.1
@@ -80,7 +80,7 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: ✅ API complete ✅ Core UI complete ✅ Category filtering ✅ Dynamic text colors ✅ Summary improvements ✅ **Accounting fixes complete** (Math.abs() corrections, net calculation includes transfers, proper transfer categorization). Remaining: bulk selection, column reordering, form restructure.
   - **Documentation**: [Planning](docs/features/transaction-crud/planning.md)
 
-- **Vercel CLI Deployment System** - ✅ Complete
+- **Vercel CLI Deployment System** - ✅ Completed
   - **Estimate**: 1 day | **Actual**: 1 day
   - **Completed**: 2025-09-16 8:00
   - **Version**: v5.0.1
@@ -89,7 +89,7 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: **DEPLOYMENT INFRASTRUCTURE** ✅ 3-step deployment process (pre-deploy → release → deploy) based on proven v4.1 workflow. Replaces GitHub Actions complexity with direct Vercel CLI for immediate feedback and clear error messages.
   - **Documentation**: [Vercel CLI Guide](docs/deployment/VERCEL_CLI_DEPLOYMENT.md)
 
-- **Account Balance History** - ✅ **Complete**
+- **Account Balance History** - ✅ Completed
   - **Estimate**: 2 days | **Actual**: 1 day
   - **Completed**: 2025-09-17
   - **Version**: v5.0.1
@@ -97,7 +97,7 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: **COMPREHENSIVE FEATURE COMPLETE** ✅ Interactive charts with perfect balance consistency ✅ Running balance transactions table ✅ Summary statistics derived from corrected data ✅ MVP Accounting System compliance with balance anchors ✅ Deterministic transaction sorting ✅ Anchor date display on account cards ✅ Dev Tools integration. Achieved perfect consistency across all balance calculation components.
   - **Documentation**: [Planning](docs/features/account-balance-history/planning.md) | [Execution Log](docs/features/account-balance-history/execution-log.md) | [README](docs/features/account-balance-history/README.md)
 
-- **Navigation Bar and Footer Updates** - ✅ **Completed**
+- **Navigation Bar and Footer Updates** - ✅ Completed
   - **Estimate**: 1 day (Actual: 0.5 days)
   - **Completed**: 2025-09-16 10:10
   - **Version**: v5.0.1
@@ -114,7 +114,7 @@ This document contains the prioritized list of all features to be implemented, s
   - **Notes**: OLAP-style data cube for financial trends with dimensions (period_type, transaction_type, category, recurring, account) and facts (total_amount, transaction_count). Pre-computed WEEKLY/MONTHLY periods with on-demand aggregation for QUARTERLY/YEARLY.
   - **Documentation**: [Planning](features/financial-trends-analysis/planning.md) ✅
 
-- **Bulk Transaction Operations** - ✅ **Complete**
+- **Bulk Transaction Operations** - ✅ Completed
   - **Estimate**: 3 days | **Actual**: 2 days
   - **Completed**: 2025-09-17
   - **Version**: v5.0.2
@@ -177,6 +177,20 @@ This document contains the prioritized list of all features to be implemented, s
   - **Estimate**: 1 day
   - **Dependencies**: None
   - **Notes**: Complete auth flow
+
+- **Hybrid Feature Backlog System** - 📋 Ready
+  - **Estimate**: 2 days
+  - **Dependencies**: None
+  - **Notes**: Implement hybrid markdown + JSON feature tracking system with pre-commit hook automation. Maintains human-readable FEATURE_BACKLOG.md as primary source while auto-generating features.json for reliable script parsing. Includes validation, sync checking, and integration with existing QA/release tooling.
+  - **Key Features**:
+    - Auto-sync markdown → JSON via pre-commit hooks (backlog sync only)
+    - Test case validation integrated into release process (`npm run release`)
+    - Update existing scripts (validate-test-cases, generate-qa-plan) to use JSON
+    - Schema validation for feature entries
+    - Performance improvements for backlog parsing
+    - Release-time validation to catch missing test documentation
+    - **MANDATORY**: Enforce use of `./scripts/create-feature.sh` for all new features
+  - **Documentation**: Planning and implementation docs to be created
 
 - **Intelligent Seed Generation** - ✅ **Completed** (with Accounting Fixes)
   - **Estimate**: 2.5 days (Actual: 1.5 days including accounting corrections)
