@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { generateTokens, createUserSession } from '@/lib/auth'
 import { createSuccessResponse, handleApiError } from '@/lib/api-response'
-import { UserService } from '@/lib/services/user.service'
+import { UserService } from '@/lib/services/user'
 
 // Validation schema
 const registerSchema = z.object({

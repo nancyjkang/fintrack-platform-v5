@@ -147,6 +147,278 @@ A full-featured transaction management interface that exactly matches v4.1's lay
 ### **Build Verification**
 ✅ **TypeScript Compilation**: All components pass strict type checking
 ✅ **Next.js Build**: Production build successful with no errors
+
+## QA Test Cases
+
+### Test Case 1: Transaction Creation (Income)
+**Objective**: Verify users can create income transactions successfully
+
+**Prerequisites**: 
+- User is logged in
+- At least one account exists
+- Income categories are available
+
+**Test Steps**:
+1. Navigate to Transactions page
+2. Click "Add Transaction" button
+3. Select transaction type "INCOME"
+4. Enter amount: $2,500.00
+5. Enter description: "Monthly Salary"
+6. Select account and category
+7. Set date to today
+8. Click "Save Transaction"
+
+**Expected Results**:
+- Transaction created successfully
+- Appears in transaction list immediately
+- Account balance increases by $2,500.00
+- Transaction shows correct type, amount, and details
+- Success message displayed
+
+**Priority**: High
+
+---
+
+### Test Case 2: Transaction Creation (Expense)
+**Objective**: Verify users can create expense transactions successfully
+
+**Prerequisites**: 
+- User is logged in
+- At least one account exists
+- Expense categories are available
+
+**Test Steps**:
+1. Navigate to Transactions page
+2. Click "Add Transaction" button
+3. Select transaction type "EXPENSE"
+4. Enter amount: $150.75
+5. Enter description: "Grocery Shopping"
+6. Select account and category
+7. Set date to yesterday
+8. Mark as recurring transaction
+9. Click "Save Transaction"
+
+**Expected Results**:
+- Transaction created successfully
+- Appears in transaction list with recurring indicator
+- Account balance decreases by $150.75
+- Date shows as yesterday
+- Recurring flag is properly set
+
+**Priority**: High
+
+---
+
+### Test Case 3: Transaction Editing and Updates
+**Objective**: Verify existing transactions can be modified
+
+**Prerequisites**: 
+- At least one transaction exists
+- User is logged in
+
+**Test Steps**:
+1. Navigate to Transactions page
+2. Click "Edit" button on existing transaction
+3. Change amount from $100.00 to $125.50
+4. Change description to "Updated Description"
+5. Change category to different category
+6. Toggle recurring status
+7. Click "Save Changes"
+
+**Expected Results**:
+- Transaction updates successfully
+- Changes reflected immediately in list
+- Account balance updated correctly
+- Transaction history preserved
+- Success message displayed
+
+**Priority**: High
+
+---
+
+### Test Case 4: Transaction Deletion
+**Objective**: Verify transactions can be deleted safely
+
+**Prerequisites**: 
+- At least one transaction exists
+- User is logged in
+
+**Test Steps**:
+1. Navigate to Transactions page
+2. Click "Delete" button on transaction
+3. Confirm deletion in modal
+4. Verify transaction removed from list
+5. Check account balance adjustment
+6. Verify transaction cannot be recovered
+
+**Expected Results**:
+- Confirmation modal appears before deletion
+- Transaction removed from list immediately
+- Account balance adjusted correctly
+- No orphaned data remains
+- Cannot undo deletion (by design)
+
+**Priority**: High
+
+---
+
+### Test Case 5: Transaction Filtering and Search
+**Objective**: Verify filtering and search functionality works correctly
+
+**Prerequisites**: 
+- Multiple transactions with different types, categories, and dates exist
+- User is logged in
+
+**Test Steps**:
+1. Navigate to Transactions page
+2. Test type filter (INCOME, EXPENSE, TRANSFER)
+3. Test category filter
+4. Test account filter
+5. Test date range filter
+6. Test search by description
+7. Test recurring transaction filter
+8. Test combination of multiple filters
+
+**Expected Results**:
+- Each filter works independently
+- Multiple filters work together correctly
+- Search finds transactions by description
+- Filter results update in real-time
+- Clear filters resets to show all transactions
+
+**Priority**: Medium
+
+---
+
+### Test Case 6: Transfer Transactions
+**Objective**: Verify transfer transactions between accounts work correctly
+
+**Prerequisites**: 
+- At least two accounts exist
+- User is logged in
+
+**Test Steps**:
+1. Navigate to Transactions page
+2. Click "Add Transaction" button
+3. Select transaction type "TRANSFER"
+4. Enter amount: $500.00
+5. Select source account (From)
+6. Select destination account (To)
+7. Enter description: "Account Transfer"
+8. Click "Save Transaction"
+
+**Expected Results**:
+- Transfer transaction created successfully
+- Source account balance decreases by $500.00
+- Destination account balance increases by $500.00
+- Both transactions linked as transfer pair
+- Transfer shows in both account histories
+
+**Priority**: High
+
+---
+
+### Test Case 7: Form Validation and Error Handling
+**Objective**: Verify form validation prevents invalid data entry
+
+**Prerequisites**: 
+- User is logged in
+
+**Test Steps**:
+1. Try to create transaction with empty amount
+2. Try to create transaction with negative amount
+3. Try to create transaction without selecting account
+4. Try to create transaction without selecting category
+5. Try to create transaction with future date (if restricted)
+6. Try to create transaction with invalid characters in amount
+7. Test form with network disconnected
+
+**Expected Results**:
+- Empty amount shows validation error
+- Negative amounts handled appropriately
+- Required fields show validation messages
+- Invalid characters rejected in amount field
+- Network errors show appropriate messages
+- Form remains usable after errors
+
+**Priority**: Medium
+
+---
+
+### Test Case 8: Mobile Responsiveness
+**Objective**: Verify transaction management works on mobile devices
+
+**Prerequisites**: 
+- Mobile device or browser dev tools set to mobile view
+- Transactions exist in system
+
+**Test Steps**:
+1. Access Transactions page on mobile device
+2. Test scrolling through transaction list
+3. Test add transaction form on mobile
+4. Test edit transaction on mobile
+5. Test filters and search on mobile
+6. Test delete confirmation on mobile
+
+**Expected Results**:
+- All UI elements properly sized for mobile
+- Touch interactions work smoothly
+- Forms are usable on small screens
+- Text is readable without zooming
+- All functionality available on mobile
+
+**Priority**: Medium
+
+---
+
+### Test Case 9: Performance with Large Data Sets
+**Objective**: Verify performance remains good with many transactions
+
+**Prerequisites**: 
+- Account with 100+ transactions
+- User is logged in
+
+**Test Steps**:
+1. Navigate to Transactions page with large dataset
+2. Test scrolling performance
+3. Test filtering with large dataset
+4. Test search with large dataset
+5. Test transaction creation with large dataset
+6. Monitor page load times and responsiveness
+
+**Expected Results**:
+- Page loads in under 3 seconds
+- Scrolling remains smooth
+- Filtering and search remain responsive
+- No memory leaks or performance degradation
+- UI remains responsive during operations
+
+**Priority**: Low
+
+---
+
+### Test Case 10: Data Persistence and Refresh
+**Objective**: Verify transaction data persists correctly
+
+**Prerequisites**: 
+- User is logged in
+- Transactions exist
+
+**Test Steps**:
+1. Create a new transaction
+2. Refresh the browser page
+3. Navigate away and back to transactions
+4. Log out and log back in
+5. Verify transaction still exists with correct data
+
+**Expected Results**:
+- Transaction data persists after page refresh
+- Data remains after navigation
+- Data persists across login sessions
+- All transaction details remain accurate
+- No data loss occurs
+
+**Priority**: High
 ✅ **ESLint Compliance**: All code follows established linting rules
 ✅ **Date Utils Integration**: Proper integration with v5 date handling
 

@@ -26,6 +26,25 @@ fi
 echo "📦 Generating release documentation for version: v$VERSION"
 echo ""
 
+# Validate test case documentation for completed features
+echo "🧪 Validating test case documentation..."
+if ! npm run validate-test-cases -- --version="$VERSION"; then
+    echo ""
+    echo "⚠️  Warning: Some completed features in v$VERSION are missing test case documentation."
+    echo "   This may impact QA testing for this release."
+    echo ""
+    read -p "Continue with release generation anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "❌ Release generation cancelled. Please add missing test cases first."
+        exit 1
+    fi
+    echo "⚠️  Proceeding with incomplete test documentation..."
+else
+    echo "  ✅ All completed features have proper test case documentation"
+fi
+echo ""
+
 # Create release directory
 RELEASE_DIR="docs/releases/v$VERSION"
 if [ -d "$RELEASE_DIR" ]; then
