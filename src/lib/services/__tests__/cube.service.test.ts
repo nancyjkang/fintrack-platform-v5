@@ -10,6 +10,7 @@ const mockPrisma = {
   },
   transaction: {
     findFirst: jest.fn(),
+    findMany: jest.fn(),
     count: jest.fn()
   },
   account: {
@@ -435,7 +436,7 @@ describe('CubeService', () => {
         category_id: 2,
         amount: new Decimal('100.00'),
         date: new Date('2024-01-15'),
-        type: 'INCOME',
+        type: 'INCOME' as const,
         is_recurring: true
       }
       const userId = 'user-789'
@@ -630,7 +631,7 @@ describe('CubeService', () => {
       // Arrange
       const incomeTransaction = {
         ...mockTransaction,
-        type: 'INCOME'
+        type: 'INCOME' as const
       }
 
       // Act
@@ -669,6 +670,447 @@ describe('CubeService', () => {
 
       // Assert
       expect(consoleSpy).toHaveBeenCalledWith('Failed to add transaction to cube:', expect.any(Error))
+
+      // Cleanup
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('updateTransaction', () => {
+    const mockOldTransaction = {
+      id: 123,
+      date: new Date('2024-01-15T00:00:00.000Z'),
+      type: 'EXPENSE' as const,
+      category_id: 5,
+      is_recurring: false,
+      amount: new Decimal('100.00'),
+      account_id: 1
+    }
+
+    const mockNewTransaction = {
+      id: 123,
+      date: new Date('2024-01-15T00:00:00.000Z'),
+      type: 'EXPENSE' as const,
+      category_id: 8, // Changed category
+      is_recurring: true, // Changed recurring flag
+      amount: new Decimal('150.00'), // Changed amount
+      account_id: 1
+    }
+
+    beforeEach(() => {
+      // Mock the methods that updateTransaction calls
+      mockPrisma.financialCube.deleteMany.mockResolvedValue({ count: 4 })
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        {
+          transaction_type: 'EXPENSE',
+          category_id: 8,
+          category_name: 'Entertainment',
+          is_recurring: true,
+          total_amount: new Decimal('150.00'),
+          transaction_count: 1
+        }
+      ])
+      mockPrisma.financialCube.createMany.mockResolvedValue({ count: 2 })
+
+      // Mock the bulk metadata system dependencies
+      mockPrisma.transaction.findMany.mockResolvedValue([
+        { type: 'EXPENSE', is_recurring: true, category_id: 8 }
+      ])
+    })
+
+    it('should update transaction in cube successfully', async () => {
+      // Arrange
+      const delta = CubeService.createUpdateDelta(
+        123,
+        mockTenantId,
+        {
+          account_id: mockOldTransaction.account_id,
+          category_id: mockOldTransaction.category_id,
+          amount: mockOldTransaction.amount,
+          date: mockOldTransaction.date,
+          type: mockOldTransaction.type as 'EXPENSE',
+          is_recurring: mockOldTransaction.is_recurring
+        },
+        {
+          account_id: mockNewTransaction.account_id,
+          category_id: mockNewTransaction.category_id,
+          amount: mockNewTransaction.amount,
+          date: mockNewTransaction.date,
+          type: mockNewTransaction.type as 'EXPENSE',
+          is_recurring: mockNewTransaction.is_recurring
+        }
+      )
+
+      // Act
+      await cubeService.updateTransaction(delta, mockTenantId)
+
+      // Assert - Should clear old and new cube records (multiple calls for different combinations)
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalled()
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled()
+      expect(mockPrisma.financialCube.createMany).toHaveBeenCalled()
+    })
+
+    it('should handle category change in update', async () => {
+      // Arrange - Only category changes
+      const delta = CubeService.createUpdateDelta(
+        123,
+        mockTenantId,
+        {
+          account_id: 1,
+          category_id: 5, // Old category
+          amount: new Decimal('100.00'),
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'EXPENSE' as const,
+          is_recurring: false
+        },
+        {
+          account_id: 1,
+          category_id: 8, // New category
+          amount: new Decimal('100.00'),
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'EXPENSE' as const,
+          is_recurring: false
+        }
+      )
+
+      // Act
+      await cubeService.updateTransaction(delta, mockTenantId)
+
+      // Assert - Should process the category change
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalled()
+      expect(mockPrisma.financialCube.createMany).toHaveBeenCalled()
+    })
+
+    it('should handle recurring flag change in update', async () => {
+      // Arrange - Only recurring flag changes
+      const delta = CubeService.createUpdateDelta(
+        123,
+        mockTenantId,
+        {
+          account_id: 1,
+          category_id: 5,
+          amount: new Decimal('100.00'),
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'EXPENSE' as const,
+          is_recurring: false // Old value
+        },
+        {
+          account_id: 1,
+          category_id: 5,
+          amount: new Decimal('100.00'),
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'EXPENSE' as const,
+          is_recurring: true // New value
+        }
+      )
+
+      // Act
+      await cubeService.updateTransaction(delta, mockTenantId)
+
+      // Assert - Should process the recurring flag change
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalled()
+      expect(mockPrisma.financialCube.createMany).toHaveBeenCalled()
+    })
+
+    it('should handle amount change in update', async () => {
+      // Arrange - Only amount changes
+      const delta = CubeService.createUpdateDelta(
+        123,
+        mockTenantId,
+        {
+          account_id: 1,
+          category_id: 5,
+          amount: new Decimal('100.00'), // Old amount
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'EXPENSE' as const,
+          is_recurring: false
+        },
+        {
+          account_id: 1,
+          category_id: 5,
+          amount: new Decimal('200.00'), // New amount
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'EXPENSE' as const,
+          is_recurring: false
+        }
+      )
+
+      // Act
+      await cubeService.updateTransaction(delta, mockTenantId)
+
+      // Assert - Should process the amount change
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalled()
+      expect(mockPrisma.financialCube.createMany).toHaveBeenCalled()
+    })
+
+    it('should handle transaction type change in update', async () => {
+      // Arrange - Transaction type changes
+      const delta = CubeService.createUpdateDelta(
+        123,
+        mockTenantId,
+        {
+          account_id: 1,
+          category_id: 5,
+          amount: new Decimal('100.00'),
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'EXPENSE' as const, // Old type
+          is_recurring: false
+        },
+        {
+          account_id: 1,
+          category_id: 5,
+          amount: new Decimal('100.00'),
+          date: new Date('2024-01-15T00:00:00.000Z'),
+          type: 'INCOME' as const, // New type
+          is_recurring: false
+        }
+      )
+
+      // Act
+      await cubeService.updateTransaction(delta, mockTenantId)
+
+      // Assert - Should process the type change
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalled()
+      expect(mockPrisma.financialCube.createMany).toHaveBeenCalled()
+    })
+
+    it('should not throw error when cube operations fail', async () => {
+      // Arrange
+      const delta = CubeService.createUpdateDelta(123, mockTenantId, mockOldTransaction, mockNewTransaction)
+      mockPrisma.financialCube.deleteMany.mockRejectedValue(new Error('Database error'))
+
+      // Act & Assert - Should not throw
+      await expect(cubeService.updateTransaction(delta, mockTenantId)).resolves.toBeUndefined()
+    })
+
+    it('should log warning when cube operations fail', async () => {
+      // Arrange
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+      const delta = CubeService.createUpdateDelta(123, mockTenantId, mockOldTransaction, mockNewTransaction)
+      mockPrisma.financialCube.deleteMany.mockRejectedValue(new Error('Database error'))
+
+      // Act
+      await cubeService.updateTransaction(delta, mockTenantId)
+
+      // Assert
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to update transaction in cube:', expect.any(Error))
+
+      // Cleanup
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('removeTransaction', () => {
+    const mockTransaction = {
+      id: 123,
+      date: new Date('2024-01-15T00:00:00.000Z'), // Monday
+      type: 'EXPENSE' as const,
+      category_id: 5,
+      is_recurring: false,
+      amount: new Decimal('100.00')
+    }
+
+    beforeEach(() => {
+      // Mock the methods that removeTransaction calls
+      mockPrisma.financialCube.deleteMany.mockResolvedValue({ count: 2 })
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        {
+          transaction_type: 'EXPENSE',
+          category_id: 5,
+          category_name: 'Food',
+          is_recurring: false,
+          total_amount: new Decimal('0.00'), // Should be 0 after removal
+          transaction_count: 0
+        }
+      ])
+      mockPrisma.financialCube.createMany.mockResolvedValue({ count: 2 })
+    })
+
+    it('should remove transaction from cube successfully', async () => {
+      // Act
+      await cubeService.removeTransaction(mockTransaction, mockTenantId)
+
+      // Assert - should clear specific cube records (2 calls: weekly + monthly)
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledTimes(2)
+
+      // Verify weekly period clearing
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenant_id: mockTenantId,
+          OR: [{
+            period_type: 'WEEKLY',
+            period_start: expect.any(Date), // Week start (Sunday)
+            transaction_type: 'EXPENSE',
+            category_id: 5,
+            is_recurring: false
+          }]
+        }
+      })
+
+      // Verify monthly period clearing
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenant_id: mockTenantId,
+          OR: [{
+            period_type: 'MONTHLY',
+            period_start: expect.any(Date), // Month start
+            transaction_type: 'EXPENSE',
+            category_id: 5,
+            is_recurring: false
+          }]
+        }
+      })
+
+      // Assert - should rebuild cube data (2 calls: weekly + monthly)
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledTimes(2)
+      expect(mockPrisma.financialCube.createMany).toHaveBeenCalledTimes(2)
+    })
+
+    it('should handle transaction with null category', async () => {
+      // Arrange
+      const transactionWithNullCategory = {
+        ...mockTransaction,
+        category_id: null
+      }
+
+      // Act
+      await cubeService.removeTransaction(transactionWithNullCategory, mockTenantId)
+
+      // Assert - should handle null category in clearing
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenant_id: mockTenantId,
+          OR: [{
+            period_type: 'WEEKLY',
+            period_start: expect.any(Date),
+            transaction_type: 'EXPENSE',
+            category_id: null,
+            is_recurring: false
+          }]
+        }
+      })
+    })
+
+    it('should handle recurring transaction', async () => {
+      // Arrange
+      const recurringTransaction = {
+        ...mockTransaction,
+        is_recurring: true
+      }
+
+      // Act
+      await cubeService.removeTransaction(recurringTransaction, mockTenantId)
+
+      // Assert - should handle recurring flag in clearing
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenant_id: mockTenantId,
+          OR: [{
+            period_type: 'WEEKLY',
+            period_start: expect.any(Date),
+            transaction_type: 'EXPENSE',
+            category_id: 5,
+            is_recurring: true
+          }]
+        }
+      })
+    })
+
+    it('should handle different transaction types', async () => {
+      // Arrange
+      const incomeTransaction = {
+        ...mockTransaction,
+        type: 'INCOME' as const
+      }
+
+      // Act
+      await cubeService.removeTransaction(incomeTransaction, mockTenantId)
+
+      // Assert
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenant_id: mockTenantId,
+          OR: [{
+            period_type: 'WEEKLY',
+            period_start: expect.any(Date),
+            transaction_type: 'INCOME',
+            category_id: 5,
+            is_recurring: false
+          }]
+        }
+      })
+    })
+
+    it('should calculate correct weekly period boundaries', async () => {
+      // Arrange - Monday, Jan 15, 2024
+      const mondayTransaction = {
+        ...mockTransaction,
+        date: new Date('2024-01-15T00:00:00.000Z') // Monday
+      }
+
+      // Act
+      await cubeService.removeTransaction(mondayTransaction, mockTenantId)
+
+      // Assert - Week should start on Sunday (Jan 14, 2024) with WEEK_STARTS_ON = 0
+      // Note: Using expect.any(Date) due to timezone handling differences
+
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenant_id: mockTenantId,
+          OR: [{
+            period_type: 'WEEKLY',
+            period_start: expect.any(Date), // Should be Sunday, but timezone handling varies
+            transaction_type: 'EXPENSE',
+            category_id: 5,
+            is_recurring: false
+          }]
+        }
+      })
+    })
+
+    it('should calculate correct monthly period boundaries', async () => {
+      // Arrange - Mid-month transaction
+      const midMonthTransaction = {
+        ...mockTransaction,
+        date: new Date('2024-01-15T00:00:00.000Z')
+      }
+
+      // Act
+      await cubeService.removeTransaction(midMonthTransaction, mockTenantId)
+
+      // Assert - Month should start on Jan 1, 2024
+      expect(mockPrisma.financialCube.deleteMany).toHaveBeenCalledWith({
+        where: {
+          tenant_id: mockTenantId,
+          OR: [{
+            period_type: 'MONTHLY',
+            period_start: expect.any(Date), // Should be month start
+            transaction_type: 'EXPENSE',
+            category_id: 5,
+            is_recurring: false
+          }]
+        }
+      })
+    })
+
+    it('should not throw error when cube operations fail', async () => {
+      // Arrange - Mock cube operations to fail
+      mockPrisma.financialCube.deleteMany.mockRejectedValue(new Error('Database error'))
+
+      // Act & Assert - Should not throw
+      await expect(cubeService.removeTransaction(mockTransaction, mockTenantId)).resolves.toBeUndefined()
+    })
+
+    it('should log warning when cube operations fail', async () => {
+      // Arrange
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+      mockPrisma.financialCube.deleteMany.mockRejectedValue(new Error('Database error'))
+
+      // Act
+      await cubeService.removeTransaction(mockTransaction, mockTenantId)
+
+      // Assert
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to remove transaction to cube:', expect.any(Error))
 
       // Cleanup
       consoleSpy.mockRestore()

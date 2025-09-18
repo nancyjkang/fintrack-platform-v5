@@ -828,7 +828,7 @@ export class CubeService extends BaseService {
 
     // Extract tenant_id (should be the same for all targets)
     const tenantId = targets[0].tenantId
-    
+
     // Build OR conditions for each target using specific criteria (without tenant_id)
     const orConditions = targets.map(target => ({
       period_type: target.periodType,
@@ -1269,40 +1269,7 @@ export class CubeService extends BaseService {
    * No delta needed - just add the transaction's impact to affected periods
    */
   async addTransaction(transaction: any, tenantId: string): Promise<void> {
-    try {
-      // Simple: just regenerate the weekly and monthly periods for this transaction date
-      const date = transaction.date
-
-      // Weekly period - use consistent week start configuration
-      const weekStart = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
-      const weekEnd = endOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
-
-      // Monthly period
-      const monthStart = createUTCDate(date.getUTCFullYear(), date.getUTCMonth(), 1)
-      const monthEnd = createUTCDate(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)
-
-      // Process both periods
-      for (const [periodType, periodStart, periodEnd] of [
-        ['WEEKLY' as const, weekStart, weekEnd],
-        ['MONTHLY' as const, monthStart, monthEnd]
-      ]) {
-        const targets: CubeRegenerationTarget[] = [{
-          tenantId,
-          periodType,
-          periodStart,
-          periodEnd,
-          transactionType: transaction.type,
-          categoryId: transaction.category_id,
-          isRecurring: transaction.is_recurring
-        }]
-
-        await this.clearSpecificCubeRecords(targets)
-        await this.buildCubeForTargets(tenantId, periodStart, periodEnd, periodType, targets)
-      }
-    } catch (error) {
-      console.warn('Failed to add transaction to cube:', error)
-      // Don't throw - cube updates should not fail transaction creation
-    }
+    return this.syncTransactionToCube(transaction, tenantId, 'add')
   }
 
   /**
@@ -1325,8 +1292,23 @@ export class CubeService extends BaseService {
    * No delta needed - just remove the transaction's impact from affected periods
    */
   async removeTransaction(transaction: any, tenantId: string): Promise<void> {
+    return this.syncTransactionToCube(transaction, tenantId, 'remove')
+  }
+
+  /**
+   * Sync a single transaction to the cube (add or remove)
+   * Regenerates the weekly and monthly periods for the transaction date
+   *
+   * This method consolidates the common logic between addTransaction and removeTransaction
+   * since both operations require the same cube regeneration approach.
+   */
+  private async syncTransactionToCube(
+    transaction: any,
+    tenantId: string,
+    operation: 'add' | 'remove'
+  ): Promise<void> {
     try {
-      // Simple: just regenerate the weekly and monthly periods for this transaction date
+      // Calculate weekly and monthly periods for this transaction date
       const date = transaction.date
 
       // Weekly period - use consistent week start configuration
@@ -1356,8 +1338,8 @@ export class CubeService extends BaseService {
         await this.buildCubeForTargets(tenantId, periodStart, periodEnd, periodType, targets)
       }
     } catch (error) {
-      console.warn('Failed to remove transaction from cube:', error)
-      // Don't throw - cube updates should not fail transaction deletion
+      console.warn(`Failed to ${operation} transaction to cube:`, error)
+      // Don't throw - cube updates should not fail transaction operations
     }
   }
 

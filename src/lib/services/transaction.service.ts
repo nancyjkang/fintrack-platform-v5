@@ -247,6 +247,29 @@ export class TransactionService extends BaseService {
         }
       })
 
+      // Update cube with transaction changes using delta approach
+      const delta = CubeService.createUpdateDelta(
+        id,
+        tenantId,
+        {
+          account_id: existingTransaction.account_id,
+          category_id: existingTransaction.category_id,
+          amount: existingTransaction.amount,
+          date: existingTransaction.date,
+          type: existingTransaction.type as 'INCOME' | 'EXPENSE' | 'TRANSFER',
+          is_recurring: existingTransaction.is_recurring
+        },
+        {
+          account_id: transaction.account_id,
+          category_id: transaction.category_id,
+          amount: transaction.amount,
+          date: transaction.date,
+          type: transaction.type as 'INCOME' | 'EXPENSE' | 'TRANSFER',
+          is_recurring: transaction.is_recurring
+        }
+      )
+      await cubeService.updateTransaction(delta, tenantId)
+
       return transaction
     } catch (error) {
       return this.handleError(error, 'TransactionService.updateTransaction')
@@ -269,6 +292,9 @@ export class TransactionService extends BaseService {
       await this.prisma.transaction.delete({
         where: { id }
       })
+
+      // Remove transaction from cube using direct removal approach
+      await cubeService.removeTransaction(existingTransaction, tenantId)
     } catch (error) {
       return this.handleError(error, 'TransactionService.deleteTransaction')
     }
