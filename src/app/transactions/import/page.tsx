@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { csvImportService } from '@/lib/services/csv-import'
 import type { ParseResult, ColumnMapping } from '@/lib/types/csv-import.types'
 import { formatDateForDisplay } from '@/lib/utils/date-utils'
+import AppLayout from '@/components/layout/AppLayout'
+import { api } from '@/lib/client/api'
 
 // Types
 type ImportStep = 'upload' | 'mapping' | 'review' | 'importing'
@@ -50,14 +52,75 @@ export default function ImportTransactionsPage() {
   const [creditInterpretation, setCreditInterpretation] = useState<'positive' | 'negative'>('positive')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
+  const [importProgress, setImportProgress] = useState(0)
+  const [importResult, setImportResult] = useState<{
+    imported: number
+    skipped: number
+    errors: string[]
+    duplicatesSkipped: number
+  } | null>(null)
+  const [existingTransactions, setExistingTransactions] = useState<Array<{
+    id: number
+    date: string
+    description: string
+    amount: number
+  }>>([])
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false)
+  const [accounts, setAccounts] = useState<Array<{
+    id: number
+    name: string
+    type: string
+    balance: number
+    is_active: boolean
+  }>>([])
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Mock accounts data - will be replaced with real API call
-  const accounts = [
-    { id: '1', name: 'Checking Account', type: 'CHECKING', currency: 'USD', currentBalance: 1500.00, isActive: true },
-    { id: '2', name: 'Savings Account', type: 'SAVINGS', currency: 'USD', currentBalance: 5000.00, isActive: true },
-    { id: '3', name: 'Credit Card', type: 'CREDIT_CARD', currency: 'USD', currentBalance: -250.00, isActive: true },
-  ]
+  // Fetch existing transactions for duplicate checking
+  const fetchExistingTransactions = async () => {
+    if (!selectedAccountId) return
+
+    setIsCheckingDuplicates(true)
+    try {
+      const response = await api.getTransactions({
+        account_id: selectedAccountId,
+        // Get more transactions to ensure comprehensive duplicate checking
+        // Note: The API client doesn't support limit parameter, so we'll get the default pagination
+      })
+
+      if (response.success && response.data) {
+        setExistingTransactions(response.data.transactions || [])
+      } else {
+        console.error('Failed to fetch existing transactions:', response.error || 'Unknown error')
+      }
+    } catch (error) {
+      console.error('Error fetching existing transactions:', error)
+    } finally {
+      setIsCheckingDuplicates(false)
+    }
+  }
+
+  // Fetch accounts from API
+  const fetchAccounts = async () => {
+    setIsLoadingAccounts(true)
+    try {
+      const response = await api.getAccounts({ is_active: true })
+      if (response.success && response.data) {
+        setAccounts(response.data)
+      } else {
+        console.error('Failed to fetch accounts:', response.error)
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error)
+    } finally {
+      setIsLoadingAccounts(false)
+    }
+  }
+
+  // Load accounts on component mount
+  useEffect(() => {
+    fetchAccounts()
+  }, [])
 
   const steps = [
     { id: 'upload', title: 'Upload', stepNumber: 1 },
@@ -180,6 +243,143 @@ export default function ImportTransactionsPage() {
     }
   }
 
+  const handleImportTransactions = async () => {
+    if (!parseResult || !columnMapping) return
+
+    setIsLoading(true)
+    setError('')
+    setImportProgress(0)
+
+    try {
+      // Get raw CSV data for processing
+      const csvLines = csvContent.split('\n').filter(line => line.trim())
+      const dataLines = csvLines.slice(1) // Skip header
+
+      // Process transactions for import
+      const transactionsToImport = parseResult.transactions
+        .map((transaction, index) => {
+          // Get raw CSV row for this transaction
+          const rawRow = dataLines[index]?.split(',') || []
+
+          // Calculate final amount based on debit/credit interpretation
+          let finalAmount = 0
+
+          if (columnMapping.debit !== -1 && rawRow[columnMapping.debit]) {
+            const debitValue = parseFloat(rawRow[columnMapping.debit].replace(/[^0-9.-]/g, '')) || 0
+            if (debitValue !== 0) {
+              finalAmount = debitInterpretation === 'positive' ? -Math.abs(debitValue) : Math.abs(debitValue)
+            }
+          }
+
+          if (columnMapping.credit !== -1 && rawRow[columnMapping.credit]) {
+            const creditValue = parseFloat(rawRow[columnMapping.credit].replace(/[^0-9.-]/g, '')) || 0
+            if (creditValue !== 0) {
+              finalAmount = creditInterpretation === 'positive' ? Math.abs(creditValue) : -Math.abs(creditValue)
+            }
+          }
+
+          if (columnMapping.amount !== -1 && transaction.amount !== undefined) {
+            finalAmount = parseFloat(transaction.amount.toString()) || 0
+          }
+
+          // Enhanced TRANSFER detection
+          const description = transaction.description?.toLowerCase().trim() || ''
+          const category = transaction.category?.toLowerCase().trim() || ''
+
+          // Transfer keywords for description matching
+          const transferKeywords = [
+            'transfer', 'internal', 'move to', 'move from', 'between accounts',
+            'account transfer', 'funds transfer', 'wire transfer', 'ach transfer',
+            'online transfer', 'mobile transfer', 'transfer in', 'transfer out',
+            'xfer', 'tfr', 'trf', 'deposit to', 'withdrawal from',
+            'from savings', 'to savings', 'from checking', 'to checking',
+            'from credit', 'to credit', 'balance transfer', 'payment transfer',
+            'interac transfer', 'e-transfer', 'etransfer', 'auto transfer',
+            'scheduled transfer', 'recurring transfer', 'sweep', 'rebalance'
+          ]
+
+          // Category-based transfer detection
+          const transferCategories = [
+            'transfer', 'transfers', 'internal transfer', 'account transfer',
+            'balance transfer', 'funds transfer', 'money movement', 'internal'
+          ]
+
+          // Check for transfer indicators
+          const isTransferByDescription = transferKeywords.some(keyword =>
+            description.includes(keyword)
+          )
+          const isTransferByCategory = transferCategories.some(cat =>
+            category.includes(cat)
+          )
+
+          // Determine transaction type
+          let transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER' = 'EXPENSE'
+          if (isTransferByDescription || isTransferByCategory) {
+            transactionType = 'TRANSFER'
+          } else {
+            transactionType = finalAmount > 0 ? 'INCOME' : 'EXPENSE'
+          }
+
+          // Only include valid transactions
+          const isValid = !!(transaction.date && transaction.description && finalAmount !== 0)
+
+          return isValid ? {
+            accountId: selectedAccountId.toString(),
+            date: transaction.date,
+            description: transaction.description,
+            amount: finalAmount,
+            type: transactionType,
+            category: transaction.category,
+            notes: transaction.notes,
+            isRecurring: transaction.recurring || false
+          } : null
+        })
+        .filter(t => t !== null)
+
+      // Simulate progress updates
+
+      setImportProgress(10)
+
+      // Call import API with authentication
+      console.log('Importing transactions:', transactionsToImport)
+      const accessToken = api.getAccessToken()
+      const response = await fetch('/api/transactions/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          transactions: transactionsToImport,
+          skipDuplicates: true
+        })
+      })
+
+      setImportProgress(50)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Import failed')
+      }
+
+      const result = await response.json()
+      console.log('Import result:', result)
+      setImportResult(result.data)
+      setImportProgress(100)
+
+      // Move to final step after a brief delay
+      setTimeout(() => {
+        setStep('importing')
+      }, 500)
+
+    } catch (error) {
+      console.error('Error importing transactions:', error)
+      setError(error instanceof Error ? error.message : 'Failed to import transactions')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleUploadStep = async () => {
     if (!file || !selectedAccountId || !csvContent) return
 
@@ -274,11 +474,14 @@ export default function ImportTransactionsPage() {
           onChange={(e) => setSelectedAccountId(e.target.value)}
           className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           required
+          disabled={isLoadingAccounts}
         >
-          <option value="">Choose an account...</option>
-          {accounts.filter(account => account.isActive).map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name} ({account.type}) - ${account.currentBalance.toFixed(2)} {account.currency}
+          <option value="">
+            {isLoadingAccounts ? 'Loading accounts...' : 'Choose an account...'}
+          </option>
+          {accounts.filter(account => account.is_active).map((account) => (
+            <option key={account.id} value={account.id.toString()}>
+              {account.name} ({account.type}) - ${typeof account.balance === 'number' ? account.balance.toFixed(2) : parseFloat(account.balance || '0').toFixed(2)}
             </option>
           ))}
         </select>
@@ -500,11 +703,14 @@ export default function ImportTransactionsPage() {
             Back
           </button>
           <button
-            onClick={() => setStep('review')}
-            disabled={columnMapping.date === -1 || columnMapping.description === -1}
+            onClick={async () => {
+              await fetchExistingTransactions()
+              setStep('review')
+            }}
+            disabled={columnMapping.date === -1 || columnMapping.description === -1 || isCheckingDuplicates}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Continue
+            {isCheckingDuplicates ? 'Checking for duplicates...' : 'Continue'}
           </button>
         </div>
       </div>
@@ -603,11 +809,29 @@ export default function ImportTransactionsPage() {
       }
     })
 
-    // Simple duplicate detection based on date, description, and amount
+    // Enhanced duplicate detection - check against existing transactions and within CSV
     const duplicateGroups = new Map<string, number[]>()
+
     processedTransactions.forEach((transaction, index) => {
       if (transaction.isValid) {
         const key = `${transaction.formattedDate}-${transaction.description?.toLowerCase().trim()}-${Math.abs(transaction.finalAmount)}`
+
+        // Check against existing transactions in database
+        const existingDuplicate = existingTransactions.some(existing => {
+          const existingDate = formatDateForDisplay(existing.date)
+          const existingDescription = existing.description?.toLowerCase().trim() || ''
+          const existingAmount = Math.abs(existing.amount)
+
+          return existingDate === transaction.formattedDate &&
+                 existingDescription === transaction.description?.toLowerCase().trim() &&
+                 existingAmount === Math.abs(transaction.finalAmount)
+        })
+
+        if (existingDuplicate) {
+          processedTransactions[index].isDuplicate = true
+        }
+
+        // Also check for duplicates within the current CSV
         if (!duplicateGroups.has(key)) {
           duplicateGroups.set(key, [])
         }
@@ -615,7 +839,7 @@ export default function ImportTransactionsPage() {
       }
     })
 
-    // Mark duplicates
+    // Mark duplicates within CSV
     duplicateGroups.forEach((indices) => {
       if (indices.length > 1) {
         indices.forEach(index => {
@@ -635,6 +859,34 @@ export default function ImportTransactionsPage() {
 
     return (
       <div>
+        {/* Target Account Info */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            <span className="font-medium">Target Account:</span> {(() => {
+              const account = accounts.find(a => a.id.toString() === selectedAccountId)
+              if (!account) return 'Account not found'
+              const balance = typeof account.balance === 'number' ? account.balance.toFixed(2) : parseFloat(account.balance || '0').toFixed(2)
+              return `${account.name} (${account.type}) - $${balance}`
+            })()}
+          </div>
+        </div>
+
+        {/* Loading indicator for duplicate checking */}
+        {isCheckingDuplicates && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <svg className="animate-spin w-5 h-5 text-yellow-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="font-medium text-yellow-800">Checking for duplicate transactions...</span>
+            </div>
+          </div>
+        )}
+
         <h3 className="text-lg font-medium text-gray-900 mb-4">Review Transactions</h3>
 
         {/* Summary Stats */}
@@ -668,7 +920,11 @@ export default function ImportTransactionsPage() {
                     <div className="text-lg font-bold text-green-900">{incomeTransactions.length}</div>
                     <div className="text-xs text-green-700">Income</div>
                   </div>
-                  <div className="text-green-600">💰</div>
+                  <div className="text-green-600">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -677,7 +933,11 @@ export default function ImportTransactionsPage() {
                     <div className="text-lg font-bold text-red-900">{expenseTransactions.length}</div>
                     <div className="text-xs text-red-700">Expenses</div>
                   </div>
-                  <div className="text-red-600">💸</div>
+                  <div className="text-red-600">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -686,7 +946,11 @@ export default function ImportTransactionsPage() {
                     <div className="text-lg font-bold text-blue-900">{transferTransactions.length}</div>
                     <div className="text-xs text-blue-700">Transfers</div>
                   </div>
-                  <div className="text-blue-600">🔄</div>
+                  <div className="text-blue-600">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                  </div>
                 </div>
               </div>
             </div>
@@ -756,7 +1020,7 @@ export default function ImportTransactionsPage() {
                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                       {transaction.formattedDate}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-900 max-w-xs truncate">
+                    <td className="px-3 py-2 text-sm text-gray-900 max-w-xs truncate" title={transaction.description || 'No description'}>
                       {transaction.description || 'No description'}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-sm font-medium">
@@ -773,7 +1037,7 @@ export default function ImportTransactionsPage() {
                         {transaction.transactionType}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-500 max-w-xs truncate">
+                    <td className="px-3 py-2 text-sm text-gray-500 max-w-xs truncate" title={transaction.category || 'Uncategorized'}>
                       {transaction.category || 'Uncategorized'}
                     </td>
                   </tr>
@@ -794,18 +1058,33 @@ export default function ImportTransactionsPage() {
           <h4 className="font-semibold text-blue-900 mb-2">📊 Import Summary</h4>
           <div className="text-sm text-blue-800 space-y-1">
             <p>• {validTransactions.length} valid transactions will be imported</p>
-            <div className="ml-4 text-xs space-y-0.5">
-              <p>→ {incomeTransactions.length} income transactions 💰</p>
-              <p>→ {expenseTransactions.length} expense transactions 💸</p>
+            <div className="ml-4 text-xs space-y-1">
+              <p className="flex items-center gap-2">
+                <span>→ {incomeTransactions.length} income transactions</span>
+                <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                </svg>
+              </p>
+              <p className="flex items-center gap-2">
+                <span>→ {expenseTransactions.length} expense transactions</span>
+                <svg className="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                </svg>
+              </p>
               {transferTransactions.length > 0 && (
-                <p>→ {transferTransactions.length} transfer transactions 🔄</p>
+                <p className="flex items-center gap-2">
+                  <span>→ {transferTransactions.length} transfer transactions</span>
+                  <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </p>
               )}
             </div>
             <p>• {invalidTransactions.length} invalid transactions will be skipped</p>
             {duplicateTransactions.length > 0 && (
               <p>• {duplicateTransactions.length} potential duplicates detected - review recommended</p>
             )}
-            <p>• Target account: {accounts.find(a => a.id === selectedAccountId)?.name}</p>
+            <p>• Target account: {accounts.find(a => a.id.toString() === selectedAccountId)?.name}</p>
             {transferTransactions.length > 0 && (
               <div className="mt-2 p-2 bg-blue-100 rounded text-xs">
                 <p className="font-medium text-blue-900">💡 Transfer Detection Active</p>
@@ -823,42 +1102,197 @@ export default function ImportTransactionsPage() {
             Back to Mapping
           </button>
           <button
-            onClick={() => setStep('importing')}
-            disabled={validTransactions.length === 0}
+            onClick={handleImportTransactions}
+            disabled={validTransactions.length === 0 || isLoading}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Import {validTransactions.length} Transaction{validTransactions.length === 1 ? '' : 's'}
+            {isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Importing... ({importProgress}%)
+              </>
+            ) : (
+              `Import ${validTransactions.length} Transaction${validTransactions.length === 1 ? '' : 's'}`
+            )}
           </button>
         </div>
       </div>
     )
   }
 
-  const renderImportingStep = () => (
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Importing Transactions</h3>
+  const renderImportingStep = () => {
+    if (isLoading) {
+      return (
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Importing Transactions</h3>
 
-      <div className="text-center py-8">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <h4 className="font-semibold text-green-900 mb-2">Import Step</h4>
-          <p className="text-sm text-green-800">
-            Transaction import functionality will be implemented in the next phase.
-          </p>
+          <div className="text-center py-8">
+            <div className="mb-6">
+              <svg className="animate-spin mx-auto h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+
+            <h4 className="text-lg font-medium text-gray-900 mb-2">Processing Your Transactions</h4>
+            <p className="text-sm text-gray-600 mb-4">Please wait while we import your transactions...</p>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${importProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-500">{importProgress}% Complete</p>
+          </div>
         </div>
+      )
+    }
 
-        <button
-          onClick={() => router.push('/transactions')}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700"
-        >
-          View Transactions
-        </button>
+    if (error) {
+      return (
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Import Failed</h3>
+
+          <div className="text-center py-8">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+              <div className="text-red-600 mb-4">
+                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h4 className="font-semibold text-red-900 mb-2">Import Error</h4>
+              <p className="text-sm text-red-800 mb-4">{error}</p>
+
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => setStep('review')}
+                  className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-lg shadow-sm text-red-700 bg-white hover:bg-red-50"
+                >
+                  Back to Review
+                </button>
+                <button
+                  onClick={() => {
+                    setError('')
+                    setStep('upload')
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-red-600 hover:bg-red-700"
+                >
+                  Start Over
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (importResult) {
+      return (
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Import Complete</h3>
+
+          <div className="text-center py-8">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+              <div className="text-green-600 mb-4">
+                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+
+              <h4 className="font-semibold text-green-900 mb-4">Import Successful!</h4>
+
+              {/* Import Statistics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-lg p-4 border border-green-200">
+                  <div className="text-2xl font-bold text-green-900">{importResult.imported}</div>
+                  <div className="text-sm text-green-700">Imported</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-yellow-200">
+                  <div className="text-2xl font-bold text-yellow-900">{importResult.duplicatesSkipped}</div>
+                  <div className="text-sm text-yellow-700">Duplicates Skipped</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-red-200">
+                  <div className="text-2xl font-bold text-red-900">{importResult.skipped}</div>
+                  <div className="text-sm text-red-700">Errors/Skipped</div>
+                </div>
+              </div>
+
+              {/* Error Details */}
+              {importResult.errors.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-left">
+                  <h5 className="font-medium text-yellow-900 mb-2">Import Warnings:</h5>
+                  <ul className="text-sm text-yellow-800 space-y-1 max-h-32 overflow-y-auto">
+                    {importResult.errors.slice(0, 10).map((error, index) => (
+                      <li key={index} className="flex items-start">
+                        <span className="inline-block w-1 h-1 bg-yellow-500 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                        <span>{error}</span>
+                      </li>
+                    ))}
+                    {importResult.errors.length > 10 && (
+                      <li className="text-yellow-600 font-medium">
+                        ... and {importResult.errors.length - 10} more
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => router.push('/transactions')}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700"
+                >
+                  View Transactions
+                </button>
+                <button
+                  onClick={() => {
+                    // Reset all state for new import
+                    setStep('upload')
+                    setFile(null)
+                    setSelectedAccountId('')
+                    setCsvContent('')
+                    setParseResult(null)
+                    setColumnMapping(null)
+                    setImportResult(null)
+                    setError('')
+                    setImportProgress(0)
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Import Another File
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // Fallback (shouldn't reach here)
+    return (
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Import Status Unknown</h3>
+        <div className="text-center py-8">
+          <button
+            onClick={() => setStep('upload')}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+          >
+            Start Over
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <AppLayout>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <button
@@ -894,7 +1328,8 @@ export default function ImportTransactionsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           {renderStepContent()}
         </div>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

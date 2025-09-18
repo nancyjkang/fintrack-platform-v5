@@ -20,7 +20,7 @@ const createTransactionSchema = z.object({
 
 const querySchema = z.object({
   page: z.string().optional().transform((val) => val ? parseInt(val) : 1),
-  limit: z.string().optional().transform((val) => val ? Math.min(parseInt(val) || 20, 100) : 20),
+  limit: z.string().optional().transform((val) => val ? Math.min(parseInt(val) || 100, 1000) : 100),
   account_id: z.string().optional().transform((val) => val ? parseInt(val) : undefined),
   category_id: z.string().optional().transform((val) => val ? parseInt(val) : undefined),
   type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']).optional(),
@@ -28,6 +28,8 @@ const querySchema = z.object({
   search: z.string().optional(),
   date_from: z.string().optional().transform((val) => val ? parseAndConvertToUTC(val) : undefined),
   date_to: z.string().optional().transform((val) => val ? parseAndConvertToUTC(val) : undefined),
+  sort_field: z.enum(['date', 'description', 'amount', 'type', 'category', 'account']).optional().default('date'),
+  sort_direction: z.enum(['asc', 'desc']).optional().default('desc'),
 })
 
 /**
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const url = new URL(request.url)
     const queryParams = Object.fromEntries(url.searchParams.entries())
-    const { page, limit, account_id, category_id, type, is_recurring, search, date_from, date_to } = querySchema.parse(queryParams)
+    const { page, limit, account_id, category_id, type, is_recurring, search, date_from, date_to, sort_field, sort_direction } = querySchema.parse(queryParams)
 
     // Build filters
     const filters: Record<string, unknown> = {}
@@ -57,8 +59,14 @@ export async function GET(request: NextRequest) {
     if (date_from) filters.date_from = date_from
     if (date_to) filters.date_to = date_to
 
+    // Add sorting to filters
+    filters.sort_field = sort_field
+    filters.sort_direction = sort_direction
+
     // Get transactions using service
+    console.log('GET /api/transactions - tenantId:', auth.tenantId, 'filters:', filters)
     const transactions = await TransactionService.getTransactions(auth.tenantId, filters)
+    console.log('GET /api/transactions - found', transactions.length, 'transactions')
 
     // Apply pagination
     const startIndex = (page - 1) * limit

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Edit, Trash2, RotateCcw, FileText } from 'lucide-react';
 import { formatDateForDisplay } from '@/lib/utils/date-utils';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -90,14 +90,42 @@ export default function TransactionsList({
     color: string;
   }>>([]);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [pageSize] = useState(50); // Configurable page size
+
+  // Sorting state
+  const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | 'type' | 'category' | 'account'>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+
+  // Sort handler
+  const handleSort = useCallback((field: typeof sortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to desc for date/amount, asc for text fields
+      setSortField(field);
+      setSortDirection(field === 'date' || field === 'amount' ? 'desc' : 'asc');
+    }
+  }, [sortField]);
+
   // Fetch transactions based on filters
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Build query parameters
-      const params: TransactionQueryParams = {};
+      // Build query parameters including pagination and sorting
+      const params: TransactionQueryParams & {
+        page?: string;
+        limit?: string;
+        sort_field?: string;
+        sort_direction?: string;
+      } = {};
 
       if (filters.description) params.search = filters.description;
       if (filters.account) params.account_id = filters.account;
@@ -107,18 +135,35 @@ export default function TransactionsList({
       if (filters.fromDate) params.date_from = filters.fromDate;
       if (filters.toDate) params.date_to = filters.toDate;
 
+      // Add pagination parameters
+      params.page = currentPage.toString();
+      params.limit = pageSize.toString();
+
+      // Add sorting parameters
+      params.sort_field = sortField;
+      params.sort_direction = sortDirection;
+
       const response = await api.getTransactions(params);
 
       if (response.success) {
         const transactionsData = response.data?.transactions || [];
+        const paginationData = response.data?.pagination;
 
         // Convert amounts to numbers (keep dates as strings)
         const processedTransactions = transactionsData.map(t => ({
           ...t,
           amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount
         }));
+
+        // Transactions are already sorted by the server
         setTransactions(processedTransactions);
         onTransactionsChange?.(processedTransactions);
+
+        // Update pagination state
+        if (paginationData) {
+          setTotalPages(paginationData.totalPages);
+          setTotalTransactions(paginationData.total);
+        }
       } else {
         throw new Error(response.error || 'Failed to fetch transactions');
       }
@@ -130,12 +175,69 @@ export default function TransactionsList({
     } finally {
       setLoading(false);
     }
-  }, [filters, onTransactionsChange]);
+  }, [filters, onTransactionsChange, currentPage, pageSize, sortField, sortDirection]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
 
   // Effects
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions, refreshTrigger]);
+
+  // Pagination handlers
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handlePreviousPage = useCallback(() => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  }, []);
+
+  const handleNextPage = useCallback(() => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  }, [totalPages]);
+
+  // Sortable header component
+  const SortableHeader = ({ field, children, className = "", align = "left" }: {
+    field: typeof sortField;
+    children: React.ReactNode;
+    className?: string;
+    align?: "left" | "right";
+  }) => {
+    const isActive = sortField === field;
+    const isAsc = sortDirection === 'asc';
+
+    return (
+      <th
+        className={`px-6 py-3 text-${align} text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+        onClick={() => handleSort(field)}
+      >
+        <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+          <span>{children}</span>
+          <div className="flex flex-col">
+            <svg
+              className={`w-3 h-3 ${isActive && !isAsc ? 'text-blue-600' : 'text-gray-400'}`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            <svg
+              className={`w-3 h-3 -mt-1 ${isActive && isAsc ? 'text-blue-600' : 'text-gray-400'}`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
+      </th>
+    );
+  };
 
   // Handlers
   const handleDeleteClick = useCallback((transaction: Transaction) => {
@@ -472,21 +574,21 @@ export default function TransactionsList({
                   title={isAllSelected ? "Deselect all" : "Select all"}
                 />
               </th>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">
+              <SortableHeader field="date">
                 Date
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">
+              </SortableHeader>
+              <SortableHeader field="description">
                 Description
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">
+              </SortableHeader>
+              <SortableHeader field="type">
                 Category/Type
-              </th>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">
+              </SortableHeader>
+              <SortableHeader field="account">
                 Account
-              </th>
-              <th className="px-6 py-3 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
+              </SortableHeader>
+              <SortableHeader field="amount" align="right">
                 Amount
-              </th>
+              </SortableHeader>
               <th className="px-6 py-3 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
                 Actions
               </th>
@@ -598,6 +700,65 @@ export default function TransactionsList({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-200">
+          <div className="flex items-center text-sm text-gray-700">
+            <span>
+              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalTransactions)} of {totalTransactions} transactions
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+
+            <div className="flex items-center gap-1">
+              {/* Show page numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 text-sm border rounded-md ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog

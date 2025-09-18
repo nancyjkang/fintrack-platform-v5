@@ -58,6 +58,8 @@ export interface TransactionFilters {
   // eslint-disable-next-line no-restricted-globals
   date_to?: Date
   search?: string
+  sort_field?: string
+  sort_direction?: string
 }
 
 export interface TransactionWithRelations extends Transaction {
@@ -105,15 +107,44 @@ export class TransactionService extends BaseService {
         }
       }
 
+      // Build orderBy clause based on sort parameters
+      let orderBy: any = { date: 'desc' } // Default sorting
+      
+      if (filters?.sort_field && filters?.sort_direction) {
+        const sortField = filters.sort_field as string
+        const sortDirection = filters.sort_direction as 'asc' | 'desc'
+
+        switch (sortField) {
+          case 'date':
+            orderBy = { date: sortDirection }
+            break
+          case 'description':
+            orderBy = { description: sortDirection }
+            break
+          case 'amount':
+            orderBy = { amount: sortDirection }
+            break
+          case 'type':
+            orderBy = { type: sortDirection }
+            break
+          case 'category':
+            orderBy = { category: { name: sortDirection } }
+            break
+          case 'account':
+            orderBy = { account: { name: sortDirection } }
+            break
+          default:
+            orderBy = { date: 'desc' }
+        }
+      }
+
       const transactions = await this.prisma.transaction.findMany({
         where,
         include: {
           account: true,
           category: true
         },
-        orderBy: {
-          date: 'desc'
-        }
+        orderBy
       })
 
       return transactions
