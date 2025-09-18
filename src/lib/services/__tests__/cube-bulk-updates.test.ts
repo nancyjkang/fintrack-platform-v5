@@ -451,10 +451,18 @@ describe('TransactionService - Bulk Updates', () => {
 
       await TransactionService.bulkUpdateTransactions(transactionIds, updates, tenantId)
 
-      // Verify database operations (simplified - no cube integration)
+      // Verify database operations (with cube integration)
       expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith({
         where: { id: { in: transactionIds }, tenant_id: tenantId },
-        select: { id: true }
+        select: {
+          id: true,
+          account_id: true,
+          category_id: true,
+          amount: true,
+          date: true,
+          type: true,
+          is_recurring: true
+        }
       })
 
       expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith({
@@ -491,20 +499,23 @@ describe('TransactionService - Bulk Updates', () => {
       })
     })
 
-    it('should handle date changes (simplified implementation)', async () => {
+    it('should reject date changes (cube integration limitation)', async () => {
       mockPrisma.transaction.findMany.mockResolvedValue([
-        { id: 1 }
+        { 
+          id: 1, 
+          account_id: 1, 
+          category_id: 5, 
+          amount: new Decimal('100'), 
+          date: new Date('2024-01-15'), 
+          type: 'EXPENSE', 
+          is_recurring: false 
+        }
       ])
 
-      // Current implementation allows date changes - no validation restrictions
+      // Cube integration doesn't support date changes in bulk operations
       await expect(
         TransactionService.bulkUpdateTransactions([1], { date: new Date('2024-01-20') }, 'tenant-1')
-      ).resolves.toBeUndefined()
-
-      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: [1] }, tenant_id: 'tenant-1' },
-        data: { date: new Date('2024-01-20') }
-      })
+      ).rejects.toThrow('Date changes in bulk updates not supported. Use individual transaction updates.')
     })
   })
 

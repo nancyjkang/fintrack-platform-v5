@@ -341,23 +341,35 @@ export class TransactionService extends BaseService {
       // Defensive fix: Ensure transactionIds is always an array
       const safeTransactionIds = Array.isArray(transactionIds) ? transactionIds : [transactionIds];
 
-      // Check if transactions exist
-      const existingTransactions = await this.prisma.transaction.findMany({
+      // 1. Get old values for affected transactions (for cube calculation)
+      const oldTransactions = await this.prisma.transaction.findMany({
         where: { id: { in: safeTransactionIds }, tenant_id: tenantId },
-        select: { id: true }
+        select: {
+          id: true,
+          account_id: true,
+          category_id: true,
+          amount: true,
+          date: true,
+          type: true,
+          is_recurring: true
+        }
       })
 
-      if (existingTransactions.length === 0) {
+      if (oldTransactions.length === 0) {
         throw new Error('No transactions found for bulk update')
       }
 
-      // Apply bulk update
+      // 2. Apply bulk update
       await this.prisma.transaction.updateMany({
         where: { id: { in: safeTransactionIds }, tenant_id: tenantId },
         data: updates
       })
 
-      // TODO: Add cube integration later when requested
+      // 3. Create bulk metadata for cube updates
+      const bulkMetadata = this.createBulkUpdateMetadata(oldTransactions, updates, tenantId)
+
+      // 4. Update cube efficiently with bulk metadata
+      await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
 
     } catch (error) {
       return this.handleError(error, 'TransactionService.bulkUpdateTransactions')
@@ -513,7 +525,6 @@ export class TransactionService extends BaseService {
       const bulkMetadata = this.createBulkDeleteMetadata(oldTransactions, tenantId)
 
       // 4. Update cube efficiently with bulk metadata
-      const { cubeService } = await import('./cube.service')
       await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
 
       return { deletedCount: deleteResult.count }
