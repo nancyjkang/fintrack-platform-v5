@@ -205,11 +205,12 @@ export default function TransactionsList({
   }, [totalPages]);
 
   // Sortable header component
-  const SortableHeader = ({ field, children, className = "", align = "left" }: {
+  const SortableHeader = ({ field, children, className = "", align = "left", style }: {
     field: typeof sortField;
     children: React.ReactNode;
     className?: string;
     align?: "left" | "right";
+    style?: React.CSSProperties;
   }) => {
     const isActive = sortField === field;
     const isAsc = sortDirection === 'asc';
@@ -218,6 +219,7 @@ export default function TransactionsList({
       <th
         className={`px-6 py-3 text-${align} text-sm font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
         onClick={() => handleSort(field)}
+        style={style}
       >
         <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
           <span>{children}</span>
@@ -485,15 +487,10 @@ export default function TransactionsList({
       currency: 'USD'
     }).format(amount); // Display amount as-is from database
 
-    if (type === 'INCOME') {
-      return <span className="text-green-600 font-medium">{formatted}</span>;
-    } else if (type === 'EXPENSE') {
-      return <span className="text-red-600 font-medium">{formatted}</span>;
-    } else {
-      // TRANSFER: show amount as-is with appropriate color based on sign
-      const isPositive = amount > 0;
-      return <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>{formatted}</span>;
-    }
+    // Color based on amount value, not transaction type
+    // Positive amounts = green, negative amounts = red
+    const isPositive = amount > 0;
+    return <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>{formatted}</span>;
   };
 
   // Render loading state
@@ -541,7 +538,7 @@ export default function TransactionsList({
     <>
       {/* Table - v4.1 exact structure */}
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed">
+        <table className="w-full">
           {/* Bulk selection header - v4.1 pattern */}
           {selectedTransactions.size > 0 && (
             <thead className="bg-blue-50 border-b border-blue-200">
@@ -584,7 +581,7 @@ export default function TransactionsList({
           {/* Main table header - v4.1 exact structure */}
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase tracking-wider w-12">
+              <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 uppercase tracking-wider" style={{width: '50px'}}>
                 <input
                   type="checkbox"
                   checked={isAllSelected}
@@ -596,22 +593,22 @@ export default function TransactionsList({
                   title={isAllSelected ? "Deselect all" : "Select all"}
                 />
               </th>
-              <SortableHeader field="date" className="w-24">
+              <SortableHeader field="date" className="" style={{width: '100px'}}>
                 Date
               </SortableHeader>
-              <SortableHeader field="description" className="w-80">
+              <SortableHeader field="description" className="">
                 Description
               </SortableHeader>
-              <SortableHeader field="type" className="w-32">
+              <SortableHeader field="type" className="" style={{width: '150px'}}>
                 Category/Type
               </SortableHeader>
-              <SortableHeader field="account" className="w-32">
+              <SortableHeader field="account" className="" style={{width: '120px'}}>
                 Account
               </SortableHeader>
-              <SortableHeader field="amount" align="right" className="w-24">
+              <SortableHeader field="amount" align="right" className="" style={{width: '100px'}}>
                 Amount
               </SortableHeader>
-              <th className="px-6 py-3 text-right text-sm font-bold text-gray-700 uppercase tracking-wider w-20">
+              <th className="px-6 py-3 text-right text-sm font-bold text-gray-700 uppercase tracking-wider" style={{width: '80px'}}>
                 Actions
               </th>
             </tr>

@@ -96,7 +96,7 @@ export default function TrendsPage() {
   const formatPeriodHeader = (period: string): string => {
     const date = parseAndConvertToUTC(period)
     const periodType = filters.periodType || 'MONTHLY'
-    
+
     switch (periodType) {
       case 'WEEKLY':
       case 'BI_WEEKLY':

@@ -22,7 +22,11 @@ const querySchema = z.object({
   page: z.string().optional().transform((val) => val ? parseInt(val) : 1),
   limit: z.string().optional().transform((val) => val ? Math.min(parseInt(val) || 100, 1000) : 100),
   account_id: z.string().optional().transform((val) => val ? parseInt(val) : undefined),
-  category_id: z.string().optional().transform((val) => val ? parseInt(val) : undefined),
+  category_id: z.string().optional().transform((val) => {
+    if (!val) return undefined
+    if (val === 'uncategorized') return 'uncategorized'
+    return parseInt(val)
+  }),
   type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']).optional(),
   is_recurring: z.string().optional().transform((val) => val === 'true' ? true : val === 'false' ? false : undefined),
   search: z.string().optional(),
@@ -52,7 +56,13 @@ export async function GET(request: NextRequest) {
     // Build filters
     const filters: Record<string, unknown> = {}
     if (account_id) filters.account_id = account_id
-    if (category_id) filters.category_id = category_id
+    if (category_id) {
+      if (category_id === 'uncategorized') {
+        filters.category_id = null // Filter for transactions with no category
+      } else {
+        filters.category_id = category_id
+      }
+    }
     if (type) filters.type = type
     if (is_recurring !== undefined) filters.is_recurring = is_recurring
     if (search) filters.search = search

@@ -21,6 +21,9 @@ This release focuses on improving the user experience for account management and
 7. **Enhanced CSV Preview**: Increased preview from 5 to 15 lines with total line count display
 8. **Import Performance Optimization**: Eliminated backend duplicate checking for faster bulk imports
 9. **Bulk Edit Modal Fixes**: Fixed apostrophe display, implemented reactive category dropdown, and smart defaulting behavior
+10. **Uncategorized Transaction Filter**: Added filter option to view transactions without assigned categories
+11. **Amount Color Logic Fix**: Changed amount coloring to be based on value (positive=green, negative=red) instead of transaction type
+12. **Improved Table Layout**: Optimized column spacing and widths for better visual balance in transactions table
 
 ---
 
@@ -186,6 +189,66 @@ This release focuses on improving the user experience for account management and
 
 **Expected Result**: Smart defaults work correctly, category dropdown reacts properly to transaction type changes, "Don't change" appears/disappears according to user intent, apostrophes display correctly
 
+### **TC-009: Uncategorized Transaction Filter**
+**Objective**: Verify the new "Uncategorized" filter option works correctly
+**Steps**:
+1. Navigate to `/transactions`
+2. Locate the Category filter dropdown (4th dropdown in filters section)
+3. Click on Category dropdown and verify "Uncategorized" option appears after "All categories"
+4. Verify "Uncategorized" option has no icon (consistent with other category options)
+5. Select "Uncategorized" and verify it filters to show only transactions without assigned categories
+6. Test combination with other filters (transaction type, date range, account)
+7. Verify filter clears correctly when selecting "All categories" again
+8. Test with different transaction types to ensure uncategorized filtering works for all types
+
+**Expected Result**: Uncategorized filter works correctly, shows only transactions with null category_id, integrates properly with other filters
+
+### **TC-010: Amount Color Logic Based on Value**
+**Objective**: Verify amount colors are determined by actual value, not transaction type
+**Steps**:
+1. Navigate to `/transactions` and review existing transactions
+2. **Test Positive Amounts**:
+   - Verify positive amounts show in **green** regardless of transaction type
+   - Check positive expense amounts (like refunds) display in green
+   - Check positive income amounts display in green
+   - Check positive transfer amounts display in green
+3. **Test Negative Amounts**:
+   - Verify negative amounts show in **red** regardless of transaction type
+   - Check negative expense amounts display in red
+   - Check negative income amounts (like corrections) display in red
+   - Check negative transfer amounts display in red
+4. **Test Zero Amounts** (if any):
+   - Verify zero amounts have consistent coloring
+5. Create test transactions with various amount/type combinations to verify logic
+
+**Expected Result**: All positive amounts display in green, all negative amounts display in red, regardless of transaction type (INCOME/EXPENSE/TRANSFER)
+
+### **TC-011: Improved Transactions Table Layout**
+**Objective**: Verify table column spacing and layout improvements
+**Steps**:
+1. Navigate to `/transactions`
+2. **Check Column Spacing**:
+   - Verify minimal space between checkbox and date columns (no excessive whitespace)
+   - Verify date column width is appropriate for date display (100px)
+   - Verify description column takes appropriate space without being too wide
+   - Verify category/type column has adequate space for category names (150px)
+   - Verify account column displays account names properly (120px)
+   - Verify amount column has sufficient space for currency values (100px)
+   - Verify actions column is compact but functional (80px)
+3. **Test Responsive Behavior**:
+   - Test table layout on different screen sizes
+   - Verify horizontal scrolling works if needed
+   - Check that column proportions remain balanced
+4. **Test with Long Content**:
+   - Verify long descriptions truncate properly with ellipsis
+   - Verify long category names display appropriately
+   - Verify long account names don't break layout
+5. **Test Sorting Functionality**:
+   - Verify column sorting still works properly after layout changes
+   - Ensure no columns disappear when sorting by description
+
+**Expected Result**: Table layout is visually balanced with appropriate column widths, no excessive whitespace, proper content handling, and maintained functionality
+
 ---
 
 ## 📊 **Test Data Requirements**
@@ -229,6 +292,9 @@ This release focuses on improving the user experience for account management and
 - [ ] **TC-006**: CSV Import Toggle Button Functionality - PASS/FAIL
 - [ ] **TC-007**: CSV Import Performance and Preview - PASS/FAIL
 - [ ] **TC-008**: Bulk Edit Modal Smart Defaults and Reactive Behavior - PASS/FAIL
+- [ ] **TC-009**: Uncategorized Transaction Filter - PASS/FAIL
+- [ ] **TC-010**: Amount Color Logic Based on Value - PASS/FAIL
+- [ ] **TC-011**: Improved Transactions Table Layout - PASS/FAIL
 
 ### **Quality Checks**
 - [ ] No JavaScript errors in console
@@ -285,6 +351,10 @@ When issues are found, use this template:
 - ✅ Smart defaulting works for both same-type and mixed-type transaction selections
 - ✅ Category dropdown reacts correctly to transaction type changes
 - ✅ "Don't change" option appears/disappears based on user intent, not just smart defaults
+- ✅ Uncategorized filter option works correctly and integrates with other filters
+- ✅ Amount colors are based on actual value (positive=green, negative=red) not transaction type
+- ✅ Table layout has balanced column spacing with no excessive whitespace
+- ✅ Column widths are optimized for content while maintaining functionality
 
 ### **UX Standards**
 - ✅ Intuitive user experience with cleaner forms
@@ -311,7 +381,7 @@ When issues are found, use this template:
 5. **Mobile Testing** - Verify responsive behavior
 
 ### **Sign-off Requirements**
-- [ ] All 8 test cases pass
+- [ ] All 11 test cases pass
 - [ ] Both Add Account buttons work properly
 - [ ] Account icons are consistent (no emojis)
 - [ ] Registration form changes implemented correctly
@@ -319,6 +389,9 @@ When issues are found, use this template:
 - [ ] Toggle buttons provide smooth user experience
 - [ ] Bulk edit modal smart defaults work correctly
 - [ ] Category dropdown reacts properly to transaction type changes
+- [ ] Uncategorized filter works and integrates with other filters
+- [ ] Amount coloring based on value (not transaction type) works correctly
+- [ ] Table layout improvements provide better visual balance
 - [ ] Import performance improvements verified
 - [ ] No critical or high-severity bugs
 - [ ] Mobile responsiveness verified

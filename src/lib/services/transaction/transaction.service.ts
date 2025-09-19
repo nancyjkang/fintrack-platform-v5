@@ -50,7 +50,7 @@ export interface UpdateTransactionData {
 
 export interface TransactionFilters {
   account_id?: number
-  category_id?: number
+  category_id?: number | null
   type?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   is_recurring?: boolean
   // eslint-disable-next-line no-restricted-globals
@@ -89,7 +89,10 @@ export class TransactionService extends BaseService {
       // Apply filters
       if (filters) {
         if (filters.account_id) where.account_id = filters.account_id
-        if (filters.category_id) where.category_id = filters.category_id
+        if (filters.category_id !== undefined) {
+          // Handle both specific category ID and null (uncategorized)
+          where.category_id = filters.category_id
+        }
         if (filters.type) where.type = filters.type
         if (filters.is_recurring !== undefined) where.is_recurring = filters.is_recurring
 
