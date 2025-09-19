@@ -74,7 +74,40 @@ export default function ImportTransactionsPage() {
     is_active: boolean
   }>>([])
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true)
+  const [selectedForImport, setSelectedForImport] = useState<Set<number>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Toggle functions for import selection
+  const handleToggleTransaction = (index: number) => {
+    const newSelected = new Set(selectedForImport)
+    if (newSelected.has(index)) {
+      newSelected.delete(index)
+    } else {
+      newSelected.add(index)
+    }
+    setSelectedForImport(newSelected)
+  }
+
+  const handleToggleAll = () => {
+    if (!parseResult) return
+
+    const allValidIndices = parseResult.transactions
+      .map((_, index) => index)
+      .filter(index => {
+        const transaction = parseResult.transactions[index]
+        return !!(transaction.date && transaction.description && transaction.amount !== 0)
+      })
+
+    const allSelected = allValidIndices.every(index => selectedForImport.has(index))
+
+    if (allSelected) {
+      // Deselect all
+      setSelectedForImport(new Set())
+    } else {
+      // Select all valid transactions
+      setSelectedForImport(new Set(allValidIndices))
+    }
+  }
 
   // Fetch existing transactions for duplicate checking
   const fetchExistingTransactions = async () => {
@@ -186,6 +219,85 @@ export default function ImportTransactionsPage() {
     fetchAccounts()
   }, [])
 
+  // Initialize selection state when transactions are processed
+  useEffect(() => {
+    if (!parseResult?.transactions) return
+
+    // Initializing selection state for import override functionality
+
+    // Process transactions to determine which should be selected by default
+    const processedTransactions = parseResult.transactions.map((transaction, index) => {
+      // Calculate final amount - use the transaction amount directly if available
+      let finalAmount = 0
+      if (transaction.amount !== undefined) {
+        finalAmount = parseFloat(transaction.amount.toString()) || 0
+      }
+
+      // Format date
+      const formattedDate = transaction.date ? formatDateForDisplay(transaction.date) : 'Invalid Date'
+
+      const isValid = !!(transaction.date && transaction.description && finalAmount !== 0)
+
+      return {
+        ...transaction,
+        index,
+        finalAmount,
+        formattedDate,
+        isValid,
+        isDuplicate: false
+      }
+    })
+
+    // Duplicate detection logic
+    const duplicateGroups = new Map<string, number[]>()
+
+    processedTransactions.forEach((transaction, index) => {
+      if (transaction.isValid) {
+        const key = `${transaction.formattedDate}-${transaction.description?.toLowerCase().trim()}-${Math.abs(transaction.finalAmount)}`
+
+        // Check against existing transactions in database
+        const existingDuplicate = existingTransactions.some(existing => {
+          const existingDate = formatDateForDisplay(existing.date)
+          const existingDescription = existing.description?.toLowerCase().trim() || ''
+          const existingAmount = Math.abs(existing.amount)
+
+          return existingDate === transaction.formattedDate &&
+                 existingDescription === transaction.description?.toLowerCase().trim() &&
+                 existingAmount === Math.abs(transaction.finalAmount)
+        })
+
+        if (existingDuplicate) {
+          processedTransactions[index].isDuplicate = true
+        }
+
+        // Track duplicates within CSV
+        if (!duplicateGroups.has(key)) {
+          duplicateGroups.set(key, [])
+        }
+        duplicateGroups.get(key)!.push(index)
+      }
+    })
+
+    // Mark duplicates within CSV (keep first occurrence, mark rest as duplicates)
+    duplicateGroups.forEach((indices) => {
+      if (indices.length > 1) {
+        indices.slice(1).forEach(index => {
+          processedTransactions[index].isDuplicate = true
+        })
+      }
+    })
+
+    // Select all valid transactions by default (user can toggle off duplicates if needed)
+    const newSelectedForImport = new Set<number>()
+    processedTransactions.forEach((transaction, index) => {
+      if (transaction.isValid) {
+        newSelectedForImport.add(index)
+      }
+    })
+
+    setSelectedForImport(newSelectedForImport)
+  }, [parseResult?.transactions, existingTransactions])
+
   const steps = [
     { id: 'upload', title: 'Upload', stepNumber: 1 },
     { id: 'mapping', title: 'Mapping', stepNumber: 2 },
@@ -276,7 +388,7 @@ export default function ImportTransactionsPage() {
 
     preview.push(...remainingLines)
 
-    return preview.slice(0, 5).join('\n')
+    return preview.slice(0, 15).join('\n')
   }
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -319,9 +431,13 @@ export default function ImportTransactionsPage() {
       const csvLines = csvContent.split('\n').filter(line => line.trim())
       const dataLines = csvLines.slice(1) // Skip header
 
-      // Process transactions for import
+      // Process only selected transactions for import
       const transactionsToImport = parseResult.transactions
         .map((transaction, index) => {
+          // Skip if not selected for import
+          if (!selectedForImport.has(index)) {
+            return null
+          }
           // Get raw CSV row for this transaction
           const rawRow = dataLines[index]?.split(',') || []
 
@@ -413,7 +529,7 @@ export default function ImportTransactionsPage() {
           'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          transactions: transactionsToImport,
+          transactions: transactionsToImport.filter(t => t !== null),
           skipDuplicates: true
         })
       })
@@ -578,10 +694,15 @@ export default function ImportTransactionsPage() {
       {/* CSV Preview */}
       {csvContent && (
         <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Preview (first 5 lines)</h4>
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm font-medium text-gray-700">Preview (first 15 lines)</h4>
+            <span className="text-xs text-gray-500">
+              Total: {csvContent.split('\n').filter(line => line.trim()).length} lines
+            </span>
+          </div>
           <div className="bg-gray-50 p-3 rounded-md overflow-x-auto">
             <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-              {csvContent.split('\n').slice(0, 5).join('\n')}
+              {csvContent.split('\n').slice(0, 15).join('\n')}
             </pre>
           </div>
         </div>
@@ -908,14 +1029,17 @@ export default function ImportTransactionsPage() {
       }
     })
 
-    // Mark duplicates within CSV
+    // Mark duplicates within CSV (keep first occurrence, mark rest as duplicates)
     duplicateGroups.forEach((indices) => {
       if (indices.length > 1) {
-        indices.forEach(index => {
+        // Skip the first occurrence (index 0), mark the rest as duplicates
+        indices.slice(1).forEach(index => {
           processedTransactions[index].isDuplicate = true
         })
       }
     })
+
+    // Note: Selection state initialization moved to useEffect to prevent infinite re-renders
 
     const validTransactions = processedTransactions.filter(t => t.isValid)
     const invalidTransactions = processedTransactions.filter(t => !t.isValid)
@@ -1043,6 +1167,24 @@ export default function ImportTransactionsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <button
+                      onClick={handleToggleAll}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                        parseResult?.transactions.every((_, index) => selectedForImport.has(index))
+                          ? 'bg-blue-600'
+                          : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          parseResult?.transactions.every((_, index) => selectedForImport.has(index))
+                            ? 'translate-x-6'
+                            : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
@@ -1059,6 +1201,25 @@ export default function ImportTransactionsPage() {
                     transaction.isDuplicate ? 'bg-yellow-50' :
                     'hover:bg-gray-50'
                   }`}>
+                    <td className="px-3 py-2 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => handleToggleTransaction(index)}
+                        disabled={!transaction.isValid}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          selectedForImport.has(index)
+                            ? 'bg-blue-600'
+                            : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            selectedForImport.has(index)
+                              ? 'translate-x-6'
+                              : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap text-sm">
                       {!transaction.isValid ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -1167,7 +1328,7 @@ export default function ImportTransactionsPage() {
           </button>
           <button
             onClick={handleImportTransactions}
-            disabled={validTransactions.length === 0 || isLoading}
+            disabled={selectedForImport.size === 0 || isLoading}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
@@ -1179,7 +1340,7 @@ export default function ImportTransactionsPage() {
                 Importing... ({importProgress}%)
               </>
             ) : (
-              `Import ${validTransactions.filter(t => !t.isDuplicate).length} Transaction${validTransactions.filter(t => !t.isDuplicate).length === 1 ? '' : 's'}`
+              `Import ${selectedForImport.size} Transaction${selectedForImport.size === 1 ? '' : 's'}`
             )}
           </button>
         </div>

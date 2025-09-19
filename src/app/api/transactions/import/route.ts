@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
     const body: ImportRequest = await request.json()
     const { transactions, skipDuplicates = true } = body
 
-    console.log('Import API received:', { 
-      transactionCount: transactions?.length, 
+    console.log('Import API received:', {
+      transactionCount: transactions?.length,
       skipDuplicates,
       tenantId: auth.tenantId,
       firstTransaction: transactions?.[0]
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       category_id?: number
       is_recurring: boolean
     }> = []
-    
+
     for (let i = 0; i < transactions.length; i++) {
       const transaction = transactions[i]
 
@@ -106,23 +106,8 @@ export async function POST(request: NextRequest) {
             transactionType = 'EXPENSE' // Default fallback
         }
 
-        // Check for duplicates if enabled
-        if (skipDuplicates) {
-          const existingTransactions = await TransactionService.getTransactions(
-            auth.tenantId,
-            {
-              account_id: parseInt(transaction.accountId),
-              date_from: parsedDate,
-              date_to: parsedDate,
-              search: transaction.description
-            }
-          )
-
-          if (existingTransactions.length > 0) {
-            result.duplicatesSkipped++
-            continue
-          }
-        }
+        // Skip backend duplicate checking - frontend already handles this with user override
+        // This prevents 393 individual database queries that slow down bulk imports
 
         // Add to valid transactions for bulk processing
         validTransactions.push({
@@ -147,14 +132,14 @@ export async function POST(request: NextRequest) {
     if (validTransactions.length > 0) {
       try {
         console.log(`Bulk creating ${validTransactions.length} transactions with trend cube integration...`)
-        
+
         const bulkResult = await TransactionService.bulkCreateTransactions(
           validTransactions,
           auth.tenantId
         )
-        
+
         result.imported = bulkResult.createdCount
-        
+
         console.log(`✅ Bulk import completed: ${result.imported} transactions created with trend cube updated`)
       } catch (error) {
         console.error('Bulk create failed:', error)

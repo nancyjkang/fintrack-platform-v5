@@ -17,6 +17,9 @@ This release focuses on improving the user experience for account management and
 3. **Streamlined Registration Form**: Removed "Full Name" field, updated to use "Financial Group" terminology
 4. **Consistent Account Icons**: Replaced emoji icons with professional Lucide React icons across all components
 5. **Simplified Account Form**: Hidden "Account is active" checkbox (defaults to active for new accounts)
+6. **CSV Import Duplicate Override**: Added toggle buttons for user control over duplicate transaction imports
+7. **Enhanced CSV Preview**: Increased preview from 5 to 15 lines with total line count display
+8. **Import Performance Optimization**: Eliminated backend duplicate checking for faster bulk imports
 
 ---
 
@@ -105,6 +108,49 @@ This release focuses on improving the user experience for account management and
 
 **Expected Result**: All account icons use Lucide components consistently
 
+### **TC-005: CSV Import Duplicate Detection Override**
+**Objective**: Verify CSV import duplicate detection and toggle override functionality
+**Steps**:
+1. Navigate to `/transactions/import`
+2. Upload a CSV file with duplicate transactions (same date, description, amount)
+3. Complete column mapping and proceed to review step
+4. Verify duplicate transactions are marked as "Duplicate" (yellow background)
+5. Verify first occurrence of duplicates is marked as "Valid" (green background)
+6. Verify all valid transactions (including duplicates) have toggle buttons in "ON" position (blue)
+7. Click toggle buttons to turn OFF some duplicate transactions
+8. Verify import button label updates to show selected count
+9. Proceed with import and verify only selected transactions are imported
+
+**Expected Result**: User can override duplicate detection and control exactly which transactions to import
+
+### **TC-006: CSV Import Toggle Button Functionality**
+**Objective**: Verify toggle button behavior and visual states
+**Steps**:
+1. Navigate to CSV import review step with processed transactions
+2. Verify all valid transactions have toggle buttons in "ON" state (blue background, circle right)
+3. Verify invalid transactions have disabled toggle buttons (grayed out)
+4. Click individual toggle buttons and verify smooth animation between states
+5. Click master toggle button in table header
+6. Verify all valid transactions toggle on/off together
+7. Verify import button is disabled when no transactions selected
+8. Verify import button label shows "Import X Transactions" with correct count
+
+**Expected Result**: Toggle buttons work smoothly with proper visual feedback and state management
+
+### **TC-007: CSV Import Performance and Preview**
+**Objective**: Verify import performance improvements and enhanced preview
+**Steps**:
+1. Upload a large CSV file (100+ transactions)
+2. Verify preview shows first 15 lines (not 5)
+3. Verify total line count is displayed in preview header
+4. Complete column mapping and proceed to review
+5. Select all transactions and start import
+6. Verify import completes in reasonable time (should be much faster than before)
+7. Verify progress indicator updates properly
+8. Verify final import results are accurate
+
+**Expected Result**: Large imports complete quickly with enhanced preview functionality
+
 ---
 
 ## 📊 **Test Data Requirements**
@@ -144,6 +190,9 @@ This release focuses on improving the user experience for account management and
 - [ ] **TC-002**: Account Creation Form Fields - PASS/FAIL
 - [ ] **TC-003**: Registration Form Changes - PASS/FAIL
 - [ ] **TC-004**: Account Icon Consistency - PASS/FAIL
+- [ ] **TC-005**: CSV Import Duplicate Detection Override - PASS/FAIL
+- [ ] **TC-006**: CSV Import Toggle Button Functionality - PASS/FAIL
+- [ ] **TC-007**: CSV Import Performance and Preview - PASS/FAIL
 
 ### **Quality Checks**
 - [ ] No JavaScript errors in console
@@ -192,6 +241,10 @@ When issues are found, use this template:
 - ✅ Registration form works without Full Name field
 - ✅ "Financial Group" terminology implemented throughout
 - ✅ Account icons use Lucide components consistently
+- ✅ CSV import duplicate detection works with user override capability
+- ✅ Toggle buttons provide intuitive transaction selection control
+- ✅ Import performance is significantly improved for large files
+- ✅ Enhanced CSV preview shows 15 lines with total count display
 
 ### **UX Standards**
 - ✅ Intuitive user experience with cleaner forms
@@ -218,10 +271,13 @@ When issues are found, use this template:
 5. **Mobile Testing** - Verify responsive behavior
 
 ### **Sign-off Requirements**
-- [ ] All test cases pass
+- [ ] All 7 test cases pass
 - [ ] Both Add Account buttons work properly
 - [ ] Account icons are consistent (no emojis)
 - [ ] Registration form changes implemented correctly
+- [ ] CSV import duplicate override functionality works
+- [ ] Toggle buttons provide smooth user experience
+- [ ] Import performance improvements verified
 - [ ] No critical or high-severity bugs
 - [ ] Mobile responsiveness verified
 - [ ] Cross-browser compatibility confirmed
