@@ -20,6 +20,7 @@ This release focuses on improving the user experience for account management and
 6. **CSV Import Duplicate Override**: Added toggle buttons for user control over duplicate transaction imports
 7. **Enhanced CSV Preview**: Increased preview from 5 to 15 lines with total line count display
 8. **Import Performance Optimization**: Eliminated backend duplicate checking for faster bulk imports
+9. **Bulk Edit Modal Fixes**: Fixed apostrophe display, implemented reactive category dropdown, and smart defaulting behavior
 
 ---
 
@@ -151,6 +152,40 @@ This release focuses on improving the user experience for account management and
 
 **Expected Result**: Large imports complete quickly with enhanced preview functionality
 
+### **TC-008: Bulk Edit Modal Smart Defaults and Reactive Behavior**
+**Objective**: Verify bulk edit modal smart defaulting and reactive category dropdown behavior
+**Steps**:
+1. Navigate to `/transactions` and ensure you have transactions of different types (Income, Expense, Transfer)
+2. **Test Smart Defaulting - Same Type**:
+   - Select multiple transactions that all have the same type (e.g., all EXPENSE)
+   - Click "Bulk Update" button
+   - Verify transaction type dropdown defaults to "Expense" (not "Don't change")
+   - Verify category dropdown shows "Don't change" option (even though type is defaulted)
+   - Verify category dropdown shows only expense categories (no optgroups)
+3. **Test Smart Defaulting - Mixed Types**:
+   - Select transactions with different types (mix of Income/Expense/Transfer)
+   - Click "Bulk Update" button
+   - Verify transaction type dropdown defaults to "Don't change"
+   - Verify category dropdown shows "Don't change" option
+   - Verify category dropdown shows all categories organized by optgroups
+4. **Test Reactive Category Dropdown**:
+   - Open bulk edit modal with smart default (e.g., "Expense")
+   - Manually change transaction type from "Expense" to "Income"
+   - Verify "Don't change" option disappears from category dropdown
+   - Verify only income categories are shown
+   - Change transaction type back to "Don't change"
+   - Verify "Don't change" option reappears in category dropdown
+5. **Test Apostrophe Display**:
+   - Verify all "Don't change" text displays with proper apostrophe (not &apos;)
+   - Check both transaction type and category dropdowns
+6. **Test State Reset**:
+   - Make changes to both dropdowns
+   - Click "Cancel" button
+   - Reopen modal - verify defaults are recalculated correctly
+   - Submit changes successfully - verify next modal opening recalculates defaults
+
+**Expected Result**: Smart defaults work correctly, category dropdown reacts properly to transaction type changes, "Don't change" appears/disappears according to user intent, apostrophes display correctly
+
 ---
 
 ## 📊 **Test Data Requirements**
@@ -193,6 +228,7 @@ This release focuses on improving the user experience for account management and
 - [ ] **TC-005**: CSV Import Duplicate Detection Override - PASS/FAIL
 - [ ] **TC-006**: CSV Import Toggle Button Functionality - PASS/FAIL
 - [ ] **TC-007**: CSV Import Performance and Preview - PASS/FAIL
+- [ ] **TC-008**: Bulk Edit Modal Smart Defaults and Reactive Behavior - PASS/FAIL
 
 ### **Quality Checks**
 - [ ] No JavaScript errors in console
@@ -245,6 +281,10 @@ When issues are found, use this template:
 - ✅ Toggle buttons provide intuitive transaction selection control
 - ✅ Import performance is significantly improved for large files
 - ✅ Enhanced CSV preview shows 15 lines with total count display
+- ✅ Bulk edit modal displays proper apostrophes (not HTML entities)
+- ✅ Smart defaulting works for both same-type and mixed-type transaction selections
+- ✅ Category dropdown reacts correctly to transaction type changes
+- ✅ "Don't change" option appears/disappears based on user intent, not just smart defaults
 
 ### **UX Standards**
 - ✅ Intuitive user experience with cleaner forms
@@ -271,12 +311,14 @@ When issues are found, use this template:
 5. **Mobile Testing** - Verify responsive behavior
 
 ### **Sign-off Requirements**
-- [ ] All 7 test cases pass
+- [ ] All 8 test cases pass
 - [ ] Both Add Account buttons work properly
 - [ ] Account icons are consistent (no emojis)
 - [ ] Registration form changes implemented correctly
 - [ ] CSV import duplicate override functionality works
 - [ ] Toggle buttons provide smooth user experience
+- [ ] Bulk edit modal smart defaults work correctly
+- [ ] Category dropdown reacts properly to transaction type changes
 - [ ] Import performance improvements verified
 - [ ] No critical or high-severity bugs
 - [ ] Mobile responsiveness verified

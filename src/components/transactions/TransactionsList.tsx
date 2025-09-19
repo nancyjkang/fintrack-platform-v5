@@ -76,6 +76,9 @@ export default function TransactionsList({
   const [error, setError] = useState<string | null>(null);
   const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [bulkEditTransactionType, setBulkEditTransactionType] = useState('no-change');
+  const [bulkEditCategoryId, setBulkEditCategoryId] = useState('no-change');
+  const [bulkEditTransactionTypeChanged, setBulkEditTransactionTypeChanged] = useState(false);
   const [bulkUpdateLoading, setBulkUpdateLoading] = useState(false);
   const [categories, setCategories] = useState<Array<{
     id: number;
@@ -326,10 +329,26 @@ export default function TransactionsList({
 
   // Bulk action handlers
   const handleBulkUpdateClick = useCallback(() => {
+    // Calculate smart defaults for selected transactions
+    const selectedTxns = transactions.filter(t => selectedTransactions.has(t.id));
+
+    // Calculate default transaction type
+    const uniqueTypes = [...new Set(selectedTxns.map(t => t.type))];
+    const defaultType = uniqueTypes.length === 1 ? uniqueTypes[0] : 'no-change';
+
+    // Calculate default category
+    const uniqueCategories = [...new Set(selectedTxns.map(t => t.category_id).filter(Boolean))];
+    const defaultCategory = uniqueCategories.length === 1 ? uniqueCategories[0].toString() : 'no-change';
+
+    // Set smart defaults based on selected transactions
+    setBulkEditTransactionType(defaultType);
+    setBulkEditCategoryId(defaultCategory);
+    setBulkEditTransactionTypeChanged(false); // Reset the "changed" flag
+
     setShowBulkUpdateModal(true);
     // Load categories when modal opens
     loadCategories();
-  }, [loadCategories]);
+  }, [loadCategories, transactions, selectedTransactions]);
 
   // Initialize filtered categories when modal opens and categories are loaded
   useEffect(() => {
@@ -371,6 +390,9 @@ export default function TransactionsList({
       await fetchTransactions();
       setSelectedTransactions(new Set());
       setShowBulkUpdateModal(false);
+      setBulkEditTransactionType('no-change');
+      setBulkEditCategoryId('no-change');
+      setBulkEditTransactionTypeChanged(false);
 
       // Show success message (you can add a toast notification here)
       alert(`Successfully updated ${transactionIds.length} transactions`);
@@ -844,34 +866,19 @@ export default function TransactionsList({
                           id="bulkType"
                           name="type"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          defaultValue={defaultType}
+                          value={bulkEditTransactionType}
                           onChange={(e) => {
-                            // Filter categories based on selected transaction type
-                            filterCategoriesByType(e.target.value);
-
-                            // Enable/disable category dropdown based on type selection
-                            const categorySelect = document.getElementById('bulkCategory') as HTMLSelectElement;
-                            const noChangeOption = categorySelect?.querySelector('option[value="no-change"]') as HTMLOptionElement;
-
-                            if (categorySelect && noChangeOption) {
-                              if (e.target.value === 'no-change') {
-                                categorySelect.disabled = true;
-                                categorySelect.value = 'no-change';
-                                categorySelect.className = categorySelect.className.replace(
-                                  'bg-gray-100 text-gray-500 cursor-not-allowed', ''
-                                ) + ' bg-gray-100 text-gray-500 cursor-not-allowed';
-                                noChangeOption.textContent = "Can&apos;t change (mixed types)";
-                              } else {
-                                categorySelect.disabled = false;
-                                categorySelect.className = categorySelect.className.replace(
-                                  'bg-gray-100 text-gray-500 cursor-not-allowed', ''
-                                );
-                                noChangeOption.textContent = "Don&apos;t change";
-                              }
+                            setBulkEditTransactionType(e.target.value);
+                            setBulkEditTransactionTypeChanged(true); // Mark as manually changed
+                            // Reset category selection when transaction type changes
+                            if (e.target.value !== 'no-change') {
+                              setBulkEditCategoryId('remove');
+                            } else {
+                              setBulkEditCategoryId('no-change');
                             }
                           }}
                         >
-                          <option value="no-change">Don&apos;t change</option>
+                          <option value="no-change">Don't change</option>
                           <option value="INCOME">Income</option>
                           <option value="EXPENSE">Expense</option>
                           <option value="TRANSFER">Transfer</option>
@@ -884,23 +891,64 @@ export default function TransactionsList({
                           Set Category
                         </label>
                         <select
+                          key={`category-${bulkEditTransactionType}`}
                           id="bulkCategory"
                           name="categoryId"
-                          className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                            defaultType === 'no-change' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
-                          }`}
-                          defaultValue={defaultType === 'no-change' ? 'no-change' : defaultCategory}
-                          disabled={defaultType === 'no-change'}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          value={bulkEditCategoryId}
+                          onChange={(e) => setBulkEditCategoryId(e.target.value)}
                         >
-                          <option value="no-change">
-                            {defaultType === 'no-change' ? "Can&apos;t change (mixed types)" : "Don&apos;t change"}
-                          </option>
+                          {(!bulkEditTransactionTypeChanged || bulkEditTransactionType === 'no-change') && (
+                            <option value="no-change">Don't change</option>
+                          )}
                           <option value="remove">Remove category</option>
-                          {filteredCategories.map(category => (
-                            <option key={category.id} value={category.id}>
-                              {category.name}
-                            </option>
-                          ))}
+
+                          {/* Show categories based on selected transaction type */}
+                          {bulkEditTransactionType === 'no-change' ? (
+                            // Show all categories when no specific type is selected
+                            <>
+                              <optgroup label="💰 Income">
+                                {categories
+                                  .filter(cat => cat.type === 'INCOME')
+                                  .sort((a, b) => a.name.localeCompare(b.name))
+                                  .map(category => (
+                                    <option key={category.id} value={category.id}>
+                                      {category.name}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                              <optgroup label="💸 Expense">
+                                {categories
+                                  .filter(cat => cat.type === 'EXPENSE')
+                                  .sort((a, b) => a.name.localeCompare(b.name))
+                                  .map(category => (
+                                    <option key={category.id} value={category.id}>
+                                      {category.name}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                              <optgroup label="🔄 Transfer">
+                                {categories
+                                  .filter(cat => cat.type === 'TRANSFER')
+                                  .sort((a, b) => a.name.localeCompare(b.name))
+                                  .map(category => (
+                                    <option key={category.id} value={category.id}>
+                                      {category.name}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            </>
+                          ) : (
+                            // Show only categories for the selected transaction type (no optgroup needed)
+                            categories
+                              .filter(cat => cat.type === bulkEditTransactionType)
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map(category => (
+                                <option key={category.id} value={category.id}>
+                                  {category.name}
+                                </option>
+                              ))
+                          )}
                         </select>
                       </div>
 
@@ -920,7 +968,7 @@ export default function TransactionsList({
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                           defaultValue={defaultRecurring}
                         >
-                          <option value="no-change">Don&apos;t change</option>
+                          <option value="no-change">Don't change</option>
                           <option value="recurring">Mark as recurring</option>
                           <option value="nonRecurring">Mark as non-recurring</option>
                         </select>
@@ -938,7 +986,12 @@ export default function TransactionsList({
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowBulkUpdateModal(false)}
+                  onClick={() => {
+                    setShowBulkUpdateModal(false);
+                    setBulkEditTransactionType('no-change');
+                    setBulkEditCategoryId('no-change');
+                    setBulkEditTransactionTypeChanged(false);
+                  }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 >
                   Cancel

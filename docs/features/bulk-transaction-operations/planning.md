@@ -38,9 +38,51 @@ The Bulk Transaction Operations feature enables users to efficiently manage mult
 - **Transaction Type Updates** ✅
   - Bulk transaction type changes (Income/Expense/Transfer) ✅
   - Category dropdown automatically filters based on selected type ✅
+  - Smart defaulting: defaults to common type when all selected transactions share same type ✅
 - **Recurring Flag Updates** ✅
   - Bulk recurring flag changes ✅
   - "Don't change" default option ✅
+
+#### **1.1 Detailed Bulk Edit Modal Specifications** ✅
+
+##### **Smart Defaulting Logic** ✅
+- **Transaction Type Dropdown**:
+  - When all selected transactions have the same type → Defaults to that type (e.g., "Expense")
+  - When selected transactions have mixed types → Defaults to "Don't change"
+- **Category Dropdown**:
+  - When all selected transactions have the same category → Defaults to that category
+  - When selected transactions have different/no categories → Defaults to "Don't change"
+
+##### **Reactive Category Dropdown Behavior** ✅
+- **When Modal Opens with Smart Default (e.g., "Expense")**:
+  - Shows "Don't change" option in category dropdown (user hasn't manually changed anything yet)
+  - Shows only categories matching the smart default transaction type (no optgroups needed)
+  - User can still choose "Don't change" to preserve existing categories
+- **When Transaction Type = "Don't change" (manually selected or default)**:
+  - Shows "Don't change" option in category dropdown
+  - Displays all categories organized by optgroups (💰 Income, 💸 Expense, 🔄 Transfer)
+- **When User Manually Changes Transaction Type to Specific Type**:
+  - Hides "Don't change" option in category dropdown (user actively chose to change type)
+  - Shows only categories matching the selected transaction type (no optgroups needed)
+  - Automatically resets category selection to "Remove category" when type changes from default
+
+##### **State Management** ✅
+- Uses React controlled components with `bulkEditTransactionType` and `bulkEditCategoryId` state
+- State is properly reset when modal closes (both on cancel and successful update)
+- Category dropdown re-renders with `key={category-${bulkEditTransactionType}}` to force updates
+
+##### **User Experience Flow** ✅
+1. User selects transactions and clicks "Bulk Update"
+2. Modal opens with smart defaults pre-selected based on selection analysis
+3. **Initial State**: Even with smart defaults (e.g., "Expense"), "Don't change" is available in category dropdown
+4. **User Interaction**: If user manually changes transaction type → category dropdown updates reactively and "Don't change" option behavior changes
+5. **Category Selection**: User can modify category selection within the filtered options
+6. **Completion**: User submits changes → modal closes and all state resets
+
+##### **Key Behavioral Rules** ✅
+- **Smart Default ≠ Manual Change**: Smart defaults preserve "Don't change" option, manual changes may hide it
+- **User Intent Tracking**: System tracks whether user has manually modified the transaction type
+- **Graceful Degradation**: User can always choose "Don't change" initially, even with smart defaults
 
 #### **2. Bulk Delete Operations** ✅
 - **Safe Deletion** ✅
