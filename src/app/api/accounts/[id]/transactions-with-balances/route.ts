@@ -79,7 +79,7 @@ export async function GET(
 
     // Calculate running balances using balance anchors as primary source of truth
     const transactionsWithBalance = await service.calculateRunningBalancesFromAnchor(
-      transactions,
+      transactions.transactions,
       accountId,
       auth.tenantId
     )

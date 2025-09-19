@@ -35,6 +35,7 @@ describe('TransactionService', () => {
     category_id: 1,
     amount: 100.50,
     description: 'Test transaction',
+    merchant: null,
     date: createUTCDate(2025, 0, 1),
     type: 'EXPENSE' as const,
     is_recurring: false,
@@ -70,17 +71,25 @@ describe('TransactionService', () => {
   describe('getTransactions', () => {
     it('should return transactions for a tenant', async () => {
       mockPrisma.transaction.findMany.mockResolvedValue([mockTransactionWithRelations])
+      mockPrisma.transaction.count.mockResolvedValue(1)
 
       const result = await TransactionService.getTransactions(mockTenantId)
 
-      expect(result).toEqual([mockTransactionWithRelations])
+      expect(result).toEqual({
+        transactions: [mockTransactionWithRelations],
+        total: 1,
+        page: 1,
+        totalPages: 1
+      })
       expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith({
         where: { tenant_id: mockTenantId },
         include: {
           account: true,
           category: true
         },
-        orderBy: { date: 'desc' }
+        orderBy: { date: 'desc' },
+        skip: 0,
+        take: 50
       })
     })
 
@@ -119,7 +128,9 @@ describe('TransactionService', () => {
           account: true,
           category: true
         },
-        orderBy: { date: 'desc' }
+        orderBy: { date: 'desc' },
+        skip: 0,
+        take: 50
       })
     })
 
@@ -205,6 +216,7 @@ describe('TransactionService', () => {
           category_id: 1,
           amount: 100.50,
           description: 'Test transaction',
+          merchant: 'Test Transaction',
           date: createUTCDate(2025, 0, 1),
           type: 'EXPENSE',
           is_recurring: false
@@ -247,6 +259,7 @@ describe('TransactionService', () => {
           category_id: undefined,
           amount: 100.50,
           description: 'Test transaction',
+          merchant: 'Test Transaction',
           date: createUTCDate(2025, 0, 1),
           type: 'EXPENSE',
           is_recurring: false
@@ -280,7 +293,8 @@ describe('TransactionService', () => {
         where: { id: 1 },
         data: {
           ...updateData,
-          updated_at: expect.any(Date)
+          merchant: 'Updated Transaction',
+          updated_at: createUTCDate(2025, 8, 19)
         },
         include: {
           account: true,
@@ -330,6 +344,7 @@ describe('TransactionService', () => {
   describe('getTransactionsByAccount', () => {
     it('should return transactions for specific account', async () => {
       mockPrisma.transaction.findMany.mockResolvedValue([mockTransactionWithRelations])
+      mockPrisma.transaction.count.mockResolvedValue(1)
 
       const result = await TransactionService.getTransactionsByAccount(1, mockTenantId)
 
@@ -343,7 +358,9 @@ describe('TransactionService', () => {
           account: true,
           category: true
         },
-        orderBy: { date: 'desc' }
+        orderBy: { date: 'desc' },
+        skip: 0,
+        take: 50
       })
     })
   })
@@ -352,6 +369,7 @@ describe('TransactionService', () => {
     it('should return only recurring transactions', async () => {
       const recurringTransaction = { ...mockTransactionWithRelations, is_recurring: true }
       mockPrisma.transaction.findMany.mockResolvedValue([recurringTransaction])
+      mockPrisma.transaction.count.mockResolvedValue(1)
 
       const result = await TransactionService.getRecurringTransactions(mockTenantId)
 
@@ -365,7 +383,9 @@ describe('TransactionService', () => {
           account: true,
           category: true
         },
-        orderBy: { date: 'desc' }
+        orderBy: { date: 'desc' },
+        skip: 0,
+        take: 50
       })
     })
   })

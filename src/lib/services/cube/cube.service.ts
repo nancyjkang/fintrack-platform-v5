@@ -313,13 +313,9 @@ export class CubeService extends BaseService {
 
     // Clear existing cube data if requested
     if (clearExisting) {
-      const deleteWhere: Prisma.FinancialCubeWhereInput = { tenant_id: tenantId }
-      if (accountId) {
-        deleteWhere.account_id = accountId
-      }
-
-      await this.prisma.financialCube.deleteMany({
-        where: deleteWhere
+      await this.deleteCubeRecords({
+        tenantId,
+        accountId
       })
     }
 
@@ -403,20 +399,30 @@ export class CubeService extends BaseService {
       isRecurring?: boolean
     } = {}
   ): Promise<FinancialCube[]> {
+    console.log('💾 Cube Service - getTrends called with:', { tenantId, filters })
+
     // For standard periods (WEEKLY, MONTHLY), query directly from cube
     if (!filters.periodType || filters.periodType === 'WEEKLY' || filters.periodType === 'MONTHLY') {
+      console.log('💾 Cube Service - Taking STANDARD periods path (WEEKLY/MONTHLY)')
       const where: Prisma.FinancialCubeWhereInput = {
         tenant_id: tenantId,
         ...(filters.periodType && { period_type: filters.periodType }),
-        ...(filters.startDate && { period_start: { gte: filters.startDate } }),
-        ...(filters.endDate && { period_start: { lte: filters.endDate } }),
+        ...(filters.startDate || filters.endDate) && {
+          period_start: {
+            ...(filters.startDate && { gte: filters.startDate }),
+            ...(filters.endDate && { lte: filters.endDate })
+          }
+        },
         ...(filters.transactionType && { transaction_type: filters.transactionType }),
         ...(filters.categoryIds && { category_id: { in: filters.categoryIds } }),
         ...(filters.accountIds && { account_id: { in: filters.accountIds } }),
         ...(filters.isRecurring !== undefined && { is_recurring: filters.isRecurring })
       }
 
-      return this.prisma.financialCube.findMany({
+      console.log('💾 Cube Service - getTrends where clause:', JSON.stringify(where, null, 2))
+      console.log('💾 Cube Service - Filters received:', JSON.stringify(filters, null, 2))
+
+      const results = await this.prisma.financialCube.findMany({
         where,
         orderBy: [
           { period_start: 'asc' },
@@ -424,9 +430,20 @@ export class CubeService extends BaseService {
           { account_name: 'asc' }
         ]
       })
+
+      console.log(`💾 Cube Service - Found ${results.length} records`)
+      if (results.length > 0) {
+        console.log('💾 Cube Service - Date range of results:', {
+          earliest: results[0].period_start.toISOString().split('T')[0],
+          latest: results[results.length - 1].period_start.toISOString().split('T')[0]
+        })
+      }
+
+      return results
     }
 
     // For custom periods, aggregate from base data
+    console.log('💾 Cube Service - Taking CUSTOM periods path (BI_WEEKLY/QUARTERLY/etc)')
     return this.getAggregatedTrends(tenantId, filters as {
       periodType: 'BI_WEEKLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
       startDate?: Date
@@ -548,12 +565,87 @@ export class CubeService extends BaseService {
   }
 
   /**
+   * Consolidated method to delete cube records with flexible filtering
+   */
+  async deleteCubeRecords(options: {
+    tenantId: string
+    periodStart?: Date
+    periodEnd?: Date
+    periodType?: 'WEEKLY' | 'MONTHLY'
+    transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    accountId?: number
+    categoryId?: number | null
+    isRecurring?: boolean
+    orConditions?: Array<{
+      period_type: string
+      period_start: Date
+      transaction_type: string
+      category_id: number | null
+      is_recurring: boolean
+    }>
+  }): Promise<{ count: number }> {
+    const whereClause: any = {
+      tenant_id: options.tenantId
+    }
+
+    // Date range filtering
+    if (options.periodStart && options.periodEnd) {
+      whereClause.period_start = {
+        gte: options.periodStart,
+        lte: options.periodEnd
+      }
+    } else if (options.periodStart) {
+      whereClause.period_start = { gte: options.periodStart }
+    } else if (options.periodEnd) {
+      whereClause.period_start = { lte: options.periodEnd }
+    }
+
+    // Period type filtering
+    if (options.periodType) {
+      whereClause.period_type = options.periodType
+    }
+
+    // Transaction type filtering
+    if (options.transactionType) {
+      whereClause.transaction_type = options.transactionType
+    }
+
+    // Account filtering
+    if (options.accountId) {
+      whereClause.account_id = options.accountId
+    }
+
+    // Category filtering
+    if (options.categoryId !== undefined) {
+      whereClause.category_id = options.categoryId
+    }
+
+    // Recurring filtering
+    if (options.isRecurring !== undefined) {
+      whereClause.is_recurring = options.isRecurring
+    }
+
+    // OR conditions for complex queries
+    if (options.orConditions && options.orConditions.length > 0) {
+      whereClause.OR = options.orConditions.map(condition => ({
+        period_type: condition.period_type,
+        period_start: condition.period_start,
+        transaction_type: condition.transaction_type,
+        category_id: condition.category_id,
+        is_recurring: condition.is_recurring
+      }))
+    }
+
+    return await this.prisma.financialCube.deleteMany({
+      where: whereClause
+    })
+  }
+
+  /**
    * Clear all cube data for a tenant
    */
   async clearAllData(tenantId: string): Promise<number> {
-    const result = await this.prisma.financialCube.deleteMany({
-      where: { tenant_id: tenantId }
-    })
+    const result = await this.deleteCubeRecords({ tenantId })
     return result.count
   }
 
@@ -802,21 +894,12 @@ export class CubeService extends BaseService {
     periodType: 'WEEKLY' | 'MONTHLY',
     accountId?: number // Optional: clear only for specific account
   ): Promise<void> {
-    const whereClause: Prisma.FinancialCubeWhereInput = {
-      tenant_id: tenantId,
-      period_type: periodType,
-      period_start: {
-        gte: startDate,
-        lte: endDate
-      }
-    }
-
-    if (accountId) {
-      whereClause.account_id = accountId
-    }
-
-    await this.prisma.financialCube.deleteMany({
-      where: whereClause
+    await this.deleteCubeRecords({
+      tenantId,
+      periodStart: startDate,
+      periodEnd: endDate,
+      periodType,
+      accountId
     })
   }
 
@@ -1004,11 +1087,9 @@ export class CubeService extends BaseService {
       // Note: Using specific criteria including is_recurring (no account_id)
     }))
 
-    await this.prisma.financialCube.deleteMany({
-      where: {
-        tenant_id: tenantId,
-        OR: orConditions
-      }
+    await this.deleteCubeRecords({
+      tenantId,
+      orConditions
     })
   }
 
@@ -1103,9 +1184,262 @@ export class CubeService extends BaseService {
   // ============================================================================
 
   /**
-   * Update cube using bulk metadata approach - much more efficient for bulk operations
+   * BATCH METHOD: Rebuild cube for date range with minimal SQL queries
+   * Much more efficient than period-by-period rebuilding
    */
-  async updateCubeWithBulkMetadata(bulkUpdate: BulkUpdateMetadata): Promise<DeltaProcessingResult> {
+  async rebuildCubeForDateRangeBatch(
+    tenantId: string,
+    startDate: Date,
+    endDate: Date,
+    accountId?: number
+  ): Promise<{ insertedCount: number; processingTime: number }> {
+    const startTime = Date.now()
+
+    try {
+      // Step 1: Single SQL query to get all aggregated data for the entire date range
+      const baseQuery = `
+        SELECT
+          t.type as transaction_type,
+          t.category_id,
+          COALESCE(c.name, 'Uncategorized') as category_name,
+          t.account_id,
+          a.name as account_name,
+          t.is_recurring,
+          t.date,
+          SUM(t.amount) as total_amount,
+          COUNT(*) as transaction_count
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id AND c.tenant_id = $1
+        INNER JOIN accounts a ON t.account_id = a.id AND a.tenant_id = $1
+        WHERE t.tenant_id = $1
+          AND t.date >= $2
+          AND t.date <= $3`
+
+      const accountFilter = accountId ? ` AND t.account_id = $4` : ''
+      const groupByClause = `
+        GROUP BY
+          t.type,
+          t.category_id,
+          t.account_id,
+          t.is_recurring,
+          t.date,
+          c.name,
+          a.name
+        ORDER BY t.date`
+
+      const fullQuery = baseQuery + accountFilter + groupByClause
+
+      const queryParams = accountId
+        ? [tenantId, startDate, endDate, accountId]
+        : [tenantId, startDate, endDate]
+
+      console.log(`🔍 Running batch query for ${startDate.toISOString()} to ${endDate.toISOString()}`)
+
+      const rawResults = await this.prisma.$queryRawUnsafe<Array<{
+        transaction_type: string
+        category_id: number | null
+        category_name: string
+        account_id: number
+        account_name: string
+        is_recurring: boolean
+        date: Date
+        total_amount: Decimal
+        transaction_count: bigint
+      }>>(fullQuery, ...queryParams)
+
+      console.log(`📊 Got ${rawResults.length} aggregated transaction groups`)
+
+      // Step 2: Group results by periods in memory (much faster than 74 SQL queries!)
+      const cubeRecords: any[] = []
+      const weeklyPeriods = this.generatePeriods(startDate, endDate, 'WEEKLY')
+      const monthlyPeriods = this.generatePeriods(startDate, endDate, 'MONTHLY')
+
+      // Process weekly periods
+      for (const period of weeklyPeriods) {
+        const periodResults = rawResults.filter(r =>
+          r.date >= period.start && r.date <= period.end
+        )
+
+        // Aggregate by cube dimensions for this period
+        const periodAggregates = new Map<string, {
+          total_amount: number
+          transaction_count: number
+          transaction_type: string
+          category_id: number | null
+          category_name: string
+          account_id: number
+          account_name: string
+          is_recurring: boolean
+        }>()
+
+        for (const result of periodResults) {
+          const key = `${result.transaction_type}|${result.category_id}|${result.account_id}|${result.is_recurring}`
+          const existing = periodAggregates.get(key)
+
+          if (existing) {
+            existing.total_amount += Number(result.total_amount)
+            existing.transaction_count += Number(result.transaction_count)
+          } else {
+            periodAggregates.set(key, {
+              total_amount: Number(result.total_amount),
+              transaction_count: Number(result.transaction_count),
+              transaction_type: result.transaction_type,
+              category_id: result.category_id,
+              category_name: result.category_name,
+              account_id: result.account_id,
+              account_name: result.account_name,
+              is_recurring: result.is_recurring
+            })
+          }
+        }
+
+        // Create cube records for this weekly period
+        for (const [, aggregate] of periodAggregates) {
+          cubeRecords.push({
+            tenant_id: tenantId,
+            period_type: 'WEEKLY',
+            period_start: period.start,
+            period_end: period.end,
+            transaction_type: aggregate.transaction_type,
+            category_id: aggregate.category_id,
+            category_name: aggregate.category_name,
+            account_id: aggregate.account_id,
+            account_name: aggregate.account_name,
+            is_recurring: aggregate.is_recurring,
+            total_amount: aggregate.total_amount,
+            transaction_count: aggregate.transaction_count,
+            created_at: getCurrentUTCDate(),
+            updated_at: getCurrentUTCDate()
+          })
+        }
+      }
+
+      // Process monthly periods (same logic)
+      for (const period of monthlyPeriods) {
+        const periodResults = rawResults.filter(r =>
+          r.date >= period.start && r.date <= period.end
+        )
+
+        const periodAggregates = new Map<string, {
+          total_amount: number
+          transaction_count: number
+          transaction_type: string
+          category_id: number | null
+          category_name: string
+          account_id: number
+          account_name: string
+          is_recurring: boolean
+        }>()
+
+        for (const result of periodResults) {
+          const key = `${result.transaction_type}|${result.category_id}|${result.account_id}|${result.is_recurring}`
+          const existing = periodAggregates.get(key)
+
+          if (existing) {
+            existing.total_amount += Number(result.total_amount)
+            existing.transaction_count += Number(result.transaction_count)
+          } else {
+            periodAggregates.set(key, {
+              total_amount: Number(result.total_amount),
+              transaction_count: Number(result.transaction_count),
+              transaction_type: result.transaction_type,
+              category_id: result.category_id,
+              category_name: result.category_name,
+              account_id: result.account_id,
+              account_name: result.account_name,
+              is_recurring: result.is_recurring
+            })
+          }
+        }
+
+        // Create cube records for this monthly period
+        for (const [, aggregate] of periodAggregates) {
+          cubeRecords.push({
+            tenant_id: tenantId,
+            period_type: 'MONTHLY',
+            period_start: period.start,
+            period_end: period.end,
+            transaction_type: aggregate.transaction_type,
+            category_id: aggregate.category_id,
+            category_name: aggregate.category_name,
+            account_id: aggregate.account_id,
+            account_name: aggregate.account_name,
+            is_recurring: aggregate.is_recurring,
+            total_amount: aggregate.total_amount,
+            transaction_count: aggregate.transaction_count,
+            created_at: getCurrentUTCDate(),
+            updated_at: getCurrentUTCDate()
+          })
+        }
+      }
+
+      // Step 3: Single batch insert of all cube records
+      let insertedCount = 0
+      if (cubeRecords.length > 0) {
+        await this.prisma.financialCube.createMany({
+          data: cubeRecords,
+          skipDuplicates: true
+        })
+        insertedCount = cubeRecords.length
+      }
+
+      const processingTime = Date.now() - startTime
+      console.log(`✅ Batch rebuild complete: ${insertedCount} records in ${processingTime}ms`)
+
+      return { insertedCount, processingTime }
+
+    } catch (error) {
+      console.error('Error in rebuildCubeForDateRangeBatch:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Regenerate cube data for a specific date range using delete-insert approach
+   * Much more efficient for large bulk operations
+   */
+  async regenerateCubeForDateRange(
+    tenantId: string,
+    startDate: Date,
+    endDate: Date,
+    transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+  ): Promise<{ deletedCount: number; insertedCount: number; processingTime: number }> {
+    const startTime = Date.now()
+
+    try {
+      // Step 1: Delete existing cube records for the date range
+      const deleteResult = await this.deleteCubeRecords({
+        tenantId,
+        periodStart: startDate,
+        periodEnd: endDate,
+        transactionType
+      })
+
+      // Step 2: Use new BATCH method (single SQL query instead of 74 individual queries!)
+      console.log(`📊 Using BATCH rebuild for date range: ${startDate.toISOString()} to ${endDate.toISOString()}`)
+
+      const batchResult = await this.rebuildCubeForDateRangeBatch(tenantId, startDate, endDate)
+      const insertedCount = batchResult.insertedCount
+
+      const processingTime = Date.now() - startTime
+
+      return {
+        deletedCount: deleteResult.count,
+        insertedCount,
+        processingTime
+      }
+
+    } catch (error) {
+      console.error('Error in regenerateCubeForDateRange:', error)
+      throw error
+    }
+  }
+
+
+  /**
+   * OLD METHOD: Update cube using complex regeneration targets (kept as fallback)
+   */
+  async updateCubeWithBulkMetadataOld(bulkUpdate: BulkUpdateMetadata): Promise<DeltaProcessingResult> {
     if (bulkUpdate.affectedTransactionIds.length === 0) {
       return {
         cubesToRegenerate: [],
@@ -1445,7 +1779,7 @@ export class CubeService extends BaseService {
     try {
       // Convert the single delta to bulk metadata format for processing
       const bulkMetadata = this.convertDeltaToBulkMetadata(delta, tenantId)
-      await this.updateCubeWithBulkMetadata(bulkMetadata)
+      await this.updateCubeWithBulkMetadataOld(bulkMetadata)
     } catch (error) {
       console.warn('Failed to update transaction in cube:', error)
       // Don't throw - cube updates should not fail transaction updates

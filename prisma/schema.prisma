@@ -92,6 +92,7 @@ model Transaction {
   category_id  Int?
   amount       Decimal   @db.Decimal(12, 2)
   description  String
+  merchant     String?   // Auto-parsed merchant name from description
   date         DateTime
   type         String
   is_recurring Boolean   @default(false)
@@ -101,6 +102,16 @@ model Transaction {
   category     Category? @relation(fields: [category_id], references: [id])
   tenant       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
+  // Performance indexes for common queries
+  @@index([tenant_id, date])
+  @@index([tenant_id, category_id])
+  @@index([tenant_id, account_id])
+  @@index([tenant_id, type])
+  @@index([tenant_id, description])
+  @@index([tenant_id, is_recurring])
+  @@index([tenant_id, merchant])
+  // Composite index for cube generation groupBy queries
+  @@index([tenant_id, date, account_id, category_id, type, is_recurring])
   @@map("transactions")
 }
 
@@ -152,6 +163,7 @@ model FinancialCube {
   category_name     String
   account_id        Int
   account_name      String
+  merchant_name     String?   // Aggregated merchant data for tooltip functionality
   is_recurring      Boolean   @default(false)
   total_amount      Decimal   @default(0.00) @db.Decimal(12, 2)
   transaction_count Int       @default(0)

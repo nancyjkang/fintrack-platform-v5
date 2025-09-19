@@ -45,6 +45,13 @@ This enables users to discover spending patterns, optimize budgets, identify fra
 - [ ] **Mobile Responsive**: Optimized mobile view with collapsible columns
 - [ ] **Insights Integration**: Display relevant insights from Financial Insights Engine within analysis results
 
+### **🏪 Merchant Tooltip Enhancement (In Progress)**
+- [ ] **Merchant Field Implementation**: Add `merchant` field to transactions table for pre-parsed merchant names
+- [ ] **Description Parsing**: Auto-extract merchant names from transaction descriptions during creation/import
+- [ ] **Hover Tooltips**: Show merchant breakdown when hovering over amount cells in trends table
+- [ ] **Merchant Aggregation**: Group transactions by merchant within category/period combinations
+- [ ] **Tooltip UI**: Clean tooltip showing "Walmart: $120 (5 txns), Target: $80 (3 txns)" format
+
 ### **❌ Out of Scope (For This Version)**
 - Auto-generated insights and alerts (separate Financial Insights Engine feature)
 - Advanced forecasting and predictions (future feature)
@@ -73,6 +80,12 @@ This enables users to discover spending patterns, optimize budgets, identify fra
 - [ ] No new tables required - leverages existing financial_cube
 - [ ] Potential index optimization on financial_cube for common query patterns
 - [ ] Migration required: No (uses existing cube structure)
+
+### **Merchant Enhancement Database Changes**
+- [ ] **Add merchant field**: `ALTER TABLE transactions ADD COLUMN merchant VARCHAR(255)`
+- [ ] **Add to financial cube**: `ALTER TABLE financial_cube ADD COLUMN merchant_name VARCHAR(255)`
+- [ ] **Migration script**: Parse existing transaction descriptions to populate merchant field
+- [ ] **Index optimization**: Add index on `transactions.merchant` for fast aggregation queries
 
 ### **API Endpoints Needed**
 - [ ] `GET /api/trends/cube-summary` - Get aggregated data from financial cube (Levels 1 & 2)
@@ -197,6 +210,13 @@ This enables users to discover spending patterns, optimize budgets, identify fra
 - **Auto-Insights Implementation**: Should we use rule-based detection or AI-powered analysis for generating insights?
 - **Merchant Grouping Strategy**: Client-side normalization vs server-side preprocessing vs hybrid approach?
 - **Performance Optimization**: Should we cache cube queries or implement real-time aggregation?
+
+### **Merchant Enhancement Decisions**
+- **Merchant Field Approach**: ✅ **DECIDED** - Add internal-only merchant field to transactions table
+- **Parsing Strategy**: Auto-parse descriptions during transaction creation/import, not exposed to users initially
+- **Tooltip Implementation**: Hover over amount cells in trends table to show merchant breakdown
+- **Data Flow**: Transaction description → parsed merchant → financial cube → trends aggregation → tooltip display
+- **Performance**: Pre-parsed merchants enable fast tooltip queries without real-time description parsing
 
 ### **Auto-Generated Insights Concept**
 

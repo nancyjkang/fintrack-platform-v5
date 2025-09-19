@@ -17,7 +17,7 @@ jest.mock('@/lib/prisma', () => ({
 
 import { AccountBalanceHistoryService } from '../account-balance-history.service'
 import { prisma } from '@/lib/prisma'
-import { createUTCDate } from '@/lib/utils/date-utils'
+import { createUTCDate, getCurrentUTCDate } from '@/lib/utils/date-utils'
 import { Decimal } from '@prisma/client/runtime/library'
 
 // Get the mocked prisma
@@ -34,8 +34,8 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
     name: 'Test Account',
     type: 'CHECKING',
     balance: 1000,
-    created_at: new Date(),
-    updated_at: new Date(),
+    created_at: getCurrentUTCDate(),
+    updated_at: getCurrentUTCDate(),
   }
 
   beforeEach(() => {
@@ -58,7 +58,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           type: 'INCOME',
           date: '2024-01-01',
           description: 'Salary',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         },
         {
           id: 2,
@@ -68,7 +68,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           type: 'EXPENSE',
           date: '2024-01-02',
           description: 'Rent',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         },
         {
           id: 3,
@@ -78,7 +78,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           type: 'TRANSFER',
           date: '2024-01-03',
           description: 'Transfer out',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         },
       ]
 
@@ -130,9 +130,9 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
       mockPrisma.account.findFirst.mockResolvedValue(mockAccount)
 
       const mockTransactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2024-01-01', description: 'Income', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -300, type: 'EXPENSE', date: '2024-01-02', description: 'Expense', created_at: new Date() },
-        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: 200, type: 'TRANSFER', date: '2024-01-03', description: 'Transfer in', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2024-01-01', description: 'Income', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -300, type: 'EXPENSE', date: '2024-01-02', description: 'Expense', created_at: getCurrentUTCDate() },
+        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: 200, type: 'TRANSFER', date: '2024-01-03', description: 'Transfer in', created_at: getCurrentUTCDate() },
       ]
 
       mockPrisma.transaction.findMany
@@ -165,7 +165,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
         type: 'INCOME',
         date: '2024-01-01',
         description: 'Salary',
-        created_at: new Date(),
+        created_at: getCurrentUTCDate(),
       }
 
       mockPrisma.transaction.findMany
@@ -189,7 +189,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
         type: 'EXPENSE',
         date: '2024-01-01',
         description: 'Groceries',
-        created_at: new Date(),
+        created_at: getCurrentUTCDate(),
       }
 
       mockPrisma.transaction.findMany
@@ -214,7 +214,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           type: 'TRANSFER',
           date: '2024-01-01',
           description: 'Transfer out',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         },
         {
           id: 2,
@@ -224,7 +224,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           type: 'TRANSFER',
           date: '2024-01-02',
           description: 'Transfer in',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         },
       ]
 
@@ -245,8 +245,8 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should never use Math.abs() in calculations (display only)', async () => {
       const negativeTransactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: -1000, type: 'EXPENSE', date: '2024-01-01', description: 'Large expense', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -500, type: 'TRANSFER', date: '2024-01-02', description: 'Transfer out', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: -1000, type: 'EXPENSE', date: '2024-01-01', description: 'Large expense', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -500, type: 'TRANSFER', date: '2024-01-02', description: 'Transfer out', created_at: getCurrentUTCDate() },
       ]
 
       mockPrisma.transaction.findMany
@@ -269,10 +269,10 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should preserve transaction signs throughout calculations', async () => {
       const mixedTransactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 5000, type: 'INCOME', date: '2024-01-01', description: 'Salary', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -2000, type: 'EXPENSE', date: '2024-01-01', description: 'Rent', created_at: new Date() },
-        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: -300, type: 'TRANSFER', date: '2024-01-01', description: 'Transfer out', created_at: new Date() },
-        { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, amount: 150, type: 'TRANSFER', date: '2024-01-01', description: 'Transfer in', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 5000, type: 'INCOME', date: '2024-01-01', description: 'Salary', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -2000, type: 'EXPENSE', date: '2024-01-01', description: 'Rent', created_at: getCurrentUTCDate() },
+        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: -300, type: 'TRANSFER', date: '2024-01-01', description: 'Transfer out', created_at: getCurrentUTCDate() },
+        { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, amount: 150, type: 'TRANSFER', date: '2024-01-01', description: 'Transfer in', created_at: getCurrentUTCDate() },
       ]
 
       mockPrisma.transaction.findMany
@@ -296,11 +296,11 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should filter transactions by date range correctly', async () => {
       const allTransactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2023-12-31', description: 'Before range', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: 500, type: 'INCOME', date: '2024-01-01', description: 'Start date', created_at: new Date() },
-        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: -200, type: 'EXPENSE', date: '2024-01-02', description: 'In range', created_at: new Date() },
-        { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, amount: 300, type: 'INCOME', date: '2024-01-03', description: 'End date', created_at: new Date() },
-        { id: 5, tenant_id: mockTenantId, account_id: mockAccountId, amount: -100, type: 'EXPENSE', date: '2024-01-04', description: 'After range', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2023-12-31', description: 'Before range', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: 500, type: 'INCOME', date: '2024-01-01', description: 'Start date', created_at: getCurrentUTCDate() },
+        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: -200, type: 'EXPENSE', date: '2024-01-02', description: 'In range', created_at: getCurrentUTCDate() },
+        { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, amount: 300, type: 'INCOME', date: '2024-01-03', description: 'End date', created_at: getCurrentUTCDate() },
+        { id: 5, tenant_id: mockTenantId, account_id: mockAccountId, amount: -100, type: 'EXPENSE', date: '2024-01-04', description: 'After range', created_at: getCurrentUTCDate() },
       ]
 
       const inRangeTransactions = allTransactions.slice(1, 4) // 2024-01-01 to 2024-01-03
@@ -330,7 +330,7 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
         type: 'INCOME',
         date: '2024-01-01',
         description: 'Single day',
-        created_at: new Date(),
+        created_at: getCurrentUTCDate(),
       }
 
       mockPrisma.transaction.findMany
@@ -382,8 +382,8 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should maintain precision for currency calculations (2 decimal places)', async () => {
       const precisionTransactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 100.33, type: 'INCOME', date: '2024-01-01', description: 'Precise income', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -50.67, type: 'EXPENSE', date: '2024-01-01', description: 'Precise expense', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 100.33, type: 'INCOME', date: '2024-01-01', description: 'Precise income', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -50.67, type: 'EXPENSE', date: '2024-01-01', description: 'Precise expense', created_at: getCurrentUTCDate() },
       ]
 
       mockPrisma.transaction.findMany
@@ -433,9 +433,9 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should return chronologically sorted balance history', async () => {
       const unorderedTransactions = [
-        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: 300, type: 'INCOME', date: '2024-01-03', description: 'Third', created_at: new Date() },
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 100, type: 'INCOME', date: '2024-01-01', description: 'First', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: 200, type: 'INCOME', date: '2024-01-02', description: 'Second', created_at: new Date() },
+        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: 300, type: 'INCOME', date: '2024-01-03', description: 'Third', created_at: getCurrentUTCDate() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 100, type: 'INCOME', date: '2024-01-01', description: 'First', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: 200, type: 'INCOME', date: '2024-01-02', description: 'Second', created_at: getCurrentUTCDate() },
       ]
 
       mockPrisma.transaction.findMany
@@ -456,10 +456,10 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should calculate daily net amounts correctly', async () => {
       const multiTransactionDay = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2024-01-01', description: 'Income 1', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: 500, type: 'INCOME', date: '2024-01-01', description: 'Income 2', created_at: new Date() },
-        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: -200, type: 'EXPENSE', date: '2024-01-01', description: 'Expense 1', created_at: new Date() },
-        { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, amount: -100, type: 'TRANSFER', date: '2024-01-01', description: 'Transfer out', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2024-01-01', description: 'Income 1', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: 500, type: 'INCOME', date: '2024-01-01', description: 'Income 2', created_at: getCurrentUTCDate() },
+        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: -200, type: 'EXPENSE', date: '2024-01-01', description: 'Expense 1', created_at: getCurrentUTCDate() },
+        { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, amount: -100, type: 'TRANSFER', date: '2024-01-01', description: 'Transfer out', created_at: getCurrentUTCDate() },
       ]
 
       mockPrisma.transaction.findMany
@@ -483,9 +483,9 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should calculate starting/ending balances accurately', async () => {
       const transactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2024-01-01', description: 'Start', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -500, type: 'EXPENSE', date: '2024-01-02', description: 'Middle', created_at: new Date() },
-        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: 200, type: 'INCOME', date: '2024-01-03', description: 'End', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 1000, type: 'INCOME', date: '2024-01-01', description: 'Start', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -500, type: 'EXPENSE', date: '2024-01-02', description: 'Middle', created_at: getCurrentUTCDate() },
+        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, amount: 200, type: 'INCOME', date: '2024-01-03', description: 'End', created_at: getCurrentUTCDate() },
       ]
 
       mockPrisma.transaction.findMany
@@ -523,9 +523,9 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
   describe('calculateFromAccountBalance', () => {
     it('should calculate running balances from provided account balance', () => {
       const transactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: new Date('2024-01-01'), description: 'Initial', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-300), type: 'EXPENSE', date: new Date('2024-01-02'), description: 'Expense', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 3, amount: new Decimal(500), type: 'INCOME', date: new Date('2024-01-03'), description: 'Income', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: createUTCDate(2024, 0, 1), description: 'Initial', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-300), type: 'EXPENSE', date: createUTCDate(2024, 0, 2), description: 'Expense', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+        { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 3, amount: new Decimal(500), type: 'INCOME', date: createUTCDate(2024, 0, 3), description: 'Income', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
       ]
       const currentAccountBalance = 1200 // Final balance after all transactions
 
@@ -533,9 +533,9 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
       // Should be sorted by date descending (newest first)
       expect(result).toHaveLength(3)
-      expect(result[0].date).toEqual(new Date('2024-01-03')) // Newest first
-      expect(result[1].date).toEqual(new Date('2024-01-02'))
-      expect(result[2].date).toEqual(new Date('2024-01-01')) // Oldest last
+      expect(result[0].date).toEqual(createUTCDate(2024, 0, 3)) // Newest first
+      expect(result[1].date).toEqual(createUTCDate(2024, 0, 2))
+      expect(result[2].date).toEqual(createUTCDate(2024, 0, 1)) // Oldest last
 
       // Check running balances (working backwards from account balance)
       expect(result[0].balance).toBe(1200) // After income: 700 + 500 = 1200
@@ -550,8 +550,8 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
 
     it('should work backwards from account balance correctly', () => {
       const transactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(2000), type: 'INCOME', date: new Date('2024-01-01'), description: 'Salary', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: new Date('2024-01-02'), description: 'Rent', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(2000), type: 'INCOME', date: createUTCDate(2024, 0, 1), description: 'Salary', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: createUTCDate(2024, 0, 2), description: 'Rent', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
       ]
       const currentAccountBalance = 1500 // Should equal 2000 - 500
 
@@ -569,8 +569,8 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
       // Create a scenario where the math doesn't work out
       // This would happen if there's data corruption or inconsistency
       const transactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: new Date('2024-01-01'), description: 'Income', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-200), type: 'EXPENSE', date: new Date('2024-01-02'), description: 'Expense', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: createUTCDate(2024, 0, 1), description: 'Income', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-200), type: 'EXPENSE', date: createUTCDate(2024, 0, 2), description: 'Expense', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
       ]
       // Transaction sum = 1000 + (-200) = 800
       // But we claim the account balance is 500 (incorrect)
@@ -600,25 +600,25 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           tenant_id: mockTenantId,
           account_id: mockAccountId,
           balance: 2000,
-          anchor_date: new Date('2025-09-01'),
+          anchor_date: createUTCDate(2025, 8, 1),
           description: 'Initial balance',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         }
 
         // Mock balance anchor lookup
         mockPrisma.accountBalanceAnchor.findMany.mockResolvedValue([mockAnchor])
 
         const transactions = [
-          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(500), type: 'INCOME', date: new Date('2025-09-02'), description: 'After anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-200), type: 'EXPENSE', date: new Date('2025-09-03'), description: 'After anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(500), type: 'INCOME', date: createUTCDate(2025, 8, 2), description: 'After anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-200), type: 'EXPENSE', date: createUTCDate(2025, 8, 3), description: 'After anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
         ]
 
         const result = await service.calculateRunningBalancesFromAnchor(transactions, mockAccountId, mockTenantId)
 
         expect(result).toHaveLength(2)
         // Should be sorted by date descending
-        expect(result[0].date).toEqual(new Date('2025-09-03')) // Most recent first
-        expect(result[1].date).toEqual(new Date('2025-09-02'))
+        expect(result[0].date).toEqual(createUTCDate(2025, 8, 3)) // Most recent first
+        expect(result[1].date).toEqual(createUTCDate(2025, 8, 2))
 
         // Balance calculations from anchor
         expect(result[1].balance).toBe(2500) // 2000 + 500 = 2500
@@ -636,12 +636,12 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           balance: 1500,
           name: 'Test Account',
           type: 'CHECKING',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         })
 
         const transactions = [
-          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: new Date('2025-09-01'), description: 'Income', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: new Date('2025-09-02'), description: 'Expense', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: createUTCDate(2025, 8, 1), description: 'Income', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: createUTCDate(2025, 8, 2), description: 'Expense', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
         ]
 
         const result = await service.calculateRunningBalancesFromAnchor(transactions, mockAccountId, mockTenantId)
@@ -661,18 +661,18 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           tenant_id: mockTenantId,
           account_id: mockAccountId,
           balance: 2000,
-          anchor_date: new Date('2025-09-01'),
+          anchor_date: createUTCDate(2025, 8, 1),
           description: 'Initial balance',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         }
 
         const transactions = [
           // Transactions before anchor
-          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: new Date('2025-08-30'), description: 'Before anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: new Date('2025-08-31'), description: 'Before anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: createUTCDate(2025, 7, 30), description: 'Before anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: createUTCDate(2025, 7, 31), description: 'Before anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
           // Transactions after anchor
-          { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 3, amount: new Decimal(300), type: 'INCOME', date: new Date('2025-09-02'), description: 'After anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-          { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 4, amount: new Decimal(-100), type: 'EXPENSE', date: new Date('2025-09-03'), description: 'After anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+          { id: 3, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 3, amount: new Decimal(300), type: 'INCOME', date: createUTCDate(2025, 8, 2), description: 'After anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+          { id: 4, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 4, amount: new Decimal(-100), type: 'EXPENSE', date: createUTCDate(2025, 8, 3), description: 'After anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
         ]
 
         // Test the private method through reflection or by making it public for testing
@@ -684,10 +684,10 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
         expect(result).toHaveLength(4)
 
         // Should be sorted by date descending
-        expect(result[0].date).toEqual(new Date('2025-09-03')) // Most recent
-        expect(result[1].date).toEqual(new Date('2025-09-02'))
-        expect(result[2].date).toEqual(new Date('2025-08-31'))
-        expect(result[3].date).toEqual(new Date('2025-08-30')) // Oldest
+        expect(result[0].date).toEqual(createUTCDate(2025, 8, 3)) // Most recent
+        expect(result[1].date).toEqual(createUTCDate(2025, 8, 2))
+        expect(result[2].date).toEqual(createUTCDate(2025, 7, 31))
+        expect(result[3].date).toEqual(createUTCDate(2025, 7, 30)) // Oldest
 
         // Balance calculations:
         // Before anchor: work backwards from anchor balance (2000)
@@ -709,14 +709,14 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           tenant_id: mockTenantId,
           account_id: mockAccountId,
           balance: 1500,
-          anchor_date: new Date('2025-09-01'),
+          anchor_date: createUTCDate(2025, 8, 1),
           description: 'Anchor balance',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         }
 
         const transactions = [
-          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: new Date('2025-08-30'), description: 'Before anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: new Date('2025-08-31'), description: 'Before anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(1000), type: 'INCOME', date: createUTCDate(2025, 7, 30), description: 'Before anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-500), type: 'EXPENSE', date: createUTCDate(2025, 7, 31), description: 'Before anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
         ]
 
         mockPrisma.accountBalanceAnchor.findMany.mockResolvedValue([mockAnchor])
@@ -736,14 +736,14 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
           tenant_id: mockTenantId,
           account_id: mockAccountId,
           balance: 2000,
-          anchor_date: new Date('2025-09-01'),
+          anchor_date: createUTCDate(2025, 8, 1),
           description: 'Anchor balance',
-          created_at: new Date(),
+          created_at: getCurrentUTCDate(),
         }
 
         const transactions = [
-          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(500), type: 'INCOME', date: new Date('2025-09-02'), description: 'After anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
-          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-200), type: 'EXPENSE', date: new Date('2025-09-03'), description: 'After anchor', is_recurring: false, created_at: new Date(), updated_at: new Date() },
+          { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 1, amount: new Decimal(500), type: 'INCOME', date: createUTCDate(2025, 8, 2), description: 'After anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
+          { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, category_id: 2, amount: new Decimal(-200), type: 'EXPENSE', date: createUTCDate(2025, 8, 3), description: 'After anchor', merchant: null, is_recurring: false, created_at: getCurrentUTCDate(), updated_at: getCurrentUTCDate() },
         ]
 
         mockPrisma.accountBalanceAnchor.findMany.mockResolvedValue([mockAnchor])
@@ -765,8 +765,8 @@ describe('AccountBalanceHistoryService - MVP Accounting Compliance', () => {
       const anchorBalance = 2000
       const anchorDate = '2025-09-01'
       const postAnchorTransactions = [
-        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 500, type: 'INCOME', date: '2025-09-02', description: 'Income', created_at: new Date() },
-        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -200, type: 'EXPENSE', date: '2025-09-03', description: 'Expense', created_at: new Date() },
+        { id: 1, tenant_id: mockTenantId, account_id: mockAccountId, amount: 500, type: 'INCOME', date: '2025-09-02', description: 'Income', created_at: getCurrentUTCDate() },
+        { id: 2, tenant_id: mockTenantId, account_id: mockAccountId, amount: -200, type: 'EXPENSE', date: '2025-09-03', description: 'Expense', created_at: getCurrentUTCDate() },
       ]
 
       const expectedAccountBalance = anchorBalance + 500 + (-200) // 2000 + 500 - 200 = 2300

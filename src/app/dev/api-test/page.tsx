@@ -90,6 +90,18 @@ const API_ENDPOINTS = [
     value: '/api/trends/income-expense',
     method: 'GET',
     description: 'Get income vs expense trends from cube'
+  },
+  {
+    name: 'Trends - Categories (Main)',
+    value: '/api/trends',
+    method: 'GET',
+    description: 'Get category trends from cube (used by trends page)'
+  },
+  {
+    name: 'Trends - Merchants',
+    value: '/api/trends/merchants',
+    method: 'GET',
+    description: 'Get merchant breakdown for specific category and period (for tooltips)'
   }
 ];
 

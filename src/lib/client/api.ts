@@ -608,6 +608,50 @@ class ApiClient {
     return this.request(`/trends${queryString ? `?${queryString}` : ''}`)
   }
 
+  async getTrendsMerchants(filters: {
+    categoryId: number | null // null for uncategorized
+    periodStart: string // YYYY-MM-DD format
+    periodEnd: string // YYYY-MM-DD format
+    transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    accountIds?: number[] | string
+    isRecurring?: boolean
+  }): Promise<ApiResponse<{
+    merchants: Array<{
+      merchant: string
+      totalAmount: number
+      transactionCount: number
+      sampleDescriptions: string[]
+      sampleTransactions: Array<{
+        id: number
+        date: string
+        amount: number
+        description: string
+        type: string
+      }>
+    }>
+    summary: {
+      totalAmount: number
+      totalTransactions: number
+      uniqueMerchants: number
+      periodStart: string
+      periodEnd: string
+    }
+  }>> {
+    const params = new URLSearchParams()
+    params.append('categoryId', (filters.categoryId ?? 0).toString()) // Convert null to "0"
+    params.append('periodStart', filters.periodStart)
+    params.append('periodEnd', filters.periodEnd)
+    if (filters.transactionType) params.append('transactionType', filters.transactionType)
+    if (filters.accountIds?.length) {
+      const accountIds = Array.isArray(filters.accountIds) ? filters.accountIds.join(',') : filters.accountIds
+      params.append('accountIds', accountIds)
+    }
+    if (filters.isRecurring !== undefined) params.append('isRecurring', filters.isRecurring.toString())
+
+    const queryString = params.toString()
+    return this.request(`/trends/merchants?${queryString}`)
+  }
+
   // Utility methods
   isAuthenticated(): boolean {
     return !!this.accessToken

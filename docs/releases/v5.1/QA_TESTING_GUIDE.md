@@ -1,15 +1,15 @@
 # QA Testing Guide - v5.1 Release
 
 **Release Date**: September 19, 2025
-**Version**: v5.1
-**Release Type**: UI/UX Enhancement Release
-**Focus**: Account Management & Registration UX Improvements
+**Version**: v5.1.1
+**Release Type**: UI/UX Enhancement + Technical Maintenance Release
+**Focus**: Account Management & Registration UX Improvements + Merchant API Fixes
 
 ---
 
 ## 🎯 **Release Overview**
 
-This release focuses on improving the user experience for account management and user registration with streamlined UI, consistent iconography, and enhanced functionality.
+This release focuses on improving the user experience for account management and user registration with streamlined UI, consistent iconography, and enhanced functionality. Additionally, this release includes critical technical fixes for merchant data handling and API reliability.
 
 ### **Features Implemented in v5.1**
 1. **Fixed Add Account Button**: Accounts page button now opens the account creation modal properly
@@ -24,6 +24,14 @@ This release focuses on improving the user experience for account management and
 10. **Uncategorized Transaction Filter**: Added filter option to view transactions without assigned categories
 11. **Amount Color Logic Fix**: Changed amount coloring to be based on value (positive=green, negative=red) instead of transaction type
 12. **Improved Table Layout**: Optimized column spacing and widths for better visual balance in transactions table
+
+### **Technical Fixes Implemented in v5.1.1**
+13. **Merchant Field Integration**: Fixed Prisma client to properly recognize and access merchant field from database schema
+14. **Enhanced Merchant API**: Improved merchant name extraction with intelligent fallback logic (database → parsed → "Unknown Merchant")
+15. **Code Quality Improvements**: Removed dead code (async-cube-queue functionality) and fixed TypeScript compilation errors
+16. **Date Handling Compliance**: Updated all date utilities to use UTC-aware functions for consistent timezone handling
+17. **Test Suite Reliability**: Fixed all failing tests to ensure 100% test coverage (315/315 tests passing)
+18. **API Data Integrity**: Enhanced trends API to properly handle merchant data with robust error handling
 
 ---
 
@@ -57,6 +65,23 @@ This release focuses on improving the user experience for account management and
 - Clean browser session for registration testing
 - Access to development environment
 - Mobile device or browser dev tools for responsive testing
+
+### **3. Technical Fixes & API Reliability**
+
+**QA Priority**: 🔴 **HIGH** - Critical backend functionality
+
+**Test Areas**:
+- Merchant data display in trends and analytics
+- API error handling and fallback logic
+- Database schema alignment
+- Test suite execution and reliability
+
+**Estimated Testing Time**: 1-2 hours
+
+**Prerequisites**:
+- Access to trends/analytics pages
+- Test data with various merchant scenarios
+- Ability to run test suite (for developers)
 
 ---
 
@@ -249,6 +274,37 @@ This release focuses on improving the user experience for account management and
 
 **Expected Result**: Table layout is visually balanced with appropriate column widths, no excessive whitespace, proper content handling, and maintained functionality
 
+### **TC-012: Merchant Data Display and Fallback Logic**
+**Objective**: Verify merchant data is properly displayed with intelligent fallback logic
+**Steps**:
+1. Navigate to `/dashboard/trends` or any analytics page showing merchant data
+2. **Test Database Merchant Field**:
+   - Verify transactions with merchant field populated show the database merchant name
+   - Check that merchant names display correctly in tooltips and breakdowns
+3. **Test Parsed Merchant Names**:
+   - Verify transactions without merchant field fall back to parsed description
+   - Check that merchant extraction from transaction descriptions works
+4. **Test Unknown Merchant Fallback**:
+   - Verify transactions with no merchant data show "Unknown Merchant"
+   - Ensure no blank or null merchant names appear in UI
+5. **Test API Error Handling**:
+   - Verify merchant API endpoints return proper error responses
+   - Check that UI gracefully handles merchant API failures
+
+**Expected Result**: Merchant data displays correctly with proper fallback logic, no API errors, graceful handling of missing data
+
+### **TC-013: Test Suite Reliability and Code Quality**
+**Objective**: Verify all tests pass and code quality improvements are working
+**Steps** (For Developers):
+1. Run full test suite: `npm test`
+2. Verify all 315 tests pass without failures
+3. Check that no TypeScript compilation errors exist
+4. Verify date utility functions work consistently across timezone scenarios
+5. Confirm removed dead code doesn't cause import errors
+6. Test merchant API endpoints directly for proper responses
+
+**Expected Result**: 100% test pass rate (315/315), no TypeScript errors, clean code without dead imports, consistent date handling
+
 ---
 
 ## 📊 **Test Data Requirements**
@@ -264,6 +320,12 @@ This release focuses on improving the user experience for account management and
 - **Various financial group names** to test terminology
 - **Password combinations** for validation testing
 
+### **Technical Testing Data**
+- **Transactions with merchant field populated** in database
+- **Transactions without merchant field** (for fallback testing)
+- **Transactions with various description formats** (for parsing testing)
+- **Mixed transaction data** to test API robustness
+
 ### **How to Prepare Test Environment**
 1. **Clean Database State**
    - Start with no existing accounts for empty state testing
@@ -272,6 +334,11 @@ This release focuses on improving the user experience for account management and
 2. **Test Account Creation**
    - Create accounts of each type to verify icons
    - Test with various balance amounts and dates
+
+3. **Test Data for Technical Fixes**
+   - Ensure database has transactions with and without merchant field
+   - Create test transactions with various description formats
+   - Verify test suite can run successfully
 
 ---
 
@@ -295,6 +362,8 @@ This release focuses on improving the user experience for account management and
 - [ ] **TC-009**: Uncategorized Transaction Filter - PASS/FAIL
 - [ ] **TC-010**: Amount Color Logic Based on Value - PASS/FAIL
 - [ ] **TC-011**: Improved Transactions Table Layout - PASS/FAIL
+- [ ] **TC-012**: Merchant Data Display and Fallback Logic - PASS/FAIL
+- [ ] **TC-013**: Test Suite Reliability and Code Quality - PASS/FAIL
 
 ### **Quality Checks**
 - [ ] No JavaScript errors in console
@@ -355,6 +424,12 @@ When issues are found, use this template:
 - ✅ Amount colors are based on actual value (positive=green, negative=red) not transaction type
 - ✅ Table layout has balanced column spacing with no excessive whitespace
 - ✅ Column widths are optimized for content while maintaining functionality
+- ✅ Merchant data displays correctly with intelligent fallback logic
+- ✅ API endpoints handle merchant data robustly with proper error handling
+- ✅ All tests pass consistently (315/315 test suite reliability)
+- ✅ TypeScript compilation errors resolved
+- ✅ Date handling uses UTC-aware functions consistently
+- ✅ Dead code removed without breaking functionality
 
 ### **UX Standards**
 - ✅ Intuitive user experience with cleaner forms
@@ -381,7 +456,7 @@ When issues are found, use this template:
 5. **Mobile Testing** - Verify responsive behavior
 
 ### **Sign-off Requirements**
-- [ ] All 11 test cases pass
+- [ ] All 13 test cases pass
 - [ ] Both Add Account buttons work properly
 - [ ] Account icons are consistent (no emojis)
 - [ ] Registration form changes implemented correctly
@@ -393,6 +468,9 @@ When issues are found, use this template:
 - [ ] Amount coloring based on value (not transaction type) works correctly
 - [ ] Table layout improvements provide better visual balance
 - [ ] Import performance improvements verified
+- [ ] Merchant data displays correctly with proper fallback logic
+- [ ] All tests pass (315/315) with no TypeScript errors
+- [ ] API endpoints handle merchant data robustly
 - [ ] No critical or high-severity bugs
 - [ ] Mobile responsiveness verified
 - [ ] Cross-browser compatibility confirmed

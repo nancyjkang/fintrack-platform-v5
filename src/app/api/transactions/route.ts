@@ -69,27 +69,24 @@ export async function GET(request: NextRequest) {
     if (date_from) filters.date_from = date_from
     if (date_to) filters.date_to = date_to
 
-    // Add sorting to filters
+    // Add sorting and pagination to filters
     filters.sort_field = sort_field
     filters.sort_direction = sort_direction
+    filters.page = page
+    filters.limit = limit
 
-    // Get transactions using service
+    // Get transactions using service (now with database-level pagination)
     console.log('GET /api/transactions - tenantId:', auth.tenantId, 'filters:', filters)
-    const transactions = await TransactionService.getTransactions(auth.tenantId, filters)
-    console.log('GET /api/transactions - found', transactions.length, 'transactions')
-
-    // Apply pagination
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedTransactions = transactions.slice(startIndex, endIndex)
+    const result = await TransactionService.getTransactions(auth.tenantId, filters)
+    console.log('GET /api/transactions - found', result.transactions.length, 'of', result.total, 'transactions')
 
     return createSuccessResponse({
-      transactions: paginatedTransactions,
+      transactions: result.transactions,
       pagination: {
-        page,
+        page: result.page,
         limit,
-        total: transactions.length,
-        totalPages: Math.ceil(transactions.length / limit)
+        total: result.total,
+        totalPages: result.totalPages
       }
     })
 

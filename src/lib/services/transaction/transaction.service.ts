@@ -4,6 +4,7 @@ import { getCurrentUTCDate } from '@/lib/utils/date-utils'
 import { cubeService, CubeService } from '../cube'
 import type { CubeRelevantFields, BulkUpdateMetadata } from '@/lib/types/cube-delta.types'
 import { Decimal } from '@prisma/client/runtime/library'
+import { extractMerchantName } from '@/lib/utils/merchant-parser'
 
 // Interface for bulk update data
 interface BulkUpdateData {
@@ -13,6 +14,7 @@ interface BulkUpdateData {
   amount?: number
   is_recurring?: boolean
   description?: string
+  merchant?: string | null
 }
 
 // Interface for transaction data used in cube operations
@@ -60,6 +62,9 @@ export interface TransactionFilters {
   search?: string
   sort_field?: string
   sort_direction?: string
+  // Pagination parameters
+  page?: number
+  limit?: number
 }
 
 export interface TransactionWithRelations extends Transaction {
@@ -73,12 +78,17 @@ export interface TransactionWithRelations extends Transaction {
 export class TransactionService extends BaseService {
 
   /**
-   * Get all transactions for a tenant with optional filters
+   * Get paginated transactions for a tenant with optional filters
    */
   static async getTransactions(
     tenantId: string,
     filters?: TransactionFilters
-  ): Promise<TransactionWithRelations[]> {
+  ): Promise<{
+    transactions: TransactionWithRelations[]
+    total: number
+    page: number
+    totalPages: number
+  }> {
     try {
       this.validateTenantId(tenantId)
 
@@ -141,16 +151,34 @@ export class TransactionService extends BaseService {
         }
       }
 
-      const transactions = await this.prisma.transaction.findMany({
-        where,
-        include: {
-          account: true,
-          category: true
-        },
-        orderBy
-      })
+      // Extract pagination parameters
+      const page = filters?.page || 1
+      const limit = filters?.limit || 50
+      const skip = (page - 1) * limit
 
-      return transactions
+      // Get total count and transactions in parallel for better performance
+      const [transactions, total] = await Promise.all([
+        this.prisma.transaction.findMany({
+          where,
+          include: {
+            account: true,
+            category: true
+          },
+          orderBy,
+          skip,
+          take: limit
+        }),
+        this.prisma.transaction.count({ where })
+      ])
+
+      const totalPages = Math.ceil(total / limit)
+
+      return {
+        transactions,
+        total,
+        page,
+        totalPages
+      }
     } catch (error) {
       return this.handleError(error, 'TransactionService.getTransactions')
     }
@@ -219,6 +247,9 @@ export class TransactionService extends BaseService {
         }
       }
 
+      // Auto-parse merchant from description
+      const merchant = extractMerchantName(data.description);
+
       const transaction = await this.prisma.transaction.create({
         data: {
           tenant_id: tenantId,
@@ -226,6 +257,7 @@ export class TransactionService extends BaseService {
           category_id: data.category_id,
           amount: data.amount,
           description: data.description,
+          merchant: merchant,
           date: data.date,
           type: data.type,
           is_recurring: data.is_recurring || false
@@ -293,12 +325,15 @@ export class TransactionService extends BaseService {
         }
       }
 
+      // Auto-parse merchant if description is being updated
+      const updateData: any = { ...data, updated_at: getCurrentUTCDate() };
+      if (data.description) {
+        updateData.merchant = extractMerchantName(data.description);
+      }
+
       const transaction = await this.prisma.transaction.update({
         where: { id },
-        data: {
-          ...data,
-          updated_at: getCurrentUTCDate()
-        },
+        data: updateData,
         include: {
           account: true,
           category: true
@@ -369,7 +404,8 @@ export class TransactionService extends BaseService {
     tenantId: string
   ): Promise<TransactionWithRelations[]> {
     try {
-      return this.getTransactions(tenantId, { account_id: accountId })
+      const result = await this.getTransactions(tenantId, { account_id: accountId })
+      return result.transactions
     } catch (error) {
       return this.handleError(error, 'TransactionService.getTransactionsByAccount')
     }
@@ -380,7 +416,8 @@ export class TransactionService extends BaseService {
    */
   static async getRecurringTransactions(tenantId: string): Promise<TransactionWithRelations[]> {
     try {
-      return this.getTransactions(tenantId, { is_recurring: true })
+      const result = await this.getTransactions(tenantId, { is_recurring: true })
+      return result.transactions
     } catch (error) {
       return this.handleError(error, 'TransactionService.getRecurringTransactions')
     }
@@ -420,120 +457,29 @@ export class TransactionService extends BaseService {
         throw new Error('No transactions found for bulk update')
       }
 
-      // 2. Apply bulk update
+      // 2. Apply bulk update with merchant parsing if description is updated
+      const updateData: any = { ...updates };
+      if (updates.description) {
+        updateData.merchant = extractMerchantName(updates.description);
+      }
+
       await this.prisma.transaction.updateMany({
         where: { id: { in: safeTransactionIds }, tenant_id: tenantId },
-        data: updates
+        data: updateData
       })
 
-      // 3. Create bulk metadata for cube updates
-      const bulkMetadata = this.createBulkUpdateMetadata(oldTransactions, updates, tenantId)
+      // 3. Update cube using efficient delete-insert approach
+      const dates = oldTransactions.map(t => t.date)
+      const startDate = dates.reduce((min, date) => date < min ? date : min, dates[0])
+      const endDate = dates.reduce((max, date) => date > max ? date : max, dates[0])
 
-      // 4. Update cube efficiently with bulk metadata
-      await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
+      await cubeService.regenerateCubeForDateRange(tenantId, startDate, endDate)
 
     } catch (error) {
       return this.handleError(error, 'TransactionService.bulkUpdateTransactions')
     }
   }
 
-  /**
-   * Create bulk update metadata from transaction changes
-   */
-  private static createBulkUpdateMetadata(
-    oldTransactions: Array<{
-      id: number
-      account_id: number
-      category_id: number | null
-      amount: Decimal
-      date: Date
-      type: string
-      is_recurring: boolean
-    }>,
-    updates: BulkUpdateData,
-    tenantId: string
-  ): BulkUpdateMetadata {
-    const changedFields: BulkUpdateMetadata['changedFields'] = []
-
-    // Determine which fields changed and their old/new values
-    if (updates.category_id !== undefined) {
-      // For category changes, we need to handle multiple old values
-      const uniqueOldCategories = [...new Set(oldTransactions.map(t => t.category_id))]
-
-      if (uniqueOldCategories.length === 1) {
-        // All transactions had the same old category - simple case
-        changedFields.push({
-          fieldName: 'category_id',
-          oldValue: uniqueOldCategories[0],
-          newValue: updates.category_id
-        })
-      } else {
-        // Multiple old categories - fall back to individual delta processing
-        throw new Error('Bulk update with multiple old category values not supported. Use individual updates.')
-      }
-    }
-
-    if (updates.account_id !== undefined) {
-      const uniqueOldAccounts = [...new Set(oldTransactions.map(t => t.account_id))]
-
-      if (uniqueOldAccounts.length === 1) {
-        changedFields.push({
-          fieldName: 'account_id',
-          oldValue: uniqueOldAccounts[0],
-          newValue: updates.account_id
-        })
-      } else {
-        throw new Error('Bulk update with multiple old account values not supported. Use individual updates.')
-      }
-    }
-
-    if (updates.type !== undefined) {
-      const uniqueOldTypes = [...new Set(oldTransactions.map(t => t.type))]
-
-      if (uniqueOldTypes.length === 1) {
-        changedFields.push({
-          fieldName: 'type',
-          oldValue: uniqueOldTypes[0],
-          newValue: updates.type
-        })
-      } else {
-        throw new Error('Bulk update with multiple old transaction types not supported. Use individual updates.')
-      }
-    }
-
-    if (updates.amount !== undefined) {
-      changedFields.push({
-        fieldName: 'amount',
-        oldValue: null, // Amount changes don't need old/new distinction for cube regeneration
-        newValue: updates.amount
-      })
-    }
-
-    if (updates.is_recurring !== undefined) {
-      changedFields.push({
-        fieldName: 'is_recurring',
-        oldValue: null, // Recurring changes don't need old/new distinction for cube regeneration
-        newValue: updates.is_recurring
-      })
-    }
-
-    // Note: Date changes are not supported in bulk updates (not included in BulkUpdateData interface)
-
-    // Calculate date range from affected transactions
-    const dates = oldTransactions.map(t => t.date)
-    const sortedDates = dates.sort((a, b) => a.valueOf() - b.valueOf())
-    const dateRange = {
-      startDate: sortedDates[0],
-      endDate: sortedDates[sortedDates.length - 1]
-    }
-
-    return {
-      tenantId,
-      affectedTransactionIds: oldTransactions.map(t => t.id),
-      changedFields,
-      dateRange
-    }
-  }
 
   /**
    * Extract cube-relevant fields from a transaction for delta processing
@@ -580,11 +526,12 @@ export class TransactionService extends BaseService {
         where: { id: { in: transactionIds }, tenant_id: tenantId }
       })
 
-      // 3. Create bulk metadata for cube updates (all deletes)
-      const bulkMetadata = this.createBulkDeleteMetadata(oldTransactions, tenantId)
+      // 3. Update cube using efficient delete-insert approach
+      const dates = oldTransactions.map(t => t.date)
+      const startDate = dates.reduce((min, date) => date < min ? date : min, dates[0])
+      const endDate = dates.reduce((max, date) => date > max ? date : max, dates[0])
 
-      // 4. Update cube efficiently with bulk metadata
-      await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
+      await cubeService.regenerateCubeForDateRange(tenantId, startDate, endDate)
 
       return { deletedCount: deleteResult.count }
 
@@ -593,45 +540,6 @@ export class TransactionService extends BaseService {
     }
   }
 
-  /**
-   * Create bulk delete metadata from transaction deletions
-   */
-  private static createBulkDeleteMetadata(
-    deletedTransactions: Array<{
-      id: number
-      account_id: number
-      category_id: number | null
-      amount: Decimal
-      date: Date
-      type: string
-      is_recurring: boolean
-    }>,
-    tenantId: string
-  ): BulkUpdateMetadata {
-    // For deletes, we only have old values (no new values)
-    const changedFields = [
-      {
-        fieldName: 'amount' as keyof CubeRelevantFields,
-        oldValue: 'DELETED', // Special marker for deletions
-        newValue: null
-      }
-    ]
-
-    // Calculate date range from deleted transactions
-    const dates = deletedTransactions.map(t => t.date)
-    const sortedDates = dates.sort((a, b) => a.valueOf() - b.valueOf())
-    const dateRange = {
-      startDate: sortedDates[0],
-      endDate: sortedDates[sortedDates.length - 1]
-    }
-
-    return {
-      tenantId,
-      affectedTransactionIds: deletedTransactions.map(t => t.id),
-      changedFields,
-      dateRange
-    }
-  }
 
   /**
    * Bulk create transactions with efficient cube updates (for imports)
@@ -659,6 +567,7 @@ export class TransactionService extends BaseService {
         account_id: tx.account_id,
         amount: tx.amount,
         description: tx.description,
+        merchant: extractMerchantName(tx.description),
         date: tx.date,
         type: tx.type,
         category_id: tx.category_id || null,
@@ -672,11 +581,12 @@ export class TransactionService extends BaseService {
         data: transactionData
       })
 
-      // 3. Create bulk metadata for cube updates
-      const bulkMetadata = this.createBulkCreateMetadata(createdTransactions, tenantId)
+      // 3. Update cube using efficient delete-insert approach
+      const dates = createdTransactions.map(tx => tx.date)
+      const startDate = dates.reduce((min, date) => date < min ? date : min, dates[0])
+      const endDate = dates.reduce((max, date) => date > max ? date : max, dates[0])
 
-      // 4. Update cube efficiently with bulk metadata
-      await cubeService.updateCubeWithBulkMetadata(bulkMetadata)
+      await cubeService.regenerateCubeForDateRange(tenantId, startDate, endDate)
 
       return {
         createdCount: createdTransactions.length,
@@ -688,54 +598,6 @@ export class TransactionService extends BaseService {
     }
   }
 
-  /**
-   * Create bulk create metadata from new transactions
-   */
-  private static createBulkCreateMetadata(
-    createdTransactions: Array<{
-      id: number
-      account_id: number
-      category_id: number | null
-      amount: Decimal
-      date: Date
-      type: string
-      is_recurring: boolean
-    }>,
-    tenantId: string
-  ): BulkUpdateMetadata {
-    if (createdTransactions.length === 0) {
-      return {
-        tenantId,
-        affectedTransactionIds: [],
-        changedFields: []
-      }
-    }
-
-    // For bulk creates, we indicate that all cube-relevant fields have changed
-    // This will cause the cube service to regenerate all affected periods
-    const changedFields: {
-      fieldName: keyof CubeRelevantFields
-      oldValue: string | number | boolean | Date | Decimal | null
-      newValue: string | number | boolean | Date | Decimal | null
-    }[] = [
-      { fieldName: 'amount', oldValue: null, newValue: null }
-    ]
-
-    // Calculate date range for efficient cube processing
-    const dates = createdTransactions.map(tx => tx.date)
-    const startDate = dates.reduce((min, date) => date < min ? date : min, dates[0]) || getCurrentUTCDate()
-    const endDate = dates.reduce((max, date) => date > max ? date : max, dates[0]) || getCurrentUTCDate()
-
-    return {
-      tenantId,
-      affectedTransactionIds: createdTransactions.map(tx => tx.id),
-      changedFields,
-      dateRange: {
-        startDate,
-        endDate
-      }
-    }
-  }
 
 }
 

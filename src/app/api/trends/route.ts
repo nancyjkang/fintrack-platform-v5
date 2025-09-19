@@ -85,7 +85,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get trends data
+    console.log('📊 Trends API - Calling cube service with filters:', filters)
     const trends = await cubeService.getTrends(user.tenantId, filters)
+    console.log(`📊 Trends API - Cube service returned ${trends.length} records`)
 
     // Convert Decimal to number for JSON serialization
     const serializedTrends = trends.map(trend => ({
