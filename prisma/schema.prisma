@@ -1,6 +1,10 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = []
 }
+
+// Disable prepared statements for pooled connections
+// This prevents "prepared statement already exists" errors with Supabase Transaction Pooler
 
 datasource db {
   provider = "postgresql"
@@ -27,10 +31,10 @@ model Tenant {
   balance_anchors AccountBalanceAnchor[]
   accounts        Account[]
   categories      Category[]
+  financial_cube  FinancialCube[]
   memberships     Membership[]
   spending_goals  SpendingGoal[]
   transactions    Transaction[]
-  financial_cube  FinancialCube[]
 
   @@map("tenants")
 }
@@ -61,8 +65,8 @@ model Account {
   net_worth_category String
   balance_anchors    AccountBalanceAnchor[]
   tenant             Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  transactions       Transaction[]
   financial_cube     FinancialCube[]
+  transactions       Transaction[]
 
   @@unique([tenant_id, name])
   @@map("accounts")
@@ -77,8 +81,8 @@ model Category {
   created_at     DateTime        @default(now())
   updated_at     DateTime        @updatedAt
   tenant         Tenant          @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  transactions   Transaction[]
   financial_cube FinancialCube[]
+  transactions   Transaction[]
 
   @@unique([tenant_id, name, type])
   @@map("categories")
@@ -141,42 +145,30 @@ model SpendingGoal {
 }
 
 model FinancialCube {
-  id               Int      @id @default(autoincrement())
-  tenant_id        String
+  id                Int       @id @default(autoincrement())
+  tenant_id         String
+  period_type       String
+  period_start      DateTime  @db.Date
+  period_end        DateTime  @db.Date
+  transaction_type  String
+  category_id       Int?
+  category_name     String
+  account_id        Int
+  account_name      String
+  is_recurring      Boolean   @default(false)
+  total_amount      Decimal   @default(0.00) @db.Decimal(12, 2)
+  transaction_count Int       @default(0)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  account           Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  category          Category? @relation(fields: [category_id], references: [id])
+  tenant            Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
-  // Dimensions for flexible analysis
-  period_type      String   // 'WEEKLY' | 'MONTHLY'
-  period_start     DateTime @db.Date
-  period_end       DateTime @db.Date
-  transaction_type String   // 'INCOME' | 'EXPENSE' | 'TRANSFER'
-  category_id      Int?
-  category_name    String
-  account_id       Int
-  account_name     String
-  is_recurring     Boolean  @default(false)
-
-  // Facts (measures)
-  total_amount     Decimal  @db.Decimal(12, 2) @default(0.00)
-  transaction_count Int     @default(0)
-
-  // Metadata
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-
-  // Relations
-  tenant           Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  category         Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  account          Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-  // Unique constraint for dimensional combinations (optimized column order for query performance)
   @@unique([tenant_id, period_type, period_start, transaction_type, category_id, account_id, is_recurring])
-
-  // Indexes for performance (optimized - removed redundant indexes covered by unique constraint)
   @@index([tenant_id, category_id, period_start])
   @@index([tenant_id, account_id, period_start])
   @@index([tenant_id, transaction_type, period_start])
   @@index([tenant_id, is_recurring, period_start])
   @@index([updated_at])
-
   @@map("financial_cube")
 }

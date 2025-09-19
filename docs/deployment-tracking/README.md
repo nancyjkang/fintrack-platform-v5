@@ -64,16 +64,26 @@ git tag -a v5.1.0-rc.1 -m "Release candidate 1 for v5.1.0"
 - Update deployment documentation
 - Plan next release cycle
 
+## Database Configuration
+
+**Current Setup (as of January 2025):**
+- **Development**: `fintrack-v5-development` (isolated Supabase project)
+- **Staging**: `fintrack-v5-staging` (shared Supabase project)
+- **Production**: `fintrack-v5-staging` (same as staging for now)
+
+> **Note**: Staging and production currently share the same database for cost efficiency and testing consistency. See [`../deployment-guides/SUPABASE_SETUP.md`](../deployment-guides/SUPABASE_SETUP.md) for configuration details.
+
 ## Environment Differences
 
-| Aspect | Staging | Production |
-|--------|---------|------------|
-| Database | Staging DB (test data) | Production DB (live data) |
-| API Keys | Staging keys | Production keys |
-| Logging | DEBUG level | INFO level |
-| Features | All enabled | Stable features only |
-| Monitoring | Basic | Comprehensive |
-| Backups | Weekly | Daily |
+| Aspect | Development | Staging | Production |
+|--------|-------------|---------|------------|
+| Database | `fintrack-v5-development` | `fintrack-v5-staging` | `fintrack-v5-staging` (shared) |
+| Data | Test/seed data | Staging test data | Live data (shared with staging) |
+| API Keys | Development keys | Staging keys | Production keys |
+| Logging | DEBUG level | DEBUG level | INFO level |
+| Features | All enabled | All enabled | Stable features only |
+| Monitoring | Basic | Basic | Comprehensive |
+| Backups | None | Weekly | Daily |
 
 ## Quick Commands
 

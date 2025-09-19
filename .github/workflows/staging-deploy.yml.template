@@ -94,3 +94,4 @@ jobs:
           curl -f https://fintrack-platform-v5-925eg4vey-lumifin.vercel.app/api/health || exit 1
 
           echo "✅ Smoke tests passed!"
+

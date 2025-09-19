@@ -12,6 +12,8 @@ This directory contains **deployment procedures and how-to guides** for FinTrack
 
 **🤖 [AUTOMATION_SETUP.md](./AUTOMATION_SETUP.md)** - Guide for setting up automated deployments with GitHub Actions and Vercel integration.
 
+**🗄️ [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - Multi-environment Supabase database configuration guide.
+
 ---
 
 FinTrack v5 uses a **3-step Vercel CLI deployment process** based on the proven v4.1 workflow. This approach provides immediate feedback, clear error messages, and full control over deployments.
