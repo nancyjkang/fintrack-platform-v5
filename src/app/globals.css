@@ -203,6 +203,12 @@ a:hover {
   margin-bottom: var(--space-2);
 }
 
+/* Red asterisks for required fields */
+.form-label.required::after {
+  content: " *";
+  color: var(--error-500);
+}
+
 /* Select field styling - Following v4.1 Guidelines */
 .select-field,
 .form-input {

@@ -10,7 +10,6 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    name: '',
     tenantName: ''
   })
   const [error, setError] = useState('')
@@ -55,7 +54,6 @@ export default function RegisterPage() {
       const result = await register({
         email: formData.email,
         password: formData.password,
-        name: formData.name || undefined,
         tenantName: formData.tenantName || undefined
       })
 
@@ -102,8 +100,8 @@ export default function RegisterPage() {
             {/* Registration Form */}
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="email" className="form-label">
-                  Email Address *
+                <label htmlFor="email" className="form-label required">
+                  Email Address
                 </label>
                 <input
                   id="email"
@@ -119,24 +117,8 @@ export default function RegisterPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="name" className="form-label">
-                  Full Name
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="form-input"
-                  placeholder="Enter your full name"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="form-group">
                 <label htmlFor="tenantName" className="form-label">
-                  Workspace Name
+                  Financial Group
                 </label>
                 <input
                   id="tenantName"
@@ -145,17 +127,17 @@ export default function RegisterPage() {
                   value={formData.tenantName}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="e.g., John's Finances"
+                  placeholder="e.g. Family Finances"
                   disabled={isSubmitting}
                 />
                 <p className="form-help">
-                  This will be the name of your financial workspace
+                  This will be the name of your financial group
                 </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="password" className="form-label">
-                  Password *
+                <label htmlFor="password" className="form-label required">
+                  Password
                 </label>
                 <input
                   id="password"
@@ -174,8 +156,8 @@ export default function RegisterPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="confirmPassword" className="form-label">
-                  Confirm Password *
+                <label htmlFor="confirmPassword" className="form-label required">
+                  Confirm Password
                 </label>
                 <input
                   id="confirmPassword"
