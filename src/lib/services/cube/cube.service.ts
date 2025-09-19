@@ -394,7 +394,7 @@ export class CubeService extends BaseService {
   async getTrends(
     tenantId: string,
     filters: {
-      periodType?: 'WEEKLY' | 'MONTHLY'
+      periodType?: 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
       startDate?: Date
       endDate?: Date
       transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
@@ -403,26 +403,149 @@ export class CubeService extends BaseService {
       isRecurring?: boolean
     } = {}
   ): Promise<FinancialCube[]> {
-    const where: Prisma.FinancialCubeWhereInput = {
-      tenant_id: tenantId,
-      ...(filters.periodType && { period_type: filters.periodType }),
-      ...(filters.startDate && { period_start: { gte: filters.startDate } }),
-      ...(filters.endDate && { period_start: { lte: filters.endDate } }),
-      ...(filters.transactionType && { transaction_type: filters.transactionType }),
-      ...(filters.categoryIds && { category_id: { in: filters.categoryIds } }),
-      ...(filters.accountIds && { account_id: { in: filters.accountIds } }),
-      ...(filters.isRecurring !== undefined && { is_recurring: filters.isRecurring })
+    // For standard periods (WEEKLY, MONTHLY), query directly from cube
+    if (!filters.periodType || filters.periodType === 'WEEKLY' || filters.periodType === 'MONTHLY') {
+      const where: Prisma.FinancialCubeWhereInput = {
+        tenant_id: tenantId,
+        ...(filters.periodType && { period_type: filters.periodType }),
+        ...(filters.startDate && { period_start: { gte: filters.startDate } }),
+        ...(filters.endDate && { period_start: { lte: filters.endDate } }),
+        ...(filters.transactionType && { transaction_type: filters.transactionType }),
+        ...(filters.categoryIds && { category_id: { in: filters.categoryIds } }),
+        ...(filters.accountIds && { account_id: { in: filters.accountIds } }),
+        ...(filters.isRecurring !== undefined && { is_recurring: filters.isRecurring })
+      }
+
+      return this.prisma.financialCube.findMany({
+        where,
+        orderBy: [
+          { period_start: 'asc' },
+          { transaction_type: 'asc' },
+          { category_name: 'asc' },
+          { account_name: 'asc' }
+        ]
+      })
     }
 
-    return this.prisma.financialCube.findMany({
-      where,
-      orderBy: [
-        { period_start: 'asc' },
-        { transaction_type: 'asc' },
-        { category_name: 'asc' },
-        { account_name: 'asc' }
-      ]
+    // For custom periods, aggregate from base data
+    return this.getAggregatedTrends(tenantId, filters as {
+      periodType: 'BI_WEEKLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
+      startDate?: Date
+      endDate?: Date
+      transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+      categoryIds?: number[]
+      accountIds?: number[]
+      isRecurring?: boolean
     })
+  }
+
+  /**
+   * Get aggregated trends for custom period types
+   */
+  private async getAggregatedTrends(
+    tenantId: string,
+    filters: {
+      periodType: 'BI_WEEKLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
+      startDate?: Date
+      endDate?: Date
+      transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+      categoryIds?: number[]
+      accountIds?: number[]
+      isRecurring?: boolean
+    }
+  ): Promise<FinancialCube[]> {
+    // Determine base period type to aggregate from
+    const basePeriodType = this.getBasePeriodType(filters.periodType)
+
+    // Get base data
+    const baseData = await this.getTrends(tenantId, {
+      ...filters,
+      periodType: basePeriodType
+    })
+
+    // Aggregate base data into custom periods
+    return this.aggregateToCustomPeriods(baseData, filters.periodType)
+  }
+
+  /**
+   * Determine which base period type to use for aggregation
+   */
+  private getBasePeriodType(customPeriodType: string): 'WEEKLY' | 'MONTHLY' {
+    switch (customPeriodType) {
+      case 'BI_WEEKLY':
+        return 'WEEKLY'
+      case 'QUARTERLY':
+      case 'BI_ANNUALLY':
+      case 'ANNUALLY':
+        return 'MONTHLY'
+      default:
+        return 'MONTHLY'
+    }
+  }
+
+  /**
+   * Aggregate base period data into custom periods
+   */
+  private aggregateToCustomPeriods(
+    baseData: FinancialCube[],
+    customPeriodType: 'BI_WEEKLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
+  ): FinancialCube[] {
+    const aggregatedData = new Map<string, FinancialCube>()
+
+    for (const record of baseData) {
+      const customPeriodStart = this.getCustomPeriodStart(record.period_start, customPeriodType)
+      const key = `${customPeriodStart.toISOString()}-${record.transaction_type}-${record.category_id}-${record.account_id}-${record.is_recurring}`
+
+      if (aggregatedData.has(key)) {
+        const existing = aggregatedData.get(key)!
+        existing.total_amount = existing.total_amount.add(record.total_amount)
+        existing.transaction_count += record.transaction_count
+      } else {
+        aggregatedData.set(key, {
+          ...record,
+          period_start: customPeriodStart,
+          period_type: customPeriodType,
+          total_amount: record.total_amount
+        })
+      }
+    }
+
+    return Array.from(aggregatedData.values()).sort((a, b) => {
+      const dateCompare = a.period_start.getTime() - b.period_start.getTime()
+      if (dateCompare !== 0) return dateCompare
+      return a.category_name.localeCompare(b.category_name)
+    })
+  }
+
+  /**
+   * Get the start date of the custom period that contains the given date
+   */
+  private getCustomPeriodStart(date: Date, periodType: string): Date {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+
+    switch (periodType) {
+      case 'BI_WEEKLY':
+        // Bi-weekly periods start every 14 days from a reference date
+        const referenceDate = createUTCDate(year, 0, 1) // January 1st
+        const daysSinceReference = Math.floor((date.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24))
+        const biWeeklyPeriod = Math.floor(daysSinceReference / 14)
+        return addDays(referenceDate, biWeeklyPeriod * 14)
+
+      case 'QUARTERLY':
+        const quarter = Math.floor(month / 3)
+        return createUTCDate(year, quarter * 3, 1)
+
+      case 'BI_ANNUALLY':
+        const halfYear = Math.floor(month / 6)
+        return createUTCDate(year, halfYear * 6, 1)
+
+      case 'ANNUALLY':
+        return createUTCDate(year, 0, 1)
+
+      default:
+        return date
+    }
   }
 
   /**
@@ -810,8 +933,8 @@ export class CubeService extends BaseService {
       let existingKey: number | undefined
 
       for (const [key, group] of groups) {
-        if (group.tenantId === target.tenantId && 
-            group.periodType === target.periodType && 
+        if (group.tenantId === target.tenantId &&
+            group.periodType === target.periodType &&
             group.periodStart.valueOf() === target.periodStart.valueOf()) {
           existingKey = key
           break

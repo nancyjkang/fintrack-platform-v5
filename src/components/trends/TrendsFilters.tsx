@@ -6,10 +6,10 @@ import { getCurrentDate, getDaysAgo, toUTCDateString } from '@/lib/utils/date-ut
 
 interface TrendsFiltersProps {
   filters: {
-    periodType: 'WEEKLY' | 'MONTHLY'
+    periodType: 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
     startDate: string
     endDate: string
-    transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+    transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER'
     categoryIds?: number[]
     accountIds?: number[]
     isRecurring?: boolean
@@ -42,7 +42,13 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
         ])
 
         if (accountsRes.success) {
-          setAccounts(accountsRes.data)
+          const accountsData = accountsRes.data
+          setAccounts(accountsData)
+
+          // Default all accounts to selected
+          if (!filters.accountIds && accountsData.length > 0) {
+            onChange({ accountIds: accountsData.map((acc: Account) => acc.id) })
+          }
         }
         if (categoriesRes.success) {
           // Map to match our interface
@@ -50,10 +56,17 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
             ? categoriesRes.data
             : categoriesRes.data.categories || []
 
-          setCategories(categories.map((cat: { id: number; name: string; type: string }) => ({
+          const mappedCategories = categories.map((cat: { id: number; name: string; type: string }) => ({
             id: cat.id,
             name: cat.name
-          })))
+          }))
+
+          setCategories(mappedCategories)
+
+          // Default all categories to selected
+          if (!filters.categoryIds && mappedCategories.length > 0) {
+            onChange({ categoryIds: mappedCategories.map((cat: Category) => cat.id) })
+          }
         }
       } catch (error) {
         console.error('Error fetching filter data:', error)
@@ -80,14 +93,21 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
     }
   }
 
+  const handleSelectAll = (key: string, items: Account[] | Category[]) => {
+    onChange({ [key]: items.map(item => item.id) })
+  }
+
+  const handleSelectNone = (key: string) => {
+    onChange({ [key]: [] })
+  }
+
   const clearFilters = () => {
     onChange({
-      periodType: 'MONTHLY',
       startDate: toUTCDateString(getDaysAgo(90)),
       endDate: getCurrentDate(),
-      transactionType: undefined,
-      categoryIds: undefined,
-      accountIds: undefined,
+      transactionType: 'EXPENSE',
+      categoryIds: categories.map(cat => cat.id),
+      accountIds: accounts.map(acc => acc.id),
       isRecurring: undefined
     })
   }
@@ -115,22 +135,7 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Period Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Period Type
-          </label>
-          <select
-            value={filters.periodType}
-            onChange={(e) => handleFilterChange('periodType', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="WEEKLY">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-          </select>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Start Date */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -156,35 +161,34 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-
-        {/* Transaction Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Transaction Type
-          </label>
-          <select
-            value={filters.transactionType || ''}
-            onChange={(e) => handleFilterChange('transactionType', e.target.value || undefined)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Types</option>
-            <option value="INCOME">Income</option>
-            <option value="EXPENSE">Expense</option>
-            <option value="TRANSFER">Transfer</option>
-          </select>
-        </div>
       </div>
 
-      {/* Advanced Filters */}
-      <div className="mt-6 pt-6 border-t border-gray-200">
-        <h4 className="text-md font-medium text-gray-900 mb-4">Advanced Filters</h4>
-
+      {/* Filters */}
+      <div className="mt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Categories */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Categories
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Categories
+              </label>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handleSelectAll('categoryIds', categories)}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectNone('categoryIds')}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  None
+                </button>
+              </div>
+            </div>
             <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
               {loading ? (
                 <div className="text-sm text-gray-500">Loading...</div>
@@ -208,9 +212,27 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
 
           {/* Accounts */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Accounts
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Accounts
+              </label>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handleSelectAll('accountIds', accounts)}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectNone('accountIds')}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  None
+                </button>
+              </div>
+            </div>
             <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
               {loading ? (
                 <div className="text-sm text-gray-500">Loading...</div>
@@ -235,7 +257,7 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
           {/* Recurring Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Transaction Frequency
+              Recurring vs not
             </label>
             <select
               value={filters.isRecurring === undefined ? '' : filters.isRecurring.toString()}
@@ -254,24 +276,14 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
       </div>
 
       {/* Active Filters Summary */}
-      {(filters.transactionType || filters.categoryIds?.length || filters.accountIds?.length || filters.isRecurring !== undefined) && (
+      {((filters.categoryIds?.length && filters.categoryIds.length < categories.length) || 
+        (filters.accountIds?.length && filters.accountIds.length < accounts.length) || 
+        filters.isRecurring !== undefined) && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex flex-wrap gap-2">
             <span className="text-sm font-medium text-gray-700">Active filters:</span>
 
-            {filters.transactionType && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {filters.transactionType}
-                <button
-                  onClick={() => handleFilterChange('transactionType', undefined)}
-                  className="ml-1 text-blue-600 hover:text-blue-800"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-
-            {filters.categoryIds?.length && (
+            {filters.categoryIds?.length && filters.categoryIds.length < categories.length && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 {filters.categoryIds.length} categories
                 <button
@@ -283,7 +295,7 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
               </span>
             )}
 
-            {filters.accountIds?.length && (
+            {filters.accountIds?.length && filters.accountIds.length < accounts.length && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                 {filters.accountIds.length} accounts
                 <button

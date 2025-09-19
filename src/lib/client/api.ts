@@ -572,12 +572,12 @@ class ApiClient {
   }
 
   async getCubeTrends(filters: {
-    periodType?: 'WEEKLY' | 'MONTHLY'
+    periodType?: 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
     startDate?: string // YYYY-MM-DD format
     endDate?: string // YYYY-MM-DD format
     transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
-    categoryIds?: number[]
-    accountIds?: number[]
+    categoryIds?: number[] | string
+    accountIds?: number[] | string
     isRecurring?: boolean
   } = {}): Promise<ApiResponse<Array<{
     period_start: string
@@ -594,12 +594,18 @@ class ApiClient {
     if (filters.startDate) params.append('startDate', filters.startDate)
     if (filters.endDate) params.append('endDate', filters.endDate)
     if (filters.transactionType) params.append('transactionType', filters.transactionType)
-    if (filters.categoryIds?.length) params.append('categoryIds', filters.categoryIds.join(','))
-    if (filters.accountIds?.length) params.append('accountIds', filters.accountIds.join(','))
+    if (filters.categoryIds?.length) {
+      const categoryIds = Array.isArray(filters.categoryIds) ? filters.categoryIds.join(',') : filters.categoryIds
+      params.append('categoryIds', categoryIds)
+    }
+    if (filters.accountIds?.length) {
+      const accountIds = Array.isArray(filters.accountIds) ? filters.accountIds.join(',') : filters.accountIds
+      params.append('accountIds', accountIds)
+    }
     if (filters.isRecurring !== undefined) params.append('isRecurring', filters.isRecurring.toString())
 
     const queryString = params.toString()
-    return this.request(`/cube/trends${queryString ? `?${queryString}` : ''}`)
+    return this.request(`/trends${queryString ? `?${queryString}` : ''}`)
   }
 
   // Utility methods

@@ -20,10 +20,10 @@ interface TrendData {
 }
 
 interface TrendsFilters {
-  periodType: 'WEEKLY' | 'MONTHLY'
+  periodType: 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
   startDate: string
   endDate: string
-  transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
+  transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   categoryIds?: number[]
   accountIds?: number[]
   isRecurring?: boolean
@@ -36,7 +36,8 @@ export default function TrendsPage() {
   const [filters, setFilters] = useState<TrendsFilters>({
     periodType: 'MONTHLY',
     startDate: toUTCDateString(getDaysAgo(90)), // 90 days ago
-    endDate: getCurrentDate() // Today
+    endDate: getCurrentDate(), // Today
+    transactionType: 'EXPENSE' // Default to Expense
   })
 
   const fetchTrends = async () => {
@@ -47,11 +48,8 @@ export default function TrendsPage() {
       const queryParams: Record<string, string> = {
         periodType: filters.periodType,
         startDate: filters.startDate,
-        endDate: filters.endDate
-      }
-
-      if (filters.transactionType) {
-        queryParams.transactionType = filters.transactionType
+        endDate: filters.endDate,
+        transactionType: filters.transactionType
       }
 
       if (filters.categoryIds?.length) {
@@ -101,10 +99,52 @@ export default function TrendsPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Financial Trends Analysis</h1>
-        <p className="text-gray-600 mt-1">
-          Analyze your financial patterns and trends over time using our advanced data cube
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Financial Trends Analysis</h1>
+            <p className="text-gray-600 mt-1">
+              Analyze your financial patterns and trends over time using our advanced data cube
+            </p>
+          </div>
+
+          {/* Quick Filters in Header */}
+          <div className="flex items-center space-x-4 ml-6">
+            {/* Transaction Type */}
+            <div className="min-w-[140px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Transaction Type
+              </label>
+              <select
+                value={filters.transactionType || 'EXPENSE'}
+                onChange={(e) => handleFiltersChange({ transactionType: e.target.value as 'INCOME' | 'EXPENSE' | 'TRANSFER' })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="INCOME">Income</option>
+                <option value="EXPENSE">Expense</option>
+                <option value="TRANSFER">Transfer</option>
+              </select>
+            </div>
+
+            {/* Period Type */}
+            <div className="min-w-[140px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Period Type
+              </label>
+              <select
+                value={filters.periodType}
+                onChange={(e) => handleFiltersChange({ periodType: e.target.value as 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY' })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="WEEKLY">Weekly</option>
+                <option value="BI_WEEKLY">Bi-weekly</option>
+                <option value="MONTHLY">Monthly</option>
+                <option value="QUARTERLY">Quarterly</option>
+                <option value="BI_ANNUALLY">Bi-annually</option>
+                <option value="ANNUALLY">Annually</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}

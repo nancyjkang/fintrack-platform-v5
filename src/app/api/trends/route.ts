@@ -6,7 +6,7 @@ import { parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 // Query parameter validation schema
 const TrendsQuerySchema = z.object({
-  periodType: z.enum(['WEEKLY', 'MONTHLY']).optional(),
+  periodType: z.enum(['WEEKLY', 'BI_WEEKLY', 'MONTHLY', 'QUARTERLY', 'BI_ANNUALLY', 'ANNUALLY']).optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   transactionType: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']).optional(),
@@ -21,7 +21,7 @@ const TrendsQuerySchema = z.object({
  * Get financial trends data with flexible filtering
  *
  * Query Parameters:
- * - periodType: 'WEEKLY' | 'MONTHLY'
+ * - periodType: 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
  * - startDate: YYYY-MM-DD format
  * - endDate: YYYY-MM-DD format
  * - transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER'
