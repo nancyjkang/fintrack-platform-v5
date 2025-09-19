@@ -107,12 +107,13 @@ This document contains the prioritized list of all features to be implemented, s
 
 ### **⚡ Priority 2: Important Features (Next Up)**
 
-- **Financial Trends Analysis (Data Cube)** - 📋 **PLANNED FOR TOMORROW**
+- **Trend Cube Analysis** - 📋 **READY FOR DEVELOPMENT**
   - **Estimate**: 4 days
-  - **Planned Start**: 2025-09-18
-  - **Dependencies**: MVP Accounting System ✅, Transaction CRUD ✅
-  - **Notes**: OLAP-style data cube for financial trends with dimensions (period_type, transaction_type, category, recurring, account) and facts (total_amount, transaction_count). Pre-computed WEEKLY/MONTHLY periods with on-demand aggregation for QUARTERLY/YEARLY.
-  - **Documentation**: [Planning](features/financial-trends-analysis/planning.md) ✅
+  - **Planned Start**: 2025-09-19
+  - **Dependencies**: MVP Accounting System ✅, Transaction CRUD ✅, Financial Cube ✅
+  - **Notes**: **ADVANCED ANALYTICS INTERFACE** - Powerful 3-level drill-down analysis tool leveraging financial cube. Required filters (Type, Period, Date Range), optional filters (Accounts, Categories, Recurring), 2-level grouping with expandable table interface. Level 3 drill-down to individual transaction descriptions with dynamic queries.
+  - **Key Features**: Hierarchical drill-down (Category → Recurring → Descriptions), time series analysis, merchant grouping, export functionality, mobile responsive design
+  - **Documentation**: [Planning](docs/features/trend-cube-analysis/planning.md) ✅
 
 - **Bulk Transaction Operations** - ✅ Completed
   - **Estimate**: 3 days | **Actual**: 2 days
@@ -147,7 +148,7 @@ This document contains the prioritized list of all features to be implemented, s
 
 - **Spending Trend Report** - 📋 **PLANNED FOR DAY AFTER**
   - **Estimate**: 6 days (enhanced from PRD)
-  - **Planned Start**: 2025-09-19
+  - **Planned Start**: 2025-09-18
   - **Dependencies**: Financial Trends Cube, Transaction CRUD ✅, Categories ✅
   - **Notes**: **Enhanced from PRD**: Configurable breakdown periods (bi-weekly, monthly, quarterly, bi-annually, annually), pre-calculated cube table for fast interactive analysis, Web Workers for performance, comprehensive filtering by category/account/recurring status
   - **Documentation**: [PRD](docs/features/spending-trend-report-prd.md)
@@ -311,10 +312,20 @@ These are new features that don't exist in v4.1 but leverage v5's PostgreSQL arc
 
 ### **📊 Analytics & Insights**
 
+- **Financial Insights Engine** - 📋 **READY FOR DEVELOPMENT**
+  - **Estimate**: 5 days
+  - **Planned Start**: 2025-10-01 (after trend-cube-analysis)
+  - **Dependencies**: Trend Cube Analysis, Financial Cube ✅, Merchant Normalization System
+  - **Value**: High
+  - **Notes**: **INTELLIGENT FINANCIAL ADVISOR** - Auto-generated insights engine that transforms FinTrack from passive tracker to active financial advisor. Rule-based detection for spending spikes, new merchants, recurring payment changes, budget variance alerts, and seasonal patterns. User preference system for personalized notifications.
+  - **Key Features**: Spending spike detection, new merchant alerts, recurring payment monitoring, budget variance warnings, seasonal pattern recognition, user preference controls, insight history, email notifications
+  - **Future Phases**: Statistical analysis, AI-powered insights, predictive analytics, optimization recommendations
+  - **Documentation**: [Planning](docs/features/financial-insights-engine/planning.md) ✅
+
 - **Spending Insights** - 📋 Backlog
   - **Estimate**: 4 days
   - **Value**: High
-  - **Notes**: AI-powered spending analysis
+  - **Notes**: AI-powered spending analysis (superseded by Financial Insights Engine)
 
 - **Budget Tracking** - 📋 Backlog
   - **Estimate**: 5 days
