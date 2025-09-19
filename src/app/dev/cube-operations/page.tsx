@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { RefreshCw, Trash2, BarChart3, Database, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
-import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay } from '@/lib/utils/date-utils';
+import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay, createUTCDate, getCurrentUTCDate } from '@/lib/utils/date-utils';
 import { useAuth } from '@/lib/client/auth-context';
 
 interface CubeStats {
@@ -29,9 +29,70 @@ export default function CubeOperationsPage() {
   const [loading, setLoading] = useState(false);
   const [operation, setOperation] = useState<string | null>(null);
   const [result, setResult] = useState<OperationResult | null>(null);
-  // Date range for populate/rebuild operations
-  const [startDate, setStartDate] = useState(toUTCDateString(getDaysAgo(365))); // 1 year ago
-  const [endDate, setEndDate] = useState(getCurrentDate());
+  const [authToken, setAuthToken] = useState('');
+
+  // Period configuration for cube operations
+  const [periodType, setPeriodType] = useState<'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'>('MONTHLY');
+  const [periodCount, setPeriodCount] = useState(6); // Default to 6 periods
+
+  // Calculate date range based on period type and count (complete periods)
+  const getDateRangeFromPeriods = (type: string, count: number) => {
+    const today = getCurrentUTCDate();
+    const endDate = getCurrentDate(); // End is always today
+    const startDateObj = createUTCDate(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+
+    switch (type) {
+      case 'WEEKLY':
+        // Go back to start of the week N weeks ago
+        const currentDayOfWeek = today.getUTCDay();
+        const daysToStartOfWeek = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Monday = 0
+        startDateObj.setUTCDate(today.getUTCDate() - daysToStartOfWeek - ((count - 1) * 7));
+        startDateObj.setUTCHours(0, 0, 0, 0);
+        break;
+      case 'BI_WEEKLY':
+        // Go back to start of the bi-week N bi-weeks ago
+        const currentDay = today.getUTCDay();
+        const daysToStartOfBiWeek = currentDay === 0 ? 6 : currentDay - 1;
+        startDateObj.setUTCDate(today.getUTCDate() - daysToStartOfBiWeek - ((count - 1) * 14));
+        startDateObj.setUTCHours(0, 0, 0, 0);
+        break;
+      case 'MONTHLY':
+        // Go back to 1st of the month N months ago
+        startDateObj.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth() - count + 1, 1);
+        startDateObj.setUTCHours(0, 0, 0, 0);
+        break;
+      case 'QUARTERLY':
+        // Go back to start of quarter N quarters ago
+        const currentQuarter = Math.floor(today.getUTCMonth() / 3);
+        const targetQuarter = currentQuarter - count + 1;
+        const targetYear = today.getUTCFullYear() + Math.floor(targetQuarter / 4);
+        const targetMonth = ((targetQuarter % 4) + 4) % 4 * 3;
+        startDateObj.setUTCFullYear(targetYear, targetMonth, 1);
+        startDateObj.setUTCHours(0, 0, 0, 0);
+        break;
+      case 'BI_ANNUALLY':
+        // Go back to start of 6-month period N periods ago
+        const currentHalf = Math.floor(today.getUTCMonth() / 6);
+        const targetHalf = currentHalf - count + 1;
+        const targetYearBi = today.getUTCFullYear() + Math.floor(targetHalf / 2);
+        const targetMonthBi = ((targetHalf % 2) + 2) % 2 * 6;
+        startDateObj.setUTCFullYear(targetYearBi, targetMonthBi, 1);
+        startDateObj.setUTCHours(0, 0, 0, 0);
+        break;
+      case 'ANNUALLY':
+        // Go back to January 1st N years ago
+        startDateObj.setUTCFullYear(today.getUTCFullYear() - count + 1, 0, 1);
+        startDateObj.setUTCHours(0, 0, 0, 0);
+        break;
+      default:
+        // Default to monthly
+        startDateObj.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth() - count + 1, 1);
+        startDateObj.setUTCHours(0, 0, 0, 0);
+    }
+
+    const startDate = toUTCDateString(startDateObj);
+    return { startDate, endDate };
+  };
 
   // Load stats on component mount
   useEffect(() => {
@@ -83,21 +144,23 @@ export default function CubeOperationsPage() {
       let method = 'POST';
       let body: string | null = null;
 
+      // Calculate date range from period selection
+      const { startDate, endDate } = getDateRangeFromPeriods(periodType, periodCount);
+
       switch (operationType) {
         case 'populate':
           url = '/api/cube/populate';
-          // Only send dates if they're filled in (for auto-detection)
-          const populateBody: { clearExisting: boolean; startDate?: string; endDate?: string } = { clearExisting: true };
-          if (startDate) populateBody.startDate = startDate;
-          if (endDate) populateBody.endDate = endDate;
+          // Use calculated date range for populate
+          const populateBody = {
+            clearExisting: true,
+            startDate,
+            endDate
+          };
           body = JSON.stringify(populateBody);
           break;
         case 'rebuild':
           url = '/api/cube/rebuild';
-          // Rebuild always requires both dates
-          if (!startDate || !endDate) {
-            throw new Error('Rebuild operation requires both start and end dates');
-          }
+          // Use calculated date range for rebuild
           body = JSON.stringify({ startDate, endDate });
           break;
         case 'clear':
@@ -250,52 +313,53 @@ export default function CubeOperationsPage() {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Cube Operations</h2>
 
-              {/* Date Range Configuration */}
+              {/* Period Configuration */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Date Range Configuration</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Period Configuration</h3>
                 <div className="grid grid-cols-2 gap-4 mb-3">
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Start Date <span className="text-gray-400">(optional for Populate)</span>
+                    <label className="block text-xs text-gray-600 mb-2">
+                      Period Type
                     </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Auto-detect for Populate"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setStartDate('')}
-                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                    <select
+                      value={periodType}
+                      onChange={(e) => setPeriodType(e.target.value as any)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      Clear (auto-detect)
-                    </button>
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="BI_WEEKLY">Bi-weekly</option>
+                      <option value="MONTHLY">Monthly</option>
+                      <option value="QUARTERLY">Quarterly</option>
+                      <option value="BI_ANNUALLY">Bi-annually</option>
+                      <option value="ANNUALLY">Annually</option>
+                    </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      End Date <span className="text-gray-400">(optional for Populate)</span>
+                    <label className="block text-xs text-gray-600 mb-2">
+                      Number of Periods
                     </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Auto-detect for Populate"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setEndDate('')}
-                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                    <select
+                      value={periodCount}
+                      onChange={(e) => setPeriodCount(Number(e.target.value))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      Clear (auto-detect)
-                    </button>
+                      <option value={3}>3</option>
+                      <option value={6}>6 (default)</option>
+                      <option value={9}>9</option>
+                      <option value={15}>15</option>
+                    </select>
                   </div>
                 </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Selected range: {(() => {
+                    const { startDate, endDate } = getDateRangeFromPeriods(periodType, periodCount);
+                    return `${formatDate(startDate)} to ${formatDate(endDate)} (${periodCount} ${periodType.toLowerCase()} periods)`;
+                  })()}
+                </div>
                 <div className="text-xs text-gray-500 space-y-1">
-                  <div>• <strong>Populate:</strong> Date range is optional - will auto-detect from earliest transaction if empty</div>
-                  <div>• <strong>Rebuild:</strong> Date range is required - will clear and rebuild only this specific period</div>
+                  <div>• <strong>Populate:</strong> Processes data for the selected period (clears existing data first)</div>
+                  <div>• <strong>Rebuild:</strong> Clears and rebuilds data for the selected period only</div>
+                  <div>• <strong>Clear:</strong> Removes ALL cube data regardless of period selection</div>
                 </div>
               </div>
 
@@ -332,9 +396,9 @@ export default function CubeOperationsPage() {
               {/* Operation Descriptions */}
               <div className="mt-6 text-xs text-gray-600 space-y-2 p-3 bg-blue-50 rounded-lg">
                 <div className="font-medium text-blue-800 mb-2">Operation Details:</div>
-                <div><strong>Populate:</strong> Initial setup - processes all historical data (date range optional, auto-detects if empty)</div>
-                <div><strong>Rebuild:</strong> Targeted fix - clears and rebuilds specific date range (date range required)</div>
-                <div><strong>Clear:</strong> Nuclear option - removes ALL cube data for your tenant (ignores date range)</div>
+                <div><strong>Populate:</strong> Initial setup - processes data for the selected {periodCount} month period</div>
+                <div><strong>Rebuild:</strong> Targeted fix - clears and rebuilds the selected {periodCount} month period</div>
+                <div><strong>Clear:</strong> Nuclear option - removes ALL cube data for your tenant (ignores period selection)</div>
               </div>
             </div>
 
