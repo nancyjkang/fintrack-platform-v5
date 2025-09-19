@@ -18,7 +18,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+// Clear existing Prisma instance to force fresh connection
+if (globalForPrisma.prisma) {
+  globalForPrisma.prisma.$disconnect().catch(() => {})
+  globalForPrisma.prisma = undefined
+}
+
+export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development'
     ? ['error', 'warn']  // Reduced logging to avoid connection issues
     : ['error'],
@@ -27,7 +33,7 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
 
   datasources: {
     db: {
-      url: process.env.DATABASE_URL
+      url: process.env.DATABASE_URL + '?pgbouncer=true'
     }
   }
 })

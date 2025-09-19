@@ -1,4 +1,4 @@
-import { Building, TrendingUp, TrendingDown, MoreHorizontal } from 'lucide-react'
+import { Building, TrendingUp, TrendingDown, MoreHorizontal, Building2, Wallet, CreditCard, DollarSign, PiggyBank } from 'lucide-react'
 import { formatDateForDisplay } from '@/lib/utils/date-utils'
 
 interface AccountCardProps {
@@ -37,15 +37,24 @@ export default function AccountCard({ account }: AccountCardProps) {
   }
 
   const getAccountTypeIcon = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'checking':
-      case 'savings':
-      case 'investment':
-      case 'credit':
-        return Building
-      default:
-        return Building
+    const typeMap: { [key: string]: any } = {
+      'CHECKING': Building2,
+      'checking': Building2,
+      'SAVINGS': PiggyBank,
+      'savings': PiggyBank,
+      'CREDIT_CARD': CreditCard,
+      'credit': CreditCard,
+      'credit_card': CreditCard,
+      'INVESTMENT': TrendingUp,
+      'investment': TrendingUp,
+      'LOAN': DollarSign,
+      'loan': DollarSign,
+      'TRADITIONAL_RETIREMENT': Wallet,
+      'traditional_retirement': Wallet,
+      'ROTH_RETIREMENT': Wallet,
+      'roth_retirement': Wallet
     }
+    return typeMap[type] || Building
   }
 
   const isPositive = toNumber(account.current_balance) >= 0

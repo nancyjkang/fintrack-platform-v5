@@ -270,19 +270,12 @@ export function AccountForm({ account, onSubmit, onCancel }: AccountFormProps) {
             </div>
           </div>
 
-          {/* Active Status */}
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="is_active"
-              checked={formData.is_active}
-              onChange={(e) => handleChange('is_active', e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
-              Account is active
-            </label>
-          </div>
+          {/* Active Status - Hidden, always true for new accounts */}
+          <input
+            type="hidden"
+            name="is_active"
+            value={formData.is_active ? 'true' : 'false'}
+          />
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Calculator } from 'lucide-react'
+import { Plus, Edit, Trash2, Calculator, Building2, Wallet, CreditCard, TrendingUp, DollarSign, PiggyBank, Building } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { AccountForm } from './AccountForm'
 import ReconcileAccountModal, { ReconcileFormData } from './ReconcileAccountModal'
@@ -165,15 +165,15 @@ export function AccountsPageContent() {
   // Get account type icon and color
   const getAccountTypeInfo = (type: string) => {
     const typeMap = {
-      'CHECKING': { icon: '🏦', color: '#3B82F6', label: 'Checking' },
-      'SAVINGS': { icon: '🏦', color: '#10B981', label: 'Savings' },
-      'CREDIT_CARD': { icon: '💳', color: '#F59E0B', label: 'Credit Card' },
-      'INVESTMENT': { icon: '📈', color: '#8B5CF6', label: 'Investment' },
-      'LOAN': { icon: '💰', color: '#EF4444', label: 'Loan' },
-      'TRADITIONAL_RETIREMENT': { icon: '🏦', color: '#6366F1', label: 'Traditional Retirement' },
-      'ROTH_RETIREMENT': { icon: '🏦', color: '#EC4899', label: 'Roth Retirement' }
+      'CHECKING': { icon: Building2, color: '#3B82F6', label: 'Checking' },
+      'SAVINGS': { icon: PiggyBank, color: '#10B981', label: 'Savings' },
+      'CREDIT_CARD': { icon: CreditCard, color: '#F59E0B', label: 'Credit Card' },
+      'INVESTMENT': { icon: TrendingUp, color: '#8B5CF6', label: 'Investment' },
+      'LOAN': { icon: DollarSign, color: '#EF4444', label: 'Loan' },
+      'TRADITIONAL_RETIREMENT': { icon: Wallet, color: '#6366F1', label: 'Traditional Retirement' },
+      'ROTH_RETIREMENT': { icon: Wallet, color: '#EC4899', label: 'Roth Retirement' }
     }
-    return typeMap[type as keyof typeof typeMap] || { icon: '🏦', color: '#6B7280', label: type }
+    return typeMap[type as keyof typeof typeMap] || { icon: Building, color: '#6B7280', label: type }
   }
 
   if (isLoading) {
@@ -282,7 +282,7 @@ export function AccountsPageContent() {
                         className="w-12 h-12 rounded-md flex items-center justify-center flex-shrink-0"
                         style={{ backgroundColor: account.color || typeInfo.color }}
                       >
-                        <span className="text-white text-xl">{typeInfo.icon}</span>
+                        <typeInfo.icon className="text-white w-6 h-6" />
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">{account.name}</h3>
@@ -335,7 +335,7 @@ export function AccountsPageContent() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">🏦</div>
+            <Building className="text-gray-400 w-16 h-16 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No {filter} accounts found</h3>
             <p className="text-gray-500">Get started by adding your first account using the button above.</p>
           </div>

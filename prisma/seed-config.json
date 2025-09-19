@@ -126,9 +126,9 @@
     ]
   },
   "user": {
-    "email": "nancyjkang@gmail.com",
-    "name": "Nancy Kang",
-    "tenantName": "Nancy's Finances",
+    "email": "demo@fintrack.com",
+    "name": "Demo",
+    "tenantName": "Demo Family",
     "avatar": "young-professional"
   },
   "avatarSettings": {

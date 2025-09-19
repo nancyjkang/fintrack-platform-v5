@@ -1,10 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = []
 }
-
-// Disable prepared statements for pooled connections
-// This prevents "prepared statement already exists" errors with Supabase Transaction Pooler
 
 datasource db {
   provider = "postgresql"
