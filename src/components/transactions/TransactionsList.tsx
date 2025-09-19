@@ -541,7 +541,7 @@ export default function TransactionsList({
     <>
       {/* Table - v4.1 exact structure */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full table-fixed">
           {/* Bulk selection header - v4.1 pattern */}
           {selectedTransactions.size > 0 && (
             <thead className="bg-blue-50 border-b border-blue-200">
@@ -596,22 +596,22 @@ export default function TransactionsList({
                   title={isAllSelected ? "Deselect all" : "Select all"}
                 />
               </th>
-              <SortableHeader field="date">
+              <SortableHeader field="date" className="w-24">
                 Date
               </SortableHeader>
-              <SortableHeader field="description">
+              <SortableHeader field="description" className="w-80">
                 Description
               </SortableHeader>
-              <SortableHeader field="type">
+              <SortableHeader field="type" className="w-32">
                 Category/Type
               </SortableHeader>
-              <SortableHeader field="account">
+              <SortableHeader field="account" className="w-32">
                 Account
               </SortableHeader>
-              <SortableHeader field="amount" align="right">
+              <SortableHeader field="amount" align="right" className="w-24">
                 Amount
               </SortableHeader>
-              <th className="px-6 py-3 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-sm font-bold text-gray-700 uppercase tracking-wider w-20">
                 Actions
               </th>
             </tr>
@@ -644,7 +644,7 @@ export default function TransactionsList({
                 </td>
 
                 {/* Description */}
-                <td className="px-6 py-3 text-sm text-gray-900">
+                <td className="px-6 py-3 text-sm text-gray-900 max-w-xs">
                   <div className="flex items-center">
                     <span className="truncate">{transaction.description}</span>
                     {transaction.is_recurring && (
