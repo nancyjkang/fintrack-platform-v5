@@ -61,6 +61,11 @@ const getNavigationItems = (userEmail?: string) => {
       icon: TrendingUp,
       submenu: [
         {
+          name: 'Financial Trends',
+          href: '/dashboard/trends',
+          icon: BarChart3
+        },
+        {
           name: 'Balance History',
           href: '/reports/balance-history',
           icon: TrendingUp

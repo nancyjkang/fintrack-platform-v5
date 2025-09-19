@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Trash2, BarChart3, Database, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay } from '@/lib/utils/date-utils';
+import { useAuth } from '@/lib/client/auth-context';
 
 interface CubeStats {
   totalRecords: number;
@@ -23,37 +24,27 @@ interface OperationResult {
 }
 
 export default function CubeOperationsPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<CubeStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [operation, setOperation] = useState<string | null>(null);
   const [result, setResult] = useState<OperationResult | null>(null);
-  const [authToken, setAuthToken] = useState('');
-
   // Date range for populate/rebuild operations
   const [startDate, setStartDate] = useState(toUTCDateString(getDaysAgo(365))); // 1 year ago
   const [endDate, setEndDate] = useState(getCurrentDate());
 
-  // Get auth token from localStorage on component mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        setAuthToken(token);
-      }
-    }
-  }, []);
-
   // Load stats on component mount
   useEffect(() => {
-    if (authToken) {
-      loadStats();
-    }
-  }, [authToken]);
+    loadStats();
+  }, []);
 
-  const getAuthHeaders = () => ({
-    'Content-Type': 'application/json',
-    ...(authToken && { 'Authorization': `Bearer ${authToken}` })
-  });
+  const getAuthHeaders = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+  };
 
   const loadStats = async () => {
     setLoading(true);
@@ -159,27 +150,9 @@ export default function CubeOperationsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Financial Cube Operations</h1>
+    <div className="max-w-6xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Financial Cube Operations</h1>
 
-        {/* Auth Token */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Authentication</h2>
-          <div className="mb-4">
-            <label htmlFor="authToken" className="block text-sm font-medium text-gray-700 mb-2">
-              Auth Token
-            </label>
-            <input
-              type="password"
-              id="authToken"
-              value={authToken}
-              onChange={(e) => setAuthToken(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="JWT access token (auto-filled from localStorage.accessToken)"
-            />
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Cube Statistics */}
@@ -330,7 +303,7 @@ export default function CubeOperationsPage() {
               <div className="space-y-4">
                 <button
                   onClick={() => executeOperation('populate')}
-                  disabled={loading || !authToken}
+                  disabled={loading}
                   className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Database className="w-4 h-4" />
@@ -339,7 +312,7 @@ export default function CubeOperationsPage() {
 
                 <button
                   onClick={() => executeOperation('rebuild')}
-                  disabled={loading || !authToken}
+                  disabled={loading}
                   className="w-full bg-orange-600 text-white py-3 px-4 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -348,7 +321,7 @@ export default function CubeOperationsPage() {
 
                 <button
                   onClick={() => executeOperation('clear')}
-                  disabled={loading || !authToken}
+                  disabled={loading}
                   className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -394,7 +367,6 @@ export default function CubeOperationsPage() {
             )}
           </div>
         </div>
-      </div>
     </div>
   );
 }
