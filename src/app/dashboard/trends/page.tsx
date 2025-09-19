@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { api } from '@/lib/client/api'
 import { TrendsChart } from '@/components/trends/TrendsChart'
 import { TrendsFilters } from '@/components/trends/TrendsFilters'
 import { TrendsSummary } from '@/components/trends/TrendsSummary'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay } from '@/lib/utils/date-utils'
+import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay, parseAndConvertToUTC } from '@/lib/utils/date-utils'
 
 interface TrendData {
   period_start: string
@@ -24,10 +24,8 @@ interface TrendsFilters {
   startDate: string
   endDate: string
   transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER'
-  categoryIds?: number[]
-  accountIds?: number[]
-  isRecurring?: boolean
 }
+
 
 export default function TrendsPage() {
   const [trends, setTrends] = useState<TrendData[]>([])
@@ -52,24 +50,18 @@ export default function TrendsPage() {
         transactionType: filters.transactionType
       }
 
-      if (filters.categoryIds?.length) {
-        queryParams.categoryIds = filters.categoryIds.join(',')
-      }
+      // Removed category, account, and recurring filters for simplicity
 
-      if (filters.accountIds?.length) {
-        queryParams.accountIds = filters.accountIds.join(',')
-      }
-
-      if (filters.isRecurring !== undefined) {
-        queryParams.isRecurring = filters.isRecurring.toString()
-      }
-
+      console.log('🔍 Fetching trends with params:', queryParams)
       const response = await api.getCubeTrends(queryParams)
+      console.log('📡 API Response:', response)
 
       if (response.success) {
+        console.log('✅ Success - Setting trends data:', response.data?.length, 'items')
         setTrends(response.data)
       } else {
-        setError('Failed to fetch trends data')
+        console.log('❌ API Error:', response.error)
+        setError(response.error || 'Failed to fetch trends data')
       }
     } catch (err) {
       console.error('Error fetching trends:', err)
@@ -83,9 +75,47 @@ export default function TrendsPage() {
     fetchTrends()
   }, [filters])
 
+
   const handleFiltersChange = (newFilters: Partial<TrendsFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }))
   }
+
+  // Get unique periods from trends data (memoized to avoid recalculation)
+  const uniquePeriods = React.useMemo(() => {
+    if (trends.length === 0) return []
+    const periods = new Set(trends.map(trend => trend.period_start).filter(Boolean))
+    const sortedPeriods = Array.from(periods).sort()
+    return sortedPeriods
+  }, [trends])
+
+  const getUniquePeriods = (): string[] => {
+    return uniquePeriods
+  }
+
+  // Format period header for display
+  const formatPeriodHeader = (period: string): string => {
+    const date = parseAndConvertToUTC(period)
+    const periodType = filters.periodType || 'MONTHLY'
+    
+    switch (periodType) {
+      case 'WEEKLY':
+      case 'BI_WEEKLY':
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      case 'MONTHLY':
+        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      case 'QUARTERLY':
+        const quarter = Math.floor(date.getMonth() / 3) + 1
+        return `Q${quarter} ${date.getFullYear().toString().slice(-2)}`
+      case 'BI_ANNUALLY':
+        const half = date.getMonth() < 6 ? 'H1' : 'H2'
+        return `${half} ${date.getFullYear().toString().slice(-2)}`
+      case 'ANNUALLY':
+        return date.getFullYear().toString()
+      default:
+        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+    }
+  }
+
 
   if (loading) {
     return (
@@ -184,48 +214,6 @@ export default function TrendsPage() {
       {/* Content */}
       {!error && (
         <>
-          {/* Summary Cards */}
-          <TrendsSummary trends={trends} />
-
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Income vs Expense Trend */}
-            <TrendsChart
-              title="Income vs Expense Trends"
-              data={trends}
-              chartType="line"
-              groupBy="transaction_type"
-              filters={{ transactionType: ['INCOME', 'EXPENSE'] }}
-            />
-
-            {/* Top Categories */}
-            <TrendsChart
-              title="Top Spending Categories"
-              data={trends}
-              chartType="bar"
-              groupBy="category_name"
-              filters={{ transactionType: ['EXPENSE'] }}
-              limit={10}
-            />
-
-            {/* Account Activity */}
-            <TrendsChart
-              title="Account Activity"
-              data={trends}
-              chartType="bar"
-              groupBy="account_name"
-              limit={8}
-            />
-
-            {/* Recurring vs One-time */}
-            <TrendsChart
-              title="Recurring vs One-time Transactions"
-              data={trends}
-              chartType="pie"
-              groupBy="is_recurring"
-            />
-          </div>
-
           {/* Data Table */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
@@ -269,6 +257,12 @@ export default function TrendsPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Recurring
                         </th>
+                        {/* Period columns */}
+                        {uniquePeriods.map(period => (
+                          <th key={period} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {formatPeriodHeader(period)}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -311,6 +305,23 @@ export default function TrendsPage() {
                               {trend.is_recurring ? 'Recurring' : 'One-time'}
                             </span>
                           </td>
+                          {/* Period data cells */}
+                          {uniquePeriods.map(period => (
+                            <td key={period} className="px-3 py-4 whitespace-nowrap text-sm text-center">
+                              {trend.period_start === period ? (
+                                <div className="space-y-1">
+                                  <div className={`font-medium ${trend.total_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ${Math.abs(trend.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {trend.transaction_count} txns
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                          ))}
                         </tr>
                       ))}
                     </tbody>
@@ -325,6 +336,7 @@ export default function TrendsPage() {
               )}
             </div>
           </div>
+
         </>
       )}
     </div>

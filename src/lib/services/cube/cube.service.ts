@@ -420,7 +420,6 @@ export class CubeService extends BaseService {
         where,
         orderBy: [
           { period_start: 'asc' },
-          { transaction_type: 'asc' },
           { category_name: 'asc' },
           { account_name: 'asc' }
         ]
