@@ -344,7 +344,7 @@ export default function CubeOperationsPage() {
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value={3}>3</option>
-                      <option value={6}>6 (default)</option>
+                      <option value={6}>6</option>
                       <option value={9}>9</option>
                       <option value={15}>15</option>
                     </select>

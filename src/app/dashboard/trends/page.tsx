@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/client/api'
 import { TrendsChart } from '@/components/trends/TrendsChart'
 import { TrendsFilters } from '@/components/trends/TrendsFilters'
 import { TrendsSummary } from '@/components/trends/TrendsSummary'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay, parseAndConvertToUTC, createEndOfMonth, addDays, createUTCDate } from '@/lib/utils/date-utils'
+import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay, parseAndConvertToUTC, createEndOfMonth, addDays, createUTCDate, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
 // Temporary functions until we add them to date-utils
 const addMonths = (date: Date, months: number): Date => {
@@ -43,12 +43,64 @@ interface TrendData {
 
 interface TrendsFilters {
   periodType: 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
+  periodCount: number
   startDate: string
   endDate: string
   transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   accountId?: number | null // Optional account filter
 }
 
+// Calculate date range based on period type and count (complete periods) - same as TrendsFilters
+const getDateRangeFromPeriods = (type: string, count: number) => {
+  const today = getCurrentUTCDate();
+  const endDate = getCurrentDate(); // End is always today
+  const startDateObj = createUTCDate(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+
+  switch (type) {
+    case 'WEEKLY':
+      const currentDayOfWeek = today.getUTCDay();
+      const daysToStartOfWeek = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+      startDateObj.setUTCDate(today.getUTCDate() - daysToStartOfWeek - ((count - 1) * 7));
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'BI_WEEKLY':
+      const currentDay = today.getUTCDay();
+      const daysToStartOfBiWeek = currentDay === 0 ? 6 : currentDay - 1;
+      startDateObj.setUTCDate(today.getUTCDate() - daysToStartOfBiWeek - ((count - 1) * 14));
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'MONTHLY':
+      startDateObj.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth() - count + 1, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'QUARTERLY':
+      const currentQuarter = Math.floor(today.getUTCMonth() / 3);
+      const targetQuarter = currentQuarter - count + 1;
+      const targetYear = today.getUTCFullYear() + Math.floor(targetQuarter / 4);
+      const targetMonth = ((targetQuarter % 4) + 4) % 4 * 3;
+      startDateObj.setUTCFullYear(targetYear, targetMonth, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'BI_ANNUALLY':
+      const currentHalf = Math.floor(today.getUTCMonth() / 6);
+      const targetHalf = currentHalf - count + 1;
+      const targetYearBi = today.getUTCFullYear() + Math.floor(targetHalf / 2);
+      const targetMonthBi = ((targetHalf % 2) + 2) % 2 * 6;
+      startDateObj.setUTCFullYear(targetYearBi, targetMonthBi, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'ANNUALLY':
+      startDateObj.setUTCFullYear(today.getUTCFullYear() - count + 1, 0, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    default:
+      startDateObj.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth() - count + 1, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+  }
+
+  const startDate = toUTCDateString(startDateObj);
+  return { startDate, endDate };
+};
 
 export default function TrendsPage() {
   const [trends, setTrends] = useState<TrendData[]>([])
@@ -81,10 +133,14 @@ export default function TrendsPage() {
     loading: boolean
   } | null>(null)
   const [tooltipTimeout, setTooltipTimeout] = useState<NodeJS.Timeout | null>(null)
+  // Calculate initial date range based on default period settings
+  const initialDateRange = getDateRangeFromPeriods('MONTHLY', 6);
+
   const [filters, setFilters] = useState<TrendsFilters>({
     periodType: 'MONTHLY',
-    startDate: toUTCDateString(getDaysAgo(90)), // 90 days ago
-    endDate: getCurrentDate(), // Today
+    periodCount: 6, // Default to 6 periods
+    startDate: initialDateRange.startDate,
+    endDate: initialDateRange.endDate,
     transactionType: 'EXPENSE', // Default to Expense
     accountId: null // No account filter by default
   })
@@ -107,8 +163,16 @@ export default function TrendsPage() {
       }
 
       console.log('🔍 Fetching trends with params:', queryParams)
+      console.log('🔍 Current filters state:', filters)
+      console.log('🔍 Date range being sent:', {
+        startDate: queryParams.startDate,
+        endDate: queryParams.endDate,
+        periodType: queryParams.periodType
+      })
+
       const response = await api.getCubeTrends(queryParams)
       console.log('📡 API Response:', response)
+      console.log('📡 API Response data sample:', response.data?.slice(0, 3))
 
       if (response.success) {
         console.log('✅ Success - Setting trends data:', response.data?.length, 'items')
@@ -301,9 +365,14 @@ export default function TrendsPage() {
   }
 
 
-  const handleFiltersChange = (newFilters: Partial<TrendsFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }))
-  }
+  const handleFiltersChange = useCallback((newFilters: Partial<TrendsFilters>) => {
+    console.log('🔄 handleFiltersChange called with:', newFilters)
+    setFilters(prev => {
+      const updated = { ...prev, ...newFilters }
+      console.log('🔄 Updated filters:', updated)
+      return updated
+    })
+  }, [])
 
   // Get unique periods from trends data (memoized to avoid recalculation)
   const uniquePeriods = React.useMemo(() => {

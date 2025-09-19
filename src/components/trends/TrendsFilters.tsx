@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/client/api'
-import { getCurrentDate, getDaysAgo, toUTCDateString } from '@/lib/utils/date-utils'
+import { getCurrentDate, getDaysAgo, toUTCDateString, createUTCDate, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
 interface TrendsFiltersProps {
   filters: {
     periodType: 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'BI_ANNUALLY' | 'ANNUALLY'
+    periodCount: number
     startDate: string
     endDate: string
     transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER'
@@ -23,19 +24,99 @@ interface Account {
   is_active: boolean
 }
 
+// Calculate date range based on period type and count (complete periods)
+const getDateRangeFromPeriods = (type: string, count: number) => {
+  const today = getCurrentUTCDate();
+  const endDate = getCurrentDate(); // End is always today
+  const startDateObj = createUTCDate(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+
+  switch (type) {
+    case 'WEEKLY':
+      // Go back to start of the week N weeks ago
+      const currentDayOfWeek = today.getUTCDay();
+      const daysToStartOfWeek = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Monday = 0
+      startDateObj.setUTCDate(today.getUTCDate() - daysToStartOfWeek - ((count - 1) * 7));
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'BI_WEEKLY':
+      // Go back to start of the bi-week N bi-weeks ago
+      const currentDay = today.getUTCDay();
+      const daysToStartOfBiWeek = currentDay === 0 ? 6 : currentDay - 1;
+      startDateObj.setUTCDate(today.getUTCDate() - daysToStartOfBiWeek - ((count - 1) * 14));
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'MONTHLY':
+      // Go back to 1st of the month N months ago
+      startDateObj.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth() - count + 1, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'QUARTERLY':
+      // Go back to start of quarter N quarters ago
+      const currentQuarter = Math.floor(today.getUTCMonth() / 3);
+      const targetQuarter = currentQuarter - count + 1;
+      const targetYear = today.getUTCFullYear() + Math.floor(targetQuarter / 4);
+      const targetMonth = ((targetQuarter % 4) + 4) % 4 * 3;
+      startDateObj.setUTCFullYear(targetYear, targetMonth, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'BI_ANNUALLY':
+      // Go back to start of 6-month period N periods ago
+      const currentHalf = Math.floor(today.getUTCMonth() / 6);
+      const targetHalf = currentHalf - count + 1;
+      const targetYearBi = today.getUTCFullYear() + Math.floor(targetHalf / 2);
+      const targetMonthBi = ((targetHalf % 2) + 2) % 2 * 6;
+      startDateObj.setUTCFullYear(targetYearBi, targetMonthBi, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'ANNUALLY':
+      // Go back to January 1st N years ago
+      startDateObj.setUTCFullYear(today.getUTCFullYear() - count + 1, 0, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+      break;
+    default:
+      // Default to monthly
+      startDateObj.setUTCFullYear(today.getUTCFullYear(), today.getUTCMonth() - count + 1, 1);
+      startDateObj.setUTCHours(0, 0, 0, 0);
+  }
+
+  const startDate = toUTCDateString(startDateObj);
+  return { startDate, endDate };
+};
+
 export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersProps) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(true)
 
-  // Local state for date inputs to prevent constant re-fetching
-  const [localStartDate, setLocalStartDate] = useState(filters.startDate)
-  const [localEndDate, setLocalEndDate] = useState(filters.endDate)
-
-  // Update local state when filters change externally
+  // Update start/end dates when period type or count changes
   useEffect(() => {
-    setLocalStartDate(filters.startDate)
-    setLocalEndDate(filters.endDate)
-  }, [filters.startDate, filters.endDate])
+    const { startDate, endDate } = getDateRangeFromPeriods(filters.periodType, filters.periodCount);
+    // Only update if the calculated dates are different from current filters
+    if (startDate !== filters.startDate || endDate !== filters.endDate) {
+      console.log('🔄 TrendsFilters: Updating dates based on period selection', {
+        periodType: filters.periodType,
+        periodCount: filters.periodCount,
+        calculatedStartDate: startDate,
+        calculatedEndDate: endDate,
+        currentStartDate: filters.startDate,
+        currentEndDate: filters.endDate
+      });
+      onChange({ startDate, endDate });
+    }
+  }, [filters.periodType, filters.periodCount, onChange]) // Add onChange to dependencies
+
+  // Ensure dates are correct on component mount
+  useEffect(() => {
+    const { startDate, endDate } = getDateRangeFromPeriods(filters.periodType, filters.periodCount);
+    if (startDate !== filters.startDate || endDate !== filters.endDate) {
+      console.log('🔄 TrendsFilters: Initial date sync on mount', {
+        calculatedStartDate: startDate,
+        calculatedEndDate: endDate,
+        currentStartDate: filters.startDate,
+        currentEndDate: filters.endDate
+      });
+      onChange({ startDate, endDate });
+    }
+  }, []) // Run once on mount
 
   // Fetch accounts for the dropdown
   useEffect(() => {
@@ -60,28 +141,13 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
     onChange({ [key]: value })
   }
 
-  // Handle date input changes (only update local state)
-  const handleDateInputChange = (type: 'start' | 'end', value: string) => {
-    if (type === 'start') {
-      setLocalStartDate(value)
-    } else {
-      setLocalEndDate(value)
-    }
-  }
-
-  // Handle date input blur/enter (commit the change)
-  const handleDateCommit = (type: 'start' | 'end', value: string) => {
-    if (type === 'start') {
-      handleFilterChange('startDate', value)
-    } else {
-      handleFilterChange('endDate', value)
-    }
-  }
-
   const clearFilters = () => {
+    const { startDate, endDate } = getDateRangeFromPeriods('MONTHLY', 6); // Default to 6 months
     onChange({
-      startDate: toUTCDateString(getDaysAgo(90)),
-      endDate: getCurrentDate(),
+      periodType: 'MONTHLY',
+      periodCount: 6,
+      startDate,
+      endDate,
       transactionType: 'EXPENSE',
       accountId: null
     })
@@ -111,48 +177,43 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Start Date */}
+        {/* Period Count */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Start Date
+            Number of Periods
           </label>
-          <input
-            type="date"
-            value={localStartDate}
-            onChange={(e) => handleDateInputChange('start', e.target.value)}
-            onBlur={(e) => handleDateCommit('start', e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleDateCommit('start', e.currentTarget.value)
-              }
-            }}
+          <select
+            value={filters.periodCount}
+            onChange={(e) => handleFilterChange('periodCount', parseInt(e.target.value))}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          >
+            <option value={3}>3</option>
+            <option value={6}>6</option>
+            <option value={9}>9</option>
+            <option value={15}>15</option>
+          </select>
         </div>
 
-        {/* End Date */}
+        {/* Date Range Preview */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            End Date
+            Calculated Date Range
           </label>
-          <input
-            type="date"
-            value={localEndDate}
-            onChange={(e) => handleDateInputChange('end', e.target.value)}
-            onBlur={(e) => handleDateCommit('end', e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleDateCommit('end', e.currentTarget.value)
-              }
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600">
+            {(() => {
+              const { startDate, endDate } = getDateRangeFromPeriods(filters.periodType, filters.periodCount);
+              return `${startDate} to ${endDate}`;
+            })()}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {filters.periodCount} {filters.periodType.toLowerCase()} periods
+          </div>
         </div>
 
         {/* Account Filter */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Account (Optional)
+            Account
           </label>
           <select
             value={filters.accountId || ''}
@@ -179,4 +240,3 @@ export function TrendsFilters({ filters, onChange, onRefresh }: TrendsFiltersPro
     </div>
   )
 }
-
