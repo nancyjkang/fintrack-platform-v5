@@ -37,7 +37,7 @@ export default function AccountCard({ account }: AccountCardProps) {
   }
 
   const getAccountTypeIcon = (type: string) => {
-    const typeMap: { [key: string]: any } = {
+    const typeMap: { [key: string]: React.ComponentType } = {
       'CHECKING': Building2,
       'checking': Building2,
       'SAVINGS': PiggyBank,

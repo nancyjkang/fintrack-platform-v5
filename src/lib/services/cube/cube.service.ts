@@ -108,6 +108,10 @@ export class CubeService extends BaseService {
       ? [tenantId, periodStart, periodEnd, accountId]
       : [tenantId, periodStart, periodEnd]
 
+    // Debug logging for cube building
+    console.log('🔍 Cube SQL Query:', fullQuery)
+    console.log('🔍 Cube Query Params:', queryParams.map((p, i) => `$${i+1}: ${p instanceof Date ? toUTCDateString(p) : p}`))
+
     const aggregations = await this.prisma.$queryRawUnsafe<Array<{
       transaction_type: string
       category_id: number
@@ -118,6 +122,11 @@ export class CubeService extends BaseService {
       total_amount: Decimal
       transaction_count: bigint
     }>>(fullQuery, ...queryParams)
+
+    console.log(`🔍 Cube aggregation results: ${aggregations.length} records found`)
+    aggregations.forEach((agg, i) => {
+      console.log(`  ${i+1}. ${agg.transaction_type} | ${agg.category_name} | ${agg.account_name} | Amount: ${agg.total_amount} | Count: ${agg.transaction_count}`)
+    })
 
     // Insert aggregated data into cube
     const cubeRecords: Prisma.FinancialCubeCreateManyInput[] = aggregations.map(agg => ({
@@ -431,8 +440,8 @@ export class CubeService extends BaseService {
       console.log(`💾 Cube Service - Found ${results.length} records`)
       if (results.length > 0) {
         console.log('💾 Cube Service - Date range of results:', {
-          earliest: results[0].period_start.toISOString().split('T')[0],
-          latest: results[results.length - 1].period_start.toISOString().split('T')[0]
+          earliest: toUTCDateString(results[0].period_start),
+          latest: toUTCDateString(results[results.length - 1].period_start)
         })
       }
 
@@ -507,7 +516,7 @@ export class CubeService extends BaseService {
 
     for (const record of baseData) {
       const customPeriodStart = this.getCustomPeriodStart(record.period_start, customPeriodType)
-      const key = `${customPeriodStart.toISOString()}-${record.transaction_type}-${record.category_id}-${record.account_id}-${record.is_recurring}`
+      const key = `${toUTCDateString(customPeriodStart)}-${record.transaction_type}-${record.category_id}-${record.account_id}-${record.is_recurring}`
 
       if (aggregatedData.has(key)) {
         const existing = aggregatedData.get(key)!
@@ -1230,7 +1239,7 @@ export class CubeService extends BaseService {
         ? [tenantId, startDate, endDate, accountId]
         : [tenantId, startDate, endDate]
 
-      console.log(`🔍 Running batch query for ${startDate.toISOString()} to ${endDate.toISOString()}`)
+      console.log(`🔍 Running batch query for ${toUTCDateString(startDate)} to ${toUTCDateString(endDate)}`)
 
       const rawResults = await this.prisma.$queryRawUnsafe<Array<{
         transaction_type: string
@@ -1413,7 +1422,7 @@ export class CubeService extends BaseService {
       })
 
       // Step 2: Use new BATCH method (single SQL query instead of 74 individual queries!)
-      console.log(`📊 Using BATCH rebuild for date range: ${startDate.toISOString()} to ${endDate.toISOString()}`)
+      console.log(`📊 Using BATCH rebuild for date range: ${toUTCDateString(startDate)} to ${toUTCDateString(endDate)}`)
 
       const batchResult = await this.rebuildCubeForDateRangeBatch(tenantId, startDate, endDate)
       const insertedCount = batchResult.insertedCount
