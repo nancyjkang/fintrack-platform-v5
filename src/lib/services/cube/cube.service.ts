@@ -178,7 +178,7 @@ export class CubeService extends BaseService {
     periodEnd: Date,
     periodType: 'WEEKLY' | 'MONTHLY',
     transactionType: string,
-    categoryIds: (number | null)[],
+    categoryIds: number[],
     isRecurring: boolean
   ): Promise<void> {
     // Build the query with specific filters
@@ -411,24 +411,9 @@ export class CubeService extends BaseService {
         ...(filters.isRecurring !== undefined && { is_recurring: filters.isRecurring })
       }
 
-      // Handle category filtering with proper null support
+      // Handle category filtering - no more null handling needed
       if (filters.categoryIds && filters.categoryIds.length > 0) {
-        const nonNullCategories = filters.categoryIds.filter(id => id !== null) as number[]
-        const hasNullCategory = filters.categoryIds.includes(null)
-
-        if (nonNullCategories.length > 0 && hasNullCategory) {
-          // Mixed: both specific categories and uncategorized
-          where.OR = [
-            { category_id: { in: nonNullCategories } },
-            { category_id: null }
-          ]
-        } else if (hasNullCategory) {
-          // Only uncategorized
-          where.category_id = null
-        } else {
-          // Only specific categories
-          where.category_id = { in: nonNullCategories }
-        }
+        where.category_id = { in: filters.categoryIds }
       }
 
       console.log('💾 Cube Service - getTrends where clause:', JSON.stringify(where, null, 2))
