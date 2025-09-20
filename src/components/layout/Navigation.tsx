@@ -44,11 +44,6 @@ const getNavigationItems = (userEmail?: string) => {
           icon: Eye
         },
         {
-          name: 'Add Transaction',
-          href: '/transactions?add=true',
-          icon: Plus
-        },
-        {
           name: 'Import Transactions',
           href: '/transactions/import',
           icon: Upload
@@ -61,7 +56,7 @@ const getNavigationItems = (userEmail?: string) => {
       icon: TrendingUp,
       submenu: [
         {
-          name: 'Financial Trends',
+          name: 'Category Trend',
           href: '/dashboard/trends',
           icon: BarChart3
         },
@@ -74,11 +69,6 @@ const getNavigationItems = (userEmail?: string) => {
           name: 'Spending Analysis',
           href: '/reports/spending',
           icon: BarChart3
-        },
-        {
-          name: 'Category Analysis',
-          href: '/reports/categories',
-          icon: FileText
         }
       ]
     },

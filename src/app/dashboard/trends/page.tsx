@@ -232,6 +232,100 @@ export default function TrendsPage() {
     }
   }, [tooltipTimeout])
 
+  // Export data as CSV
+  const handleExportData = async () => {
+    try {
+      // Get account name if account filter is applied
+      let accountName = 'All Accounts'
+      if (filters.accountId) {
+        try {
+          const accountResponse = await fetch(`/api/accounts/${filters.accountId}`)
+          if (accountResponse.ok) {
+            const accountData = await accountResponse.json()
+            accountName = accountData.data?.name || `Account ${filters.accountId}`
+          }
+        } catch (error) {
+          console.warn('Could not fetch account name:', error)
+          accountName = `Account ${filters.accountId}`
+        }
+      }
+
+      // Format period type for display
+      const periodTypeDisplay = {
+        'WEEKLY': 'Weekly',
+        'BI_WEEKLY': 'Bi-Weekly',
+        'MONTHLY': 'Monthly',
+        'QUARTERLY': 'Quarterly',
+        'BI_ANNUALLY': 'Bi-Annually',
+        'ANNUALLY': 'Annually'
+      }[filters.periodType] || filters.periodType
+
+      // Format transaction type for display
+      const transactionTypeDisplay = {
+        'INCOME': 'Income',
+        'EXPENSE': 'Expense',
+        'TRANSFER': 'Transfer'
+      }[filters.transactionType] || filters.transactionType
+
+      // Create CSV content
+      const csvLines = [
+        '# Category Trend Export',
+        `# Export Date: ${getCurrentUTCDate().toLocaleString()}`,
+        `# Transaction Type: ${transactionTypeDisplay}`,
+        `# Breakdown Period: ${periodTypeDisplay}`,
+        `# Date Range: ${filters.startDate} to ${filters.endDate}`,
+        `# Account: ${accountName}`,
+        '#',
+        ''
+      ]
+
+      // Create header row
+      const headers = ['Category', 'Total Amount', 'Average']
+      uniquePeriods.forEach(period => {
+        headers.push(formatPeriodHeader(period))
+      })
+      csvLines.push(headers.join(','))
+
+      // Add data rows
+      categoryStats.forEach(category => {
+        const row = [
+          `"${category.category_name}"`,
+          `"$${category.total_amount.toFixed(2)}"`,
+          `"$${(category.total_amount / uniquePeriods.length).toFixed(2)}"`
+        ]
+
+        uniquePeriods.forEach(period => {
+          const periodData = category.periods[period]
+          const amount = periodData?.amount || 0
+          row.push(`"$${amount.toFixed(2)}"`)
+        })
+
+        csvLines.push(row.join(','))
+      })
+
+      // Create and download file
+      const csvContent = csvLines.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+
+      // Generate filename with date range
+      const startDateFormatted = filters.startDate.replace(/-/g, '')
+      const endDateFormatted = filters.endDate.replace(/-/g, '')
+      const filename = `category-trends-${startDateFormatted}-to-${endDateFormatted}.csv`
+
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+    } catch (error) {
+      console.error('Export failed:', error)
+      // TODO: Show user-friendly error message
+    }
+  }
+
   // Fetch merchant data for tooltip
   const fetchMerchantData = async (categoryName: string, period: string, categoryId?: number) => {
     try {
@@ -706,9 +800,20 @@ export default function TrendsPage() {
           {/* Data Table */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                Detailed Trends Data
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Detailed Trends Data
+                </h3>
+                <button
+                  onClick={handleExportData}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <svg className="-ml-0.5 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export Data
+                </button>
+              </div>
 
               {categoryStats.length === 0 ? (
                 <div className="text-center py-8">

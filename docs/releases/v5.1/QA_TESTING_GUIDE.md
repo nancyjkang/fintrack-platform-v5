@@ -33,6 +33,19 @@ This release focuses on improving the user experience for account management and
 17. **Test Suite Reliability**: Fixed all failing tests to ensure 100% test coverage (315/315 tests passing)
 18. **API Data Integrity**: Enhanced trends API to properly handle merchant data with robust error handling
 
+### **Category Trend Analysis Features (v5.1.2)**
+19. **Interactive Stacked Bar Chart**: Added visual category breakdown by time period with custom database colors using Recharts
+20. **Custom Category Colors**: Chart and visualizations now use actual database category colors for consistency across the application
+21. **Enhanced Trends Table**: Implemented per-cell gradient backgrounds based on relative amounts within each column
+22. **Average Column**: Replaced "Recurring %" with meaningful "Average" showing average amount per period
+23. **Visual Separators**: Added subtle borders between Category, Average, and period columns for better organization
+24. **Improved Typography**: Increased font sizes for chart axes and legend to 14px for better readability
+25. **Consistent Branding**: Updated page title and navigation from "Financial Trends" to "Category Trend"
+26. **Streamlined Navigation**: Removed redundant menu items ("Add Transaction", "Category Analysis") for cleaner UX
+27. **Default Categories Migration**: Eliminated NULL category handling by implementing "Uncategorized Income/Expense/Transfer" categories
+28. **UTC Date Handling**: Fixed timezone issues in cube data aggregation for accurate monthly/period calculations
+29. **CSV Data Export**: Added "Export Data" button with comprehensive CSV export including metadata headers and summary data
+
 ---
 
 ## 📋 **Features to Test**
@@ -82,6 +95,27 @@ This release focuses on improving the user experience for account management and
 - Access to trends/analytics pages
 - Test data with various merchant scenarios
 - Ability to run test suite (for developers)
+
+### **4. Category Trend Analysis**
+
+**QA Priority**: 🔴 **HIGH** - Major new feature with visualization components
+
+**Test Areas**:
+- Interactive stacked bar chart functionality and visual accuracy
+- Custom category color consistency across chart and table
+- Gradient background calculations and visual effects
+- Filter functionality and data accuracy
+- Merchant tooltip integration and hover behavior
+- Navigation and branding consistency
+- Performance with large datasets
+
+**Estimated Testing Time**: 3-4 hours
+
+**Prerequisites**:
+- Transactions with various categories and custom colors
+- Data spanning multiple time periods (monthly/quarterly)
+- Mix of income, expense, and transfer transactions
+- Merchant data for tooltip testing
 
 ---
 
@@ -305,6 +339,224 @@ This release focuses on improving the user experience for account management and
 
 **Expected Result**: 100% test pass rate (315/315), no TypeScript errors, clean code without dead imports, consistent date handling
 
+### **TC-014: Category Trend Page Navigation and Branding**
+**Objective**: Verify consistent branding and navigation updates
+**Steps**:
+1. Navigate to main navigation menu
+2. Verify "Reports" submenu shows "Category Trend" (not "Financial Trends")
+3. Verify "Add Transaction" is not present in Transactions submenu
+4. Verify "Category Analysis" is not present in Reports submenu
+5. Click "Category Trend" and verify navigation to `/dashboard/trends`
+6. Verify page title shows "Category Trend" (not "Financial Trends Analysis")
+7. Verify page description mentions category trends appropriately
+
+**Expected Result**: All branding updated consistently, navigation streamlined, no old terminology remains
+
+### **TC-015: Category Trend Filters and Data Loading**
+**Objective**: Verify filter functionality and data accuracy
+**Steps**:
+1. Navigate to `/dashboard/trends`
+2. **Test Default State**:
+   - Verify default filters are set (last 6 months, monthly periods, expense transactions)
+   - Verify data loads automatically with default filters
+   - Check that both chart and table display data
+3. **Test Period Type Filters**:
+   - Change period type to "Weekly", "Monthly", "Quarterly", "Annually"
+   - Verify chart X-axis labels update correctly for each period type
+   - Verify table columns update to show appropriate time periods
+4. **Test Transaction Type Filters**:
+   - Switch between "Income", "Expense", "Transfer"
+   - Verify data updates correctly for each type
+   - Check that expense amounts show as positive in chart (amount * -1)
+5. **Test Date Range Filters**:
+   - Modify start and end dates
+   - Verify data updates to show only transactions within selected range
+   - Test edge cases (single month, year boundaries)
+6. **Test Account and Category Filters**:
+   - Select specific accounts and verify filtering works
+   - Select specific categories and verify filtering works
+   - Test "All" options to ensure they show complete data
+
+**Expected Result**: All filters work correctly, data updates accurately, no loading errors, proper date handling
+
+### **TC-016: Interactive Stacked Bar Chart**
+**Objective**: Verify stacked bar chart functionality and visual accuracy
+**Steps**:
+1. Navigate to `/dashboard/trends` with expense data
+2. **Test Chart Rendering**:
+   - Verify chart displays above the detailed table
+   - Check that chart shows one bar per time period
+   - Verify bars are stacked by category with different colors
+3. **Test Custom Category Colors**:
+   - Compare chart colors with category colors in detailed table
+   - Verify colors match the database category colors exactly
+   - Check that legend shows correct category names with matching colors
+4. **Test Chart Interactivity**:
+   - Hover over chart segments and verify tooltips appear
+   - Check tooltip content shows category name and amount
+   - Verify legend is clickable (if implemented) or displays correctly
+5. **Test Data Accuracy**:
+   - Compare chart data with detailed table data
+   - Verify amounts match between chart and table
+   - Check that expense amounts are displayed as positive in chart
+6. **Test Typography and Styling**:
+   - Verify X-axis labels are readable (14px font)
+   - Verify Y-axis labels are readable (14px font)
+   - Verify legend text is dark and readable (#1f2937 color)
+   - Check that chart is responsive on different screen sizes
+
+**Expected Result**: Chart renders correctly with accurate data, custom colors match database, typography is readable, responsive design works
+
+### **TC-017: Enhanced Trends Table with Gradients**
+**Objective**: Verify table enhancements including gradients and average column
+**Steps**:
+1. Navigate to `/dashboard/trends` with varied transaction data
+2. **Test Table Structure**:
+   - Verify table shows: Category | Total Amount | Average | Period Columns
+   - Check that "Recurring %" column is replaced with "Average"
+   - Verify "Average" shows average amount per period for each category
+3. **Test Gradient Backgrounds**:
+   - Verify each cell has gradient background based on relative amount within that column
+   - Check that higher amounts have more intense gradients
+   - Verify gradients are calculated per-column (not per-row)
+   - Test that Total Amount and Average columns have separate gradient calculations
+4. **Test Visual Separators**:
+   - Verify subtle border between Category and Total Amount columns
+   - Verify subtle border between Average and first period column
+   - Check that borders enhance readability without being distracting
+5. **Test Data Accuracy**:
+   - Verify Total Amount sums all periods correctly for each category
+   - Verify Average calculates correctly (total ÷ number of periods with data)
+   - Check that period columns show correct amounts for each time period
+6. **Test Sorting and Interaction**:
+   - Verify table can be sorted by different columns
+   - Check that gradients recalculate after sorting
+   - Test that merchant tooltips still work (covered in TC-018)
+
+**Expected Result**: Table displays enhanced layout with accurate gradients, average calculations correct, visual separators improve readability
+
+### **TC-018: Merchant Tooltip Integration**
+**Objective**: Verify merchant tooltips work correctly in enhanced table
+**Steps**:
+1. Navigate to `/dashboard/trends` with merchant data
+2. **Test Tooltip Activation**:
+   - Hover over amount cells in period columns
+   - Verify tooltips appear after brief delay
+   - Check that tooltips show merchant breakdown for that category/period
+3. **Test Tooltip Content**:
+   - Verify tooltip shows format: "Merchant Name: $Amount (X transactions)"
+   - Check that multiple merchants are listed when applicable
+   - Verify amounts sum to the cell amount being hovered
+   - Test that "Unknown Merchant" appears for transactions without merchant data
+4. **Test Tooltip Behavior**:
+   - Verify tooltips disappear when mouse leaves cell
+   - Check that tooltips don't interfere with gradient backgrounds
+   - Test tooltip positioning (doesn't go off-screen)
+5. **Test with Different Data**:
+   - Test cells with single merchant vs multiple merchants
+   - Test cells with no merchant data
+   - Test cells with parsed merchant names vs database merchant names
+6. **Test Performance**:
+   - Verify tooltips load quickly without API delays
+   - Check that hovering multiple cells rapidly doesn't cause issues
+
+**Expected Result**: Tooltips display accurate merchant data, work smoothly with enhanced table, no performance issues
+
+### **TC-019: Default Categories and Data Integrity**
+**Objective**: Verify default categories migration and NULL elimination
+**Steps**:
+1. Navigate to `/dashboard/trends`
+2. **Test Default Categories Display**:
+   - Verify "Uncategorized Income", "Uncategorized Expense", "Uncategorized Transfer" appear as regular categories
+   - Check that these categories have appropriate colors assigned
+   - Verify they appear in category filter dropdowns
+3. **Test Data Consistency**:
+   - Verify no NULL category handling in UI (all transactions have categories)
+   - Check that uncategorized transactions show under appropriate default category
+   - Test filtering by uncategorized categories works like any other category
+4. **Test Chart Integration**:
+   - Verify default categories appear in stacked bar chart with colors
+   - Check that chart legend includes default categories
+   - Test that default categories can be filtered like regular categories
+5. **Test Cross-Component Consistency**:
+   - Navigate to `/transactions` and verify default categories appear there too
+   - Check that category colors are consistent across all components
+   - Verify bulk edit and other category operations work with default categories
+
+**Expected Result**: Default categories work seamlessly as regular categories, no NULL handling visible to users, consistent across all components
+
+### **TC-020: Performance and Data Handling**
+**Objective**: Verify performance with large datasets and edge cases
+**Steps**:
+1. **Test with Large Datasets**:
+   - Load trends page with 1000+ transactions across multiple categories
+   - Verify chart renders within reasonable time (< 3 seconds)
+   - Check that table loads and gradients calculate efficiently
+   - Test that filter changes respond quickly
+2. **Test Edge Cases**:
+   - Test with single category (chart should still render)
+   - Test with single time period (table should handle gracefully)
+   - Test with no data (appropriate empty state should display)
+   - Test with very large amounts (formatting should handle properly)
+3. **Test Date Boundary Cases**:
+   - Test month boundaries (ensure transactions on 1st/31st are included correctly)
+   - Test year boundaries and leap years
+   - Verify timezone handling doesn't cause date shifts
+4. **Test Memory and Browser Performance**:
+   - Monitor browser memory usage during extended use
+   - Check for memory leaks when changing filters repeatedly
+   - Verify no console errors during normal operation
+5. **Test API Response Handling**:
+   - Verify graceful handling of API timeouts
+   - Check error states display appropriately
+   - Test retry mechanisms if implemented
+
+**Expected Result**: Good performance with large datasets, graceful handling of edge cases, no memory leaks or console errors
+
+### **TC-021: CSV Data Export Functionality**
+**Objective**: Verify CSV export button works correctly with proper metadata and data formatting
+**Steps**:
+1. Navigate to `/dashboard/trends` with varied transaction data
+2. **Test Export Button Visibility**:
+   - Verify "Export Data" button appears to the right of "Detailed Trends Data" title
+   - Check button has download icon and proper styling
+   - Verify button is enabled when data is present
+3. **Test Basic Export Functionality**:
+   - Click "Export Data" button
+   - Verify file download starts immediately
+   - Check filename format: `category-trends-YYYYMMDD-to-YYYYMMDD.csv`
+   - Verify file downloads successfully to browser's download folder
+4. **Test CSV Content Structure**:
+   - Open downloaded CSV file in text editor or Excel
+   - Verify metadata header includes:
+     - Export date and time
+     - Transaction type (Income/Expense/Transfer)
+     - Breakdown period (Weekly/Monthly/etc.)
+     - Date range (start to end dates)
+     - Account name (or "All Accounts" if no filter)
+   - Check that metadata lines start with `#` for proper CSV commenting
+5. **Test Data Accuracy**:
+   - Verify CSV headers match table: Category, Total Amount, Average, [Period Columns]
+   - Compare CSV data with displayed table data for accuracy
+   - Check currency formatting includes $ symbol and proper decimal places
+   - Verify period column headers match table display exactly
+6. **Test with Different Filters**:
+   - Change transaction type to "Income" and export
+   - Change period type to "Quarterly" and export
+   - Apply account filter and verify account name appears in metadata
+   - Apply category filter and verify data reflects filtering
+7. **Test Edge Cases**:
+   - Test export with single category
+   - Test export with no data (should handle gracefully)
+   - Test export with very large amounts (formatting should work)
+   - Test export with special characters in category names
+8. **Test Account Name Resolution**:
+   - Apply account filter and verify correct account name in export
+   - Test with account that might not exist (should fallback gracefully)
+   - Verify "All Accounts" appears when no account filter applied
+
+**Expected Result**: CSV export works reliably, includes comprehensive metadata, data matches table exactly, proper formatting for Excel compatibility, graceful error handling
+
 ---
 
 ## 📊 **Test Data Requirements**
@@ -325,6 +577,16 @@ This release focuses on improving the user experience for account management and
 - **Transactions without merchant field** (for fallback testing)
 - **Transactions with various description formats** (for parsing testing)
 - **Mixed transaction data** to test API robustness
+
+### **Category Trend Testing Data**
+- **Categories with custom colors** assigned in database
+- **Transactions spanning multiple months/quarters** for time series testing
+- **Mix of Income, Expense, Transfer transactions** across different categories
+- **Various transaction amounts** (small, medium, large) for gradient testing
+- **Multiple merchants per category/period** for tooltip testing
+- **Default categories** ("Uncategorized Income/Expense/Transfer") with transactions
+- **Large dataset** (1000+ transactions) for performance testing
+- **Edge cases**: single category, single period, no data scenarios
 
 ### **How to Prepare Test Environment**
 1. **Clean Database State**
@@ -364,6 +626,14 @@ This release focuses on improving the user experience for account management and
 - [ ] **TC-011**: Improved Transactions Table Layout - PASS/FAIL
 - [ ] **TC-012**: Merchant Data Display and Fallback Logic - PASS/FAIL
 - [ ] **TC-013**: Test Suite Reliability and Code Quality - PASS/FAIL
+- [ ] **TC-014**: Category Trend Page Navigation and Branding - PASS/FAIL
+- [ ] **TC-015**: Category Trend Filters and Data Loading - PASS/FAIL
+- [ ] **TC-016**: Interactive Stacked Bar Chart - PASS/FAIL
+- [ ] **TC-017**: Enhanced Trends Table with Gradients - PASS/FAIL
+- [ ] **TC-018**: Merchant Tooltip Integration - PASS/FAIL
+- [ ] **TC-019**: Default Categories and Data Integrity - PASS/FAIL
+- [ ] **TC-020**: Performance and Data Handling - PASS/FAIL
+- [ ] **TC-021**: CSV Data Export Functionality - PASS/FAIL
 
 ### **Quality Checks**
 - [ ] No JavaScript errors in console
@@ -430,6 +700,20 @@ When issues are found, use this template:
 - ✅ TypeScript compilation errors resolved
 - ✅ Date handling uses UTC-aware functions consistently
 - ✅ Dead code removed without breaking functionality
+- ✅ Category Trend page displays with updated branding and navigation
+- ✅ Interactive stacked bar chart renders with custom database category colors
+- ✅ Enhanced trends table shows gradient backgrounds and average column
+- ✅ Merchant tooltips integrate seamlessly with enhanced table design
+- ✅ Default categories work as regular categories without NULL handling
+- ✅ Filter functionality works accurately with proper date handling
+- ✅ Chart and table data consistency maintained across all views
+- ✅ Performance remains good with large datasets (1000+ transactions)
+- ✅ Typography improvements enhance readability (14px fonts, dark legend)
+- ✅ Visual separators improve table organization and readability
+- ✅ CSV export functionality works with comprehensive metadata headers
+- ✅ Export data matches table data exactly with proper currency formatting
+- ✅ Account name resolution works correctly in export metadata
+- ✅ Export filename includes date range for easy identification
 
 ### **UX Standards**
 - ✅ Intuitive user experience with cleaner forms
@@ -456,7 +740,7 @@ When issues are found, use this template:
 5. **Mobile Testing** - Verify responsive behavior
 
 ### **Sign-off Requirements**
-- [ ] All 13 test cases pass
+- [ ] All 21 test cases pass
 - [ ] Both Add Account buttons work properly
 - [ ] Account icons are consistent (no emojis)
 - [ ] Registration form changes implemented correctly
@@ -471,6 +755,14 @@ When issues are found, use this template:
 - [ ] Merchant data displays correctly with proper fallback logic
 - [ ] All tests pass (315/315) with no TypeScript errors
 - [ ] API endpoints handle merchant data robustly
+- [ ] **Category Trend navigation and branding updated consistently**
+- [ ] **Interactive stacked bar chart renders with custom category colors**
+- [ ] **Enhanced trends table displays gradients and average column correctly**
+- [ ] **Merchant tooltips work seamlessly with enhanced table**
+- [ ] **Default categories function as regular categories**
+- [ ] **Filter functionality accurate with proper date handling**
+- [ ] **Performance good with large datasets (< 3 second load times)**
+- [ ] **CSV export functionality works with comprehensive metadata and accurate data**
 - [ ] No critical or high-severity bugs
 - [ ] Mobile responsiveness verified
 - [ ] Cross-browser compatibility confirmed
