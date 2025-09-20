@@ -5,6 +5,7 @@ import { api } from '@/lib/client/api'
 import { TrendsChart } from '@/components/trends/TrendsChart'
 import { TrendsFilters } from '@/components/trends/TrendsFilters'
 import { TrendsSummary } from '@/components/trends/TrendsSummary'
+import { TrendsStackedBarChart } from '@/components/trends/TrendsStackedBarChart'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay, parseAndConvertToUTC, createEndOfMonth, addDays, createUTCDate, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
@@ -102,8 +103,19 @@ const getDateRangeFromPeriods = (type: string, count: number) => {
   return { startDate, endDate };
 };
 
+interface Category {
+  id: number
+  name: string
+  type: string
+  color: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+}
+
 export default function TrendsPage() {
   const [trends, setTrends] = useState<TrendData[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tooltip, setTooltip] = useState<{
@@ -144,6 +156,19 @@ export default function TrendsPage() {
     transactionType: 'EXPENSE', // Default to Expense
     accountId: null // No account filter by default
   })
+
+  // Fetch categories data
+  const fetchCategories = async () => {
+    try {
+      console.log('🔄 Starting to fetch categories...')
+      const response = await api.getCategories({})
+      console.log('📋 Categories API Response:', response)
+      console.log('📋 Extracted categories:', response.data?.categories)
+      setCategories(response.data?.categories || [])
+    } catch (err) {
+      console.error('❌ Error fetching categories:', err)
+    }
+  }
 
   const fetchTrends = async () => {
     try {
@@ -192,6 +217,11 @@ export default function TrendsPage() {
   useEffect(() => {
     fetchTrends()
   }, [filters])
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    fetchCategories()
+  }, [])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -465,6 +495,17 @@ export default function TrendsPage() {
     )
   }, [trends])
 
+  // Create category color mapping
+  const categoryColorMap = React.useMemo(() => {
+    const colorMap = new Map<string, string>()
+    categories.forEach(category => {
+      colorMap.set(category.name, category.color)
+    })
+    console.log('🎨 Category Color Map:', Object.fromEntries(colorMap))
+    console.log('📊 Categories with colors:', categories.map(c => ({ name: c.name, color: c.color })))
+    return colorMap
+  }, [categories])
+
   // Calculate gradient intensity for individual cells based on column values
   const getCellGradientStyle = (amount: number, period: string): React.CSSProperties => {
     // Get all amounts for this specific period (column)
@@ -569,7 +610,7 @@ export default function TrendsPage() {
       <div className="border-b border-gray-200 pb-4">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Financial Trends Analysis</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Category Trend</h1>
             <p className="text-gray-600 mt-1">
               Analyze your financial patterns and trends over time using our advanced data cube
             </p>
@@ -652,6 +693,16 @@ export default function TrendsPage() {
       {/* Content */}
       {!error && (
         <>
+          {/* Stacked Bar Chart */}
+          {categoryStats.length > 0 && (
+            <TrendsStackedBarChart
+              categoryStats={categoryStats}
+              uniquePeriods={uniquePeriods}
+              periodType={filters.periodType}
+              categoryColorMap={categoryColorMap}
+            />
+          )}
+
           {/* Data Table */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
