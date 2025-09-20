@@ -218,6 +218,32 @@ This enables users to discover spending patterns, optimize budgets, identify fra
 - **Data Flow**: Transaction description → parsed merchant → financial cube → trends aggregation → tooltip display
 - **Performance**: Pre-parsed merchants enable fast tooltip queries without real-time description parsing
 
+### **Uncategorized Transaction Handling Decision**
+- **Problem Identified**: ✅ **CRITICAL ISSUE** - NULL category_id values in cube aggregation causing incorrect results
+  - Uncategorized transactions showing "total across all categories" instead of just uncategorized
+  - Complex NULL handling logic in cube service (lines 206-220) with 4 different filtering scenarios
+  - SQL aggregation unpredictability with NULL values in GROUP BY operations
+  - API layer complexity with NULL/0/"0" conversions
+
+- **Solution Approach**: ✅ **IMPLEMENTED** - Default Categories Migration
+  - **Rationale**: Eliminates NULL complexity with proper data modeling and foreign key constraints
+  - **Implementation**: Create actual "Uncategorized Income/Expense/Transfer" categories per tenant
+  - **Benefits**:
+    - Complete elimination of NULL category handling
+    - Proper foreign key constraints and data integrity
+    - Simplified code with no special NULL cases
+    - Better user experience with descriptive category names
+    - Consistent behavior across all category operations
+  - **Data Storage**: All transactions have valid category_id (NOT NULL constraint)
+  - **Query Processing**: Standard INNER JOINs, no COALESCE needed
+  - **API Consistency**: All categories treated uniformly, no special handling
+
+- **Alternative Approaches Considered**:
+  1. **COALESCE Approach**: Use COALESCE(category_id, 0) in queries (rejected - maintains NULL complexity)
+  2. **categoryId = 0 Storage**: Store 0 instead of NULL (rejected - foreign key constraint issues)
+  3. **Fix NULL Logic**: Improve existing NULL handling (rejected - maintains complexity)
+  4. **Default Categories Migration**: ✅ **SELECTED** - Proper data modeling, eliminates root cause
+
 ### **Auto-Generated Insights Concept**
 
 **Vision**: Automatically analyze cube data + merchant patterns to generate personalized financial insights and alerts based on user preferences.
