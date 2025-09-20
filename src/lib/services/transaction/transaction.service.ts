@@ -5,6 +5,7 @@ import { cubeService, CubeService } from '../cube'
 import type { CubeRelevantFields, BulkUpdateMetadata } from '@/lib/types/cube-delta.types'
 import { Decimal } from '@prisma/client/runtime/library'
 import { extractMerchantName } from '@/lib/utils/merchant-parser'
+import { defaultCategoriesService } from '../category/default-categories.service'
 
 // Interface for bulk update data
 interface BulkUpdateData {
@@ -250,11 +251,20 @@ export class TransactionService extends BaseService {
       // Auto-parse merchant from description
       const merchant = extractMerchantName(data.description);
 
+      // If no category provided, use default "Uncategorized" category
+      let categoryId = data.category_id;
+      if (!categoryId) {
+        categoryId = await defaultCategoriesService.getDefaultCategoryId(
+          tenantId,
+          data.type as 'INCOME' | 'EXPENSE' | 'TRANSFER'
+        );
+      }
+
       const transaction = await this.prisma.transaction.create({
         data: {
           tenant_id: tenantId,
           account_id: data.account_id,
-          category_id: data.category_id,
+          category_id: categoryId,
           amount: data.amount,
           description: data.description,
           merchant: merchant,

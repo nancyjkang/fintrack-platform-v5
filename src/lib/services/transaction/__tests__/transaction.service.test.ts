@@ -14,6 +14,10 @@ jest.mock('@/lib/prisma', () => ({
     },
     category: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      createMany: jest.fn(),
+      upsert: jest.fn(),
+      create: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -245,18 +249,45 @@ describe('TransactionService', () => {
 
     it('should create transaction without category', async () => {
       const dataWithoutCategory = { ...validTransactionData, category_id: undefined }
+      const mockDefaultCategory = { id: 999, name: 'Uncategorized', type: 'EXPENSE', tenant_id: mockTenantId }
 
       mockPrisma.account.findFirst.mockResolvedValue({ id: 1, tenant_id: mockTenantId } as any)
-      mockPrisma.transaction.create.mockResolvedValue(mockTransactionWithRelations)
+      // Mock the getDefaultCategoryId flow: findUnique returns null, then create returns the category
+      mockPrisma.category.findUnique.mockResolvedValue(null)
+      mockPrisma.category.create.mockResolvedValue(mockDefaultCategory)
+      mockPrisma.transaction.create.mockResolvedValue({
+        ...mockTransactionWithRelations,
+        category_id: 999
+      })
 
       await TransactionService.createTransaction(mockTenantId, dataWithoutCategory)
 
-      expect(mockPrisma.category.findFirst).not.toHaveBeenCalled()
+      // Should call findUnique to check if default category exists
+      expect(mockPrisma.category.findUnique).toHaveBeenCalledWith({
+        where: {
+          tenant_id_name_type: {
+            tenant_id: mockTenantId,
+            name: 'Uncategorized',
+            type: 'EXPENSE'
+          }
+        }
+      })
+
+      // Should call create to make the default category
+      expect(mockPrisma.category.create).toHaveBeenCalledWith({
+        data: {
+          tenant_id: mockTenantId,
+          name: 'Uncategorized',
+          type: 'EXPENSE',
+          color: '#6B7280'
+        }
+      })
+      
       expect(mockPrisma.transaction.create).toHaveBeenCalledWith({
         data: {
           tenant_id: mockTenantId,
           account_id: 1,
-          category_id: undefined,
+          category_id: 999, // Should use default category ID
           amount: 100.50,
           description: 'Test transaction',
           merchant: 'Test Transaction',
@@ -294,7 +325,7 @@ describe('TransactionService', () => {
         data: {
           ...updateData,
           merchant: 'Updated Transaction',
-          updated_at: createUTCDate(2025, 8, 19)
+          updated_at: createUTCDate(2025, 8, 20)
         },
         include: {
           account: true,

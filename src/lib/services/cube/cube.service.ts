@@ -78,14 +78,14 @@ export class CubeService extends BaseService {
       SELECT
         t.type as transaction_type,
         t.category_id,
-        COALESCE(MIN(c.name), 'Uncategorized') as category_name,
+        c.name as category_name,
         t.account_id,
-        MIN(a.name) as account_name,
+        a.name as account_name,
         t.is_recurring,
         SUM(t.amount) as total_amount,
         COUNT(*) as transaction_count
       FROM transactions t
-      LEFT JOIN categories c ON t.category_id = c.id
+      INNER JOIN categories c ON t.category_id = c.id
       INNER JOIN accounts a ON t.account_id = a.id
       WHERE t.tenant_id = $1
         AND t.date >= $2
@@ -96,7 +96,9 @@ export class CubeService extends BaseService {
       GROUP BY
         t.type,
         t.category_id,
+        c.name,
         t.account_id,
+        a.name,
         t.is_recurring
       HAVING COUNT(*) > 0`
 
@@ -108,7 +110,7 @@ export class CubeService extends BaseService {
 
     const aggregations = await this.prisma.$queryRawUnsafe<Array<{
       transaction_type: string
-      category_id: number | null
+      category_id: number
       category_name: string
       account_id: number
       account_name: string
@@ -124,7 +126,7 @@ export class CubeService extends BaseService {
       period_start: periodStart,
       period_end: periodEnd,
       transaction_type: agg.transaction_type,
-      category_id: agg.category_id,
+      category_id: agg.category_id, // No more NULL conversion needed
       category_name: agg.category_name,
       account_id: agg.account_id,
       account_name: agg.account_name,
@@ -184,14 +186,14 @@ export class CubeService extends BaseService {
       SELECT
         t.type as transaction_type,
         t.category_id,
-        COALESCE(MIN(c.name), 'Uncategorized') as category_name,
+        c.name as category_name,
         t.account_id,
-        MIN(a.name) as account_name,
+        a.name as account_name,
         t.is_recurring,
         SUM(t.amount) as total_amount,
         COUNT(*) as transaction_count
       FROM transactions t
-      LEFT JOIN categories c ON t.category_id = c.id
+      INNER JOIN categories c ON t.category_id = c.id
       INNER JOIN accounts a ON t.account_id = a.id
       WHERE t.tenant_id = $1
         AND t.date >= $2
@@ -199,31 +201,22 @@ export class CubeService extends BaseService {
         AND t.type = $4
         AND t.is_recurring = $5`
 
-    // Add category filter - handle null categories properly
+    // Add category filter - no more NULL handling needed
     let categoryFilter = ''
     const queryParams = [tenantId, periodStart, periodEnd, transactionType, isRecurring]
 
     if (categoryIds.length > 0) {
-      const nonNullCategories = categoryIds.filter(id => id !== null)
-      const hasNull = categoryIds.includes(null)
-
-      if (nonNullCategories.length > 0 && hasNull) {
-        // Both null and non-null categories
-        categoryFilter = ` AND (t.category_id IN (${nonNullCategories.join(',')}) OR t.category_id IS NULL)`
-      } else if (nonNullCategories.length > 0) {
-        // Only non-null categories
-        categoryFilter = ` AND t.category_id IN (${nonNullCategories.join(',')})`
-      } else if (hasNull) {
-        // Only null category
-        categoryFilter = ` AND t.category_id IS NULL`
-      }
+      // All category IDs are now real numbers, no NULL conversion needed
+      categoryFilter = ` AND t.category_id IN (${categoryIds.join(',')})`
     }
 
     const groupByClause = `
       GROUP BY
         t.type,
         t.category_id,
+        c.name,
         t.account_id,
+        a.name,
         t.is_recurring
       HAVING COUNT(*) > 0`
 
@@ -231,7 +224,7 @@ export class CubeService extends BaseService {
 
     const aggregations = await this.prisma.$queryRawUnsafe<Array<{
       transaction_type: string
-      category_id: number | null
+      category_id: number // Always a real category ID now
       category_name: string
       account_id: number
       account_name: string
@@ -247,7 +240,7 @@ export class CubeService extends BaseService {
       period_start: periodStart,
       period_end: periodEnd,
       transaction_type: agg.transaction_type,
-      category_id: agg.category_id,
+      category_id: agg.category_id, // No more NULL conversion needed
       category_name: agg.category_name,
       account_id: agg.account_id,
       account_name: agg.account_name,
@@ -414,9 +407,28 @@ export class CubeService extends BaseService {
           }
         },
         ...(filters.transactionType && { transaction_type: filters.transactionType }),
-        ...(filters.categoryIds && { category_id: { in: filters.categoryIds } }),
         ...(filters.accountIds && { account_id: { in: filters.accountIds } }),
         ...(filters.isRecurring !== undefined && { is_recurring: filters.isRecurring })
+      }
+
+      // Handle category filtering with proper null support
+      if (filters.categoryIds && filters.categoryIds.length > 0) {
+        const nonNullCategories = filters.categoryIds.filter(id => id !== null) as number[]
+        const hasNullCategory = filters.categoryIds.includes(null)
+
+        if (nonNullCategories.length > 0 && hasNullCategory) {
+          // Mixed: both specific categories and uncategorized
+          where.OR = [
+            { category_id: { in: nonNullCategories } },
+            { category_id: null }
+          ]
+        } else if (hasNullCategory) {
+          // Only uncategorized
+          where.category_id = null
+        } else {
+          // Only specific categories
+          where.category_id = { in: nonNullCategories }
+        }
       }
 
       console.log('💾 Cube Service - getTrends where clause:', JSON.stringify(where, null, 2))
@@ -1201,7 +1213,7 @@ export class CubeService extends BaseService {
         SELECT
           t.type as transaction_type,
           t.category_id,
-          COALESCE(c.name, 'Uncategorized') as category_name,
+          c.name as category_name,
           t.account_id,
           a.name as account_name,
           t.is_recurring,
@@ -1209,7 +1221,7 @@ export class CubeService extends BaseService {
           SUM(t.amount) as total_amount,
           COUNT(*) as transaction_count
         FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id AND c.tenant_id = $1
+        INNER JOIN categories c ON t.category_id = c.id AND c.tenant_id = $1
         INNER JOIN accounts a ON t.account_id = a.id AND a.tenant_id = $1
         WHERE t.tenant_id = $1
           AND t.date >= $2
@@ -1220,10 +1232,10 @@ export class CubeService extends BaseService {
         GROUP BY
           t.type,
           t.category_id,
+          c.name,
           t.account_id,
           t.is_recurring,
           t.date,
-          c.name,
           a.name
         ORDER BY t.date`
 
@@ -1237,7 +1249,7 @@ export class CubeService extends BaseService {
 
       const rawResults = await this.prisma.$queryRawUnsafe<Array<{
         transaction_type: string
-        category_id: number | null
+        category_id: number
         category_name: string
         account_id: number
         account_name: string
@@ -1265,7 +1277,7 @@ export class CubeService extends BaseService {
           total_amount: number
           transaction_count: number
           transaction_type: string
-          category_id: number | null
+          category_id: number
           category_name: string
           account_id: number
           account_name: string
@@ -1324,7 +1336,7 @@ export class CubeService extends BaseService {
           total_amount: number
           transaction_count: number
           transaction_type: string
-          category_id: number | null
+          category_id: number
           category_name: string
           account_id: number
           account_name: string

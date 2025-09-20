@@ -89,7 +89,7 @@ model Transaction {
   id           Int       @id @default(autoincrement())
   tenant_id    String
   account_id   Int
-  category_id  Int?
+  category_id  Int
   amount       Decimal   @db.Decimal(12, 2)
   description  String
   merchant     String?   // Auto-parsed merchant name from description
@@ -99,7 +99,7 @@ model Transaction {
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
   account      Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  category     Category? @relation(fields: [category_id], references: [id])
+  category     Category  @relation(fields: [category_id], references: [id])
   tenant       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   // Performance indexes for common queries
@@ -159,7 +159,7 @@ model FinancialCube {
   period_start      DateTime  @db.Date
   period_end        DateTime  @db.Date
   transaction_type  String
-  category_id       Int?
+  category_id       Int
   category_name     String
   account_id        Int
   account_name      String
@@ -170,7 +170,7 @@ model FinancialCube {
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
   account           Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  category          Category? @relation(fields: [category_id], references: [id])
+  category          Category  @relation(fields: [category_id], references: [id])
   tenant            Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@unique([tenant_id, period_type, period_start, transaction_type, category_id, account_id, is_recurring])
