@@ -94,8 +94,8 @@ function toTitleCase(str: string): string {
  * This can be run as a one-time migration or for periodic cleanup
  */
 export async function populateMerchantFields(
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  prisma: { transaction: { count: Function; findMany: Function; updateMany: Function; update: Function } }, // PrismaClient type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma: any, // PrismaClient type
   batchSize: number = 1000,
   onProgress?: (processed: number, total: number) => void
 ): Promise<{ totalProcessed: number; merchantsFound: number }> {
@@ -160,8 +160,8 @@ export async function populateMerchantFields(
  * Get merchant statistics after migration
  */
 export async function getMerchantStatistics(
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  prisma: { transaction: { aggregate: Function; count: Function; groupBy: Function } }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma: any
 ) {
   const stats = await prisma.transaction.aggregate({
     _count: {
