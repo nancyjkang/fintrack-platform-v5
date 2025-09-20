@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/client/api'
-import { TrendsChart } from '@/components/trends/TrendsChart'
 import { TrendsFilters } from '@/components/trends/TrendsFilters'
-import { TrendsSummary } from '@/components/trends/TrendsSummary'
 import { TrendsStackedBarChart } from '@/components/trends/TrendsStackedBarChart'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { getCurrentDate, getDaysAgo, toUTCDateString, formatDateForDisplay, parseAndConvertToUTC, createEndOfMonth, addDays, createUTCDate, getCurrentUTCDate } from '@/lib/utils/date-utils'
+import { getCurrentDate, toUTCDateString, formatDateForDisplay, parseAndConvertToUTC, createEndOfMonth, addDays, createUTCDate, getCurrentUTCDate } from '@/lib/utils/date-utils'
 
 // Temporary functions until we add them to date-utils
 const addMonths = (date: Date, months: number): Date => {
@@ -345,7 +343,7 @@ export default function TrendsPage() {
         case 'MONTHLY':
           // Use YOUR UTC-aware createEndOfMonth function
           periodEnd = createEndOfMonth(periodStart)
-          console.log('🏪 MONTHLY calculation - createEndOfMonth result:', periodEnd.toISOString())
+          console.log('🏪 MONTHLY calculation - createEndOfMonth result:', toUTCDateString(periodEnd))
           break
         case 'QUARTERLY':
           // Add 3 months and get end of that month using YOUR functions
@@ -661,9 +659,9 @@ export default function TrendsPage() {
     }
   }
 
-  const getUniquePeriods = (): string[] => {
-    return uniquePeriods
-  }
+  // const getUniquePeriods = (): string[] => {
+  //   return uniquePeriods
+  // }
 
   // Format period header for display
   const formatPeriodHeader = (period: string): string => {
@@ -673,9 +671,9 @@ export default function TrendsPage() {
     switch (periodType) {
       case 'WEEKLY':
       case 'BI_WEEKLY':
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+        return formatDateForDisplay(toUTCDateString(date))
       case 'MONTHLY':
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })
+        return formatDateForDisplay(toUTCDateString(date))
       case 'QUARTERLY':
         const quarter = Math.floor(date.getUTCMonth() / 3) + 1
         return `Q${quarter} ${date.getUTCFullYear().toString().slice(-2)}`
@@ -685,7 +683,7 @@ export default function TrendsPage() {
       case 'ANNUALLY':
         return date.getUTCFullYear().toString()
       default:
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })
+        return formatDateForDisplay(toUTCDateString(date))
     }
   }
 

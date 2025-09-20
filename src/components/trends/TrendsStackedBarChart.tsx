@@ -11,7 +11,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { parseAndConvertToUTC, formatDateForDisplay, toUTCDateString } from '@/lib/utils/date-utils'
 
 interface CategoryData {
   category_id?: number | null
@@ -72,17 +72,9 @@ const formatPeriodLabel = (period: string, periodType: string): string => {
   switch (periodType) {
     case 'WEEKLY':
     case 'BI_WEEKLY':
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        timeZone: 'UTC'
-      })
+      return formatDateForDisplay(toUTCDateString(date))
     case 'MONTHLY':
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        year: '2-digit',
-        timeZone: 'UTC'
-      })
+      return formatDateForDisplay(toUTCDateString(date))
     case 'QUARTERLY':
       const quarter = Math.floor(date.getUTCMonth() / 3) + 1
       return `Q${quarter} ${date.getUTCFullYear().toString().slice(-2)}`
@@ -92,27 +84,23 @@ const formatPeriodLabel = (period: string, periodType: string): string => {
     case 'ANNUALLY':
       return date.getUTCFullYear().toString()
     default:
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        year: '2-digit',
-        timeZone: 'UTC'
-      })
+      return formatDateForDisplay(toUTCDateString(date))
   }
 }
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
   if (active && payload && payload.length) {
-    const total = payload.reduce((sum: number, entry: any) => sum + Math.abs(entry.value), 0)
+    const total = payload.reduce((sum: number, entry: { value: number }) => sum + Math.abs(entry.value), 0)
 
     return (
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
         <p className="font-semibold text-gray-900 mb-2">{label}</p>
         <div className="space-y-1">
           {payload
-            .filter((entry: any) => entry.value !== 0)
-            .sort((a: any, b: any) => Math.abs(b.value) - Math.abs(a.value))
-            .map((entry: any, index: number) => (
+            .filter((entry: { value: number }) => entry.value !== 0)
+            .sort((a: { value: number }, b: { value: number }) => Math.abs(b.value) - Math.abs(a.value))
+            .map((entry: { dataKey: string; value: number; color: string }, index: number) => (
               <div key={index} className="flex items-center justify-between text-sm">
                 <div className="flex items-center">
                   <div
@@ -150,7 +138,7 @@ export const TrendsStackedBarChart: React.FC<TrendsStackedBarChartProps> = ({
 }) => {
   // Transform data for stacked bar chart
   const chartData = uniquePeriods.map(period => {
-    const periodData: Record<string, any> = {
+    const periodData: Record<string, string | number> = {
       period: formatPeriodLabel(period, periodType),
       fullPeriod: period // Keep original for reference
     }
