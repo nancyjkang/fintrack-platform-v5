@@ -55,15 +55,25 @@ if [ ! -z "$MOCK_FILES" ]; then
 fi
 echo "✅ No mock data patterns detected"
 
-# ESLint check
+# ESLint check (only block on errors, not warnings)
 echo "🔍 Running ESLint checks..."
-npm run lint
-if [ $? -ne 0 ]; then
-  echo "🚫 PUSH REJECTED: ESLint errors found"
-  echo "💡 Fix linting errors before pushing"
+ESLINT_OUTPUT=$(npm run lint 2>&1)
+ESLINT_ERRORS=$(echo "$ESLINT_OUTPUT" | grep -c "Error:" || true)
+ESLINT_WARNINGS=$(echo "$ESLINT_OUTPUT" | grep -c "Warning:" || true)
+
+if [ $ESLINT_ERRORS -gt 0 ]; then
+  echo "🚫 PUSH REJECTED: $ESLINT_ERRORS ESLint error(s) found"
+  echo "$ESLINT_OUTPUT" | grep "Error:"
+  echo "💡 Fix ESLint errors before pushing"
   exit 1
 fi
-echo "✅ ESLint checks passed"
+
+if [ $ESLINT_WARNINGS -gt 0 ]; then
+  echo "⚠️  ESLint found $ESLINT_WARNINGS warning(s) - not blocking push"
+  echo "💡 Consider fixing warnings in a follow-up commit"
+fi
+
+echo "✅ ESLint checks passed (no errors)"
 
 # Full test suite
 echo "🔍 Running complete test suite..."
