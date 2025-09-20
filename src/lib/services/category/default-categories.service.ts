@@ -24,9 +24,9 @@ export class DefaultCategoriesService extends BaseService {
     transfer: Category
   }> {
     const defaultCategories = [
-      { name: 'Uncategorized', type: 'INCOME', color: '#6B7280' },
-      { name: 'Uncategorized', type: 'EXPENSE', color: '#6B7280' },
-      { name: 'Uncategorized', type: 'TRANSFER', color: '#6B7280' }
+      { name: 'Uncategorized Income', type: 'INCOME', color: '#6B7280' },
+      { name: 'Uncategorized Expense', type: 'EXPENSE', color: '#6B7280' },
+      { name: 'Uncategorized Transfer', type: 'TRANSFER', color: '#6B7280' }
     ]
 
     const results = await Promise.all(
@@ -39,8 +39,8 @@ export class DefaultCategoriesService extends BaseService {
               type: cat.type
             }
           },
-          create: { 
-            tenant_id: tenantId, 
+          create: {
+            tenant_id: tenantId,
             ...cat,
             created_at: getCurrentUTCDate(),
             updated_at: getCurrentUTCDate()
@@ -69,7 +69,7 @@ export class DefaultCategoriesService extends BaseService {
       where: {
         tenant_id_name_type: {
           tenant_id: tenantId,
-          name: 'Uncategorized',
+          name: `Uncategorized ${transactionType.charAt(0) + transactionType.slice(1).toLowerCase()}`,
           type: transactionType
         }
       }
@@ -79,7 +79,7 @@ export class DefaultCategoriesService extends BaseService {
       category = await this.prisma.category.create({
         data: {
           tenant_id: tenantId,
-          name: 'Uncategorized',
+          name: `Uncategorized ${transactionType.charAt(0) + transactionType.slice(1).toLowerCase()}`,
           type: transactionType,
           color: '#6B7280'
         }
@@ -96,7 +96,7 @@ export class DefaultCategoriesService extends BaseService {
     return await this.prisma.category.findMany({
       where: {
         tenant_id: tenantId,
-        name: 'Uncategorized'
+        name: { startsWith: 'Uncategorized ' }
       },
       orderBy: {
         type: 'asc'
@@ -108,7 +108,7 @@ export class DefaultCategoriesService extends BaseService {
    * Check if a category is a default "Uncategorized" category
    */
   static isDefaultCategory(category: Category): boolean {
-    return category.name === 'Uncategorized'
+    return category.name.startsWith('Uncategorized ')
   }
 
   /**
@@ -117,9 +117,9 @@ export class DefaultCategoriesService extends BaseService {
    */
   async createDefaultCategoriesForNewTenant(tenantId: string): Promise<Category[]> {
     const defaultCategories = [
-      { name: 'Uncategorized', type: 'INCOME', color: '#6B7280' },
-      { name: 'Uncategorized', type: 'EXPENSE', color: '#6B7280' },
-      { name: 'Uncategorized', type: 'TRANSFER', color: '#6B7280' }
+      { name: 'Uncategorized Income', type: 'INCOME', color: '#6B7280' },
+      { name: 'Uncategorized Expense', type: 'EXPENSE', color: '#6B7280' },
+      { name: 'Uncategorized Transfer', type: 'TRANSFER', color: '#6B7280' }
     ]
 
     return await this.prisma.category.createMany({

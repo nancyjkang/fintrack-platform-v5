@@ -609,7 +609,7 @@ class ApiClient {
   }
 
   async getTrendsMerchants(filters: {
-    categoryId: number | null // null for uncategorized
+    categoryId: number | null
     periodStart: string // YYYY-MM-DD format
     periodEnd: string // YYYY-MM-DD format
     transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
@@ -638,7 +638,9 @@ class ApiClient {
     }
   }>> {
     const params = new URLSearchParams()
-    params.append('categoryId', (filters.categoryId ?? 0).toString()) // Convert null to "0"
+    if (filters.categoryId !== null) {
+      params.append('categoryId', filters.categoryId.toString())
+    }
     params.append('periodStart', filters.periodStart)
     params.append('periodEnd', filters.periodEnd)
     if (filters.transactionType) params.append('transactionType', filters.transactionType)

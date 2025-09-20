@@ -352,7 +352,6 @@ export default function TransactionsFilters({ filters, onFilterChange }: Transac
             <option value="">
               {filters.type ? `All ${filters.type.toLowerCase()} categories` : 'All categories'}
             </option>
-            <option value="uncategorized">Uncategorized</option>
             {filteredCategories.map(category => (
               <option key={category.id} value={category.id.toString()}>
                 {category.name}

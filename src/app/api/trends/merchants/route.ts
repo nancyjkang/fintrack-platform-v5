@@ -9,8 +9,7 @@ import { extractMerchantName } from '@/lib/utils/merchant-parser'
 const MerchantQuerySchema = z.object({
   categoryId: z.string().optional().transform(val => {
     if (!val) return null
-    const numId = parseInt(val)
-    return numId === 0 ? null : numId // Convert "0" to null for uncategorized
+    return parseInt(val)
   }),
   periodStart: z.string().optional(),
   periodEnd: z.string().optional(),
@@ -26,7 +25,7 @@ const MerchantQuerySchema = z.object({
  * Used for tooltip functionality in trends table
  *
  * Query Parameters:
- * - categoryId: Category ID (or "0" for uncategorized)
+ * - categoryId: Category ID
  * - periodStart: Period start date (YYYY-MM-DD)
  * - periodEnd: Period end date (YYYY-MM-DD)
  * - transactionType: 'INCOME' | 'EXPENSE' | 'TRANSFER' (optional)

@@ -65,12 +65,7 @@ export async function GET(request: NextRequest) {
     if (validatedParams.categoryIds) {
       filters.categoryIds = validatedParams.categoryIds
         .split(',')
-        .map(id => {
-          const numId = parseInt(id.trim())
-          // Convert frontend "Uncategorized" ID (0) to null for backend
-          return numId === 0 ? null : numId
-        })
-        .filter(id => id !== null || validatedParams.categoryIds.includes('0')) // Keep null if 0 was in original
+        .map(id => parseInt(id.trim()))
     }
 
     if (validatedParams.accountIds) {

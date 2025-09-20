@@ -241,7 +241,7 @@ export default function TrendsPage() {
       }
 
       const merchantFilters = {
-        categoryId: categoryId ?? null, // Use null for uncategorized
+        categoryId: categoryId ?? null,
         periodStart: toUTCDateString(periodStart),
         periodEnd: toUTCDateString(periodEnd),
         transactionType: filters.transactionType,

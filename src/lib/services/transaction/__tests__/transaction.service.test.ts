@@ -249,7 +249,7 @@ describe('TransactionService', () => {
 
     it('should create transaction without category', async () => {
       const dataWithoutCategory = { ...validTransactionData, category_id: undefined }
-      const mockDefaultCategory = { id: 999, name: 'Uncategorized', type: 'EXPENSE', tenant_id: mockTenantId }
+      const mockDefaultCategory = { id: 999, name: 'Uncategorized Expense', type: 'EXPENSE', tenant_id: mockTenantId }
 
       mockPrisma.account.findFirst.mockResolvedValue({ id: 1, tenant_id: mockTenantId } as any)
       // Mock the getDefaultCategoryId flow: findUnique returns null, then create returns the category
@@ -267,7 +267,7 @@ describe('TransactionService', () => {
         where: {
           tenant_id_name_type: {
             tenant_id: mockTenantId,
-            name: 'Uncategorized',
+            name: 'Uncategorized Expense',
             type: 'EXPENSE'
           }
         }
@@ -277,12 +277,12 @@ describe('TransactionService', () => {
       expect(mockPrisma.category.create).toHaveBeenCalledWith({
         data: {
           tenant_id: mockTenantId,
-          name: 'Uncategorized',
+          name: 'Uncategorized Expense',
           type: 'EXPENSE',
           color: '#6B7280'
         }
       })
-      
+
       expect(mockPrisma.transaction.create).toHaveBeenCalledWith({
         data: {
           tenant_id: mockTenantId,

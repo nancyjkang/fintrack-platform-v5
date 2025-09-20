@@ -1118,44 +1118,14 @@ describe('CubeService', () => {
     })
   })
 
-  describe('getTrends with null category filtering', () => {
-    it('should filter for uncategorized transactions only when categoryIds contains null', async () => {
-      // Arrange
-      const mockCubeRecords = [
-        { id: 1, category_id: null, category_name: 'Uncategorized', total_amount: new Decimal(100), period_start: new Date('2024-01-01') },
-        { id: 2, category_id: 1, category_name: 'Food', total_amount: new Decimal(200), period_start: new Date('2024-01-01') },
-        { id: 3, category_id: null, category_name: 'Uncategorized', total_amount: new Decimal(150), period_start: new Date('2024-01-02') }
-      ]
-      
-      mockPrisma.financialCube.findMany.mockResolvedValue(mockCubeRecords)
-
-      // Act - request only uncategorized transactions
-      const result = await cubeService.getTrends(mockTenantId, {
-        categoryIds: [null]
-      })
-
-      // Assert
-      expect(mockPrisma.financialCube.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({
-          tenant_id: mockTenantId,
-          category_id: null  // Should filter for null category only
-        }),
-        orderBy: [
-          { period_start: 'asc' },
-          { category_name: 'asc' },
-          { account_name: 'asc' }
-        ]
-      })
-      expect(result).toEqual(mockCubeRecords)
-    })
-
-    it('should filter for specific categories only when categoryIds contains numbers', async () => {
+  describe('getTrends with category filtering', () => {
+    it('should filter for specific categories when categoryIds provided', async () => {
       // Arrange
       const mockCubeRecords = [
         { id: 2, category_id: 1, category_name: 'Food', total_amount: new Decimal(200), period_start: new Date('2024-01-01') },
         { id: 4, category_id: 2, category_name: 'Transport', total_amount: new Decimal(50), period_start: new Date('2024-01-02') }
       ]
-      
+
       mockPrisma.financialCube.findMany.mockResolvedValue(mockCubeRecords)
 
       // Act - request specific categories
@@ -1178,45 +1148,13 @@ describe('CubeService', () => {
       expect(result).toEqual(mockCubeRecords)
     })
 
-    it('should use OR clause when categoryIds contains both null and numbers', async () => {
-      // Arrange
-      const mockCubeRecords = [
-        { id: 1, category_id: null, category_name: 'Uncategorized', total_amount: new Decimal(100), period_start: new Date('2024-01-01') },
-        { id: 2, category_id: 1, category_name: 'Food', total_amount: new Decimal(200), period_start: new Date('2024-01-02') }
-      ]
-      
-      mockPrisma.financialCube.findMany.mockResolvedValue(mockCubeRecords)
-
-      // Act - request both uncategorized and specific categories
-      const result = await cubeService.getTrends(mockTenantId, {
-        categoryIds: [null, 1]
-      })
-
-      // Assert
-      expect(mockPrisma.financialCube.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({
-          tenant_id: mockTenantId,
-          OR: [
-            { category_id: { in: [1] } },
-            { category_id: null }
-          ]
-        }),
-        orderBy: [
-          { period_start: 'asc' },
-          { category_name: 'asc' },
-          { account_name: 'asc' }
-        ]
-      })
-      expect(result).toEqual(mockCubeRecords)
-    })
-
     it('should not add category filter when categoryIds is empty or undefined', async () => {
       // Arrange
       const mockCubeRecords = [
-        { id: 1, category_id: null, category_name: 'Uncategorized', total_amount: new Decimal(100), period_start: new Date('2024-01-01') },
+        { id: 1, category_id: 3, category_name: 'Uncategorized Expense', total_amount: new Decimal(100), period_start: new Date('2024-01-01') },
         { id: 2, category_id: 1, category_name: 'Food', total_amount: new Decimal(200), period_start: new Date('2024-01-02') }
       ]
-      
+
       mockPrisma.financialCube.findMany.mockResolvedValue(mockCubeRecords)
 
       // Act - no category filter
@@ -1226,7 +1164,7 @@ describe('CubeService', () => {
       expect(mockPrisma.financialCube.findMany).toHaveBeenCalledWith({
         where: expect.objectContaining({
           tenant_id: mockTenantId
-          // Should not have any category_id or OR clause
+          // Should not have any category_id clause
         }),
         orderBy: [
           { period_start: 'asc' },
