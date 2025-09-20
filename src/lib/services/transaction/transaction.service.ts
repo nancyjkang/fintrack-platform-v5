@@ -336,7 +336,7 @@ export class TransactionService extends BaseService {
       }
 
       // Auto-parse merchant if description is being updated
-      const updateData: any = { ...data, updated_at: getCurrentUTCDate() };
+      const updateData: Record<string, unknown> = { ...data, updated_at: getCurrentUTCDate() };
       if (data.description) {
         updateData.merchant = extractMerchantName(data.description);
       }
@@ -468,7 +468,7 @@ export class TransactionService extends BaseService {
       }
 
       // 2. Apply bulk update with merchant parsing if description is updated
-      const updateData: any = { ...updates };
+      const updateData: Record<string, unknown> = { ...updates };
       if (updates.description) {
         updateData.merchant = extractMerchantName(updates.description);
       }

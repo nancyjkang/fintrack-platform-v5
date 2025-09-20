@@ -323,7 +323,7 @@ export default function CubeOperationsPage() {
                     </label>
                     <select
                       value={periodType}
-                      onChange={(e) => setPeriodType(e.target.value as any)}
+                      onChange={(e) => setPeriodType(e.target.value as 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY')}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="WEEKLY">Weekly</option>

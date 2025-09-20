@@ -168,7 +168,7 @@ export default function TrendsPage() {
     }
   }
 
-  const fetchTrends = async () => {
+  const fetchTrends = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -210,7 +210,7 @@ export default function TrendsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters])
 
   useEffect(() => {
     fetchTrends()
