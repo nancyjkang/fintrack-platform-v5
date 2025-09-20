@@ -590,7 +590,7 @@ export class CubeService extends BaseService {
       is_recurring: boolean
     }>
   }): Promise<{ count: number }> {
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       tenant_id: options.tenantId
     }
 
@@ -1199,7 +1199,7 @@ export class CubeService extends BaseService {
     endDate: Date,
     accountId?: number
   ): Promise<{ insertedCount: number; processingTime: number }> {
-    const startTime = Date.now()
+    const startTime = getCurrentUTCDate().getTime()
 
     try {
       // Step 1: Single SQL query to get all aggregated data for the entire date range
@@ -1389,7 +1389,7 @@ export class CubeService extends BaseService {
         insertedCount = cubeRecords.length
       }
 
-      const processingTime = Date.now() - startTime
+      const processingTime = getCurrentUTCDate().getTime() - startTime
       console.log(`✅ Batch rebuild complete: ${insertedCount} records in ${processingTime}ms`)
 
       return { insertedCount, processingTime }
@@ -1410,7 +1410,7 @@ export class CubeService extends BaseService {
     endDate: Date,
     transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   ): Promise<{ deletedCount: number; insertedCount: number; processingTime: number }> {
-    const startTime = Date.now()
+    const startTime = getCurrentUTCDate().getTime()
 
     try {
       // Step 1: Delete existing cube records for the date range
@@ -1427,7 +1427,7 @@ export class CubeService extends BaseService {
       const batchResult = await this.rebuildCubeForDateRangeBatch(tenantId, startDate, endDate)
       const insertedCount = batchResult.insertedCount
 
-      const processingTime = Date.now() - startTime
+      const processingTime = getCurrentUTCDate().getTime() - startTime
 
       return {
         deletedCount: deleteResult.count,
