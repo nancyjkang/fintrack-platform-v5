@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/jwt'
 import { z } from 'zod'
-import { parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
 import { prisma } from '@/lib/prisma'
 import { extractMerchantName } from '@/lib/utils/merchant-parser'
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     console.log('🏪 Merchant API - Validated params:', validatedParams)
 
     // Build where clause for transaction query
-    const where: any = {
+    const where: Record<string, unknown> = {
       account: {
         tenant_id: user.tenantId,
         is_active: true
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       if (merchantData.sampleTransactions.length < 5) {
         merchantData.sampleTransactions.push({
           id: transaction.id,
-          date: transaction.date.toISOString().split('T')[0], // YYYY-MM-DD format
+          date: toUTCDateString(transaction.date), // YYYY-MM-DD format
           amount: Number(transaction.amount),
           description: transaction.description,
           type: transaction.type

@@ -875,7 +875,7 @@ export default function TransactionsList({
                             }
                           }}
                         >
-                          <option value="no-change">Don't change</option>
+                          <option value="no-change">Don&apos;t change</option>
                           <option value="INCOME">Income</option>
                           <option value="EXPENSE">Expense</option>
                           <option value="TRANSFER">Transfer</option>
@@ -896,7 +896,7 @@ export default function TransactionsList({
                           onChange={(e) => setBulkEditCategoryId(e.target.value)}
                         >
                           {(!bulkEditTransactionTypeChanged || bulkEditTransactionType === 'no-change') && (
-                            <option value="no-change">Don't change</option>
+                            <option value="no-change">Don&apos;t change</option>
                           )}
                           <option value="remove">Remove category</option>
 
@@ -965,7 +965,7 @@ export default function TransactionsList({
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                           defaultValue={defaultRecurring}
                         >
-                          <option value="no-change">Don't change</option>
+                          <option value="no-change">Don&apos;t change</option>
                           <option value="recurring">Mark as recurring</option>
                           <option value="nonRecurring">Mark as non-recurring</option>
                         </select>

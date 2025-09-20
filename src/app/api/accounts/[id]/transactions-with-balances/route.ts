@@ -73,7 +73,7 @@ export async function GET(
     const service = new AccountBalanceHistoryService()
 
     // Build filters for TransactionService - only include date filters if provided
-    const filters: any = {
+    const filters: Record<string, unknown> = {
       account_id: accountId
     };
 

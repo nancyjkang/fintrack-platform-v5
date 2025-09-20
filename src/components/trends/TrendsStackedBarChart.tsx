@@ -89,7 +89,7 @@ const formatPeriodLabel = (period: string, periodType: string): string => {
 }
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; value: number; color: string }>; label?: string }) => {
   if (active && payload && payload.length) {
     const total = payload.reduce((sum: number, entry: { value: number }) => sum + Math.abs(entry.value), 0)
 
