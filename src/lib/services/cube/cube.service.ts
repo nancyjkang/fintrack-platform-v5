@@ -1,8 +1,8 @@
 import { BaseService } from '../base'
 import type { FinancialCube, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
-import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, format, addWeeks, addMonths } from 'date-fns'
-import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
+import { startOfWeek, endOfWeek, format, addWeeks, addMonths } from 'date-fns'
+import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, parseAndConvertToUTC, toUTCDateString, createStartOfMonth, createEndOfMonth } from '@/lib/utils/date-utils'
 
 // Configuration: Week start day (0 = Sunday, 1 = Monday)
 // Default to Sunday for US financial convention, but can be changed to Monday (1) for ISO standard
@@ -917,8 +917,8 @@ export class CubeService extends BaseService {
         periodEnd = endOfWeek(current, { weekStartsOn: WEEK_STARTS_ON })
         current = addDays(periodEnd, 1) // Next day
       } else {
-        periodStart = startOfMonth(current)
-        periodEnd = endOfMonth(current)
+        periodStart = createStartOfMonth(current)
+        periodEnd = createEndOfMonth(current)
         current = addDays(periodEnd, 1) // Next day
       }
 
@@ -1053,7 +1053,7 @@ export class CubeService extends BaseService {
       // Calculate period end
       const periodEnd = periodType === 'WEEKLY'
         ? endOfWeek(periodStart, { weekStartsOn: 1 })
-        : endOfMonth(periodStart)
+        : createEndOfMonth(periodStart)
 
       // Clear existing cube records for this specific period and dimensions
       await this.clearSpecificCubeRecords(targets)
@@ -1100,7 +1100,7 @@ export class CubeService extends BaseService {
     for (const target of targets) {
       const periodEnd = target.periodType === 'WEEKLY'
         ? endOfWeek(target.periodStart, { weekStartsOn: 1 })
-        : endOfMonth(target.periodStart)
+        : createEndOfMonth(target.periodStart)
 
       const key = `${target.periodType}-${toUTCDateString(target.periodStart)}`
 
@@ -1487,14 +1487,14 @@ export class CubeService extends BaseService {
     }
 
     // Generate monthly periods
-    let currentMonthStart = startOfMonth(startDate)
-    const lastMonthStart = startOfMonth(endDate)
+    let currentMonthStart = createStartOfMonth(startDate)
+    const lastMonthStart = createStartOfMonth(endDate)
 
     while (currentMonthStart <= lastMonthStart) {
       periods.push({
         type: 'MONTHLY',
         start: currentMonthStart,
-        end: endOfMonth(currentMonthStart)
+        end: createEndOfMonth(currentMonthStart)
       })
       currentMonthStart = addMonths(currentMonthStart, 1)
     }

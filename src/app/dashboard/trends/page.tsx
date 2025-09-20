@@ -465,6 +465,67 @@ export default function TrendsPage() {
     )
   }, [trends])
 
+  // Calculate gradient intensity for individual cells based on column values
+  const getCellGradientStyle = (amount: number, period: string): React.CSSProperties => {
+    // Get all amounts for this specific period (column)
+    const periodAmounts = categoryStats
+      .map(stat => stat.periods[period]?.amount || 0)
+      .filter(amt => amt !== 0)
+
+    if (periodAmounts.length === 0) return {}
+
+    const maxAmountInPeriod = Math.max(...periodAmounts.map(amt => Math.abs(amt)))
+    if (maxAmountInPeriod === 0) return {}
+
+    const intensity = Math.abs(amount) / maxAmountInPeriod
+    const opacity = Math.max(0.05, intensity * 0.25) // Scale from 0.05 to 0.25 opacity
+
+    // Use red for expenses (negative amounts) and green for income (positive amounts)
+    const color = amount >= 0 ? '34, 197, 94' : '239, 68, 68' // green-500 : red-500 RGB values
+
+    return {
+      backgroundColor: `rgba(${color}, ${opacity})`
+    }
+  }
+
+  // Calculate gradient for total amount column (row-based)
+  const getTotalAmountGradientStyle = (amount: number): React.CSSProperties => {
+    const maxAmount = Math.max(...categoryStats.map(stat => Math.abs(stat.total_amount)))
+    if (maxAmount === 0) return {}
+
+    const intensity = Math.abs(amount) / maxAmount
+    const opacity = Math.max(0.05, intensity * 0.3)
+
+    const color = amount >= 0 ? '34, 197, 94' : '239, 68, 68'
+
+    return {
+      backgroundColor: `rgba(${color}, ${opacity})`
+    }
+  }
+
+  // Calculate gradient for average column (row-based)
+  const getAverageGradientStyle = (amount: number): React.CSSProperties => {
+    // Calculate all averages to find the maximum
+    const averages = categoryStats.map(stat => {
+      const periodsWithData = Object.values(stat.periods).filter(p => p.amount !== 0).length
+      return periodsWithData > 0 ? Math.abs(stat.total_amount / periodsWithData) : 0
+    }).filter(avg => avg > 0)
+
+    if (averages.length === 0) return {}
+
+    const maxAverage = Math.max(...averages)
+    if (maxAverage === 0) return {}
+
+    const intensity = Math.abs(amount) / maxAverage
+    const opacity = Math.max(0.05, intensity * 0.3)
+
+    const color = amount >= 0 ? '34, 197, 94' : '239, 68, 68'
+
+    return {
+      backgroundColor: `rgba(${color}, ${opacity})`
+    }
+  }
+
   const getUniquePeriods = (): string[] => {
     return uniquePeriods
   }
@@ -613,14 +674,14 @@ export default function TrendsPage() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                           Category
                         </th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Total Amount
                         </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Recurring %
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                          Average
                         </th>
                         {/* Period columns */}
                         {uniquePeriods.map(period => (
@@ -633,26 +694,49 @@ export default function TrendsPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {categoryStats.slice(0, 50).map((categoryData, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                             {categoryData.category_name}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                          <td
+                            className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right"
+                            style={getTotalAmountGradientStyle(categoryData.total_amount)}
+                          >
                             <span className={categoryData.total_amount >= 0 ? 'text-green-600' : 'text-red-600'}>
                               ${Math.abs(categoryData.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                            {categoryData.transaction_count > 0 ? (
-                              <span className="text-purple-600">
-                                {Math.round((categoryData.recurring_count / categoryData.transaction_count) * 100)}%
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
+                          <td
+                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right border-r border-gray-200"
+                            style={(() => {
+                              const periodsWithData = Object.values(categoryData.periods).filter(p => p.amount !== 0).length
+                              if (periodsWithData > 0) {
+                                const average = categoryData.total_amount / periodsWithData
+                                return getAverageGradientStyle(average)
+                              }
+                              return {}
+                            })()}
+                          >
+                            {(() => {
+                              const periodsWithData = Object.values(categoryData.periods).filter(p => p.amount !== 0).length
+                              if (periodsWithData > 0) {
+                                const average = categoryData.total_amount / periodsWithData
+                                return (
+                                  <span className={average >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                    ${Math.abs(average).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  </span>
+                                )
+                              } else {
+                                return <span className="text-gray-400">-</span>
+                              }
+                            })()}
                           </td>
                           {/* Period data cells */}
                           {uniquePeriods.map(period => (
-                            <td key={period} className="px-3 py-4 whitespace-nowrap text-sm text-center">
+                            <td
+                              key={period}
+                              className="px-3 py-4 whitespace-nowrap text-sm text-center"
+                              style={categoryData.periods[period] ? getCellGradientStyle(categoryData.periods[period].amount, period) : {}}
+                            >
                               {categoryData.periods[period] ? (
                                 <div
                                   className="space-y-1 cursor-pointer hover:bg-blue-50 rounded p-1 transition-colors"
