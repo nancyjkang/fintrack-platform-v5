@@ -220,9 +220,9 @@ export const TrendsStackedBarChart: React.FC<TrendsStackedBarChartProps> = ({
             />
 
             {/* Render a Bar for each category */}
-            {categoriesWithData.map((category, index) => {
+            {categoriesWithData.map((category, categoryIndex) => {
               // Use actual category color if available, otherwise fall back to generated color
-              const categoryColor = categoryColorMap.get(category.category_name) || generateCategoryColor(category.category_name, index)
+              const categoryColor = categoryColorMap.get(category.category_name) || generateCategoryColor(category.category_name, categoryIndex)
 
               return (
                 <Bar

@@ -2,7 +2,7 @@ import { BaseService } from '../base'
 import type { FinancialCube, Prisma } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { startOfWeek, endOfWeek, format, addWeeks, addMonths } from 'date-fns'
-import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, parseAndConvertToUTC, toUTCDateString, createStartOfMonth, createEndOfMonth } from '@/lib/utils/date-utils'
+import { getCurrentUTCDate, createUTCDate, addDays, toUTCMidnight, toUTCDateString, createStartOfMonth, createEndOfMonth } from '@/lib/utils/date-utils'
 
 // Configuration: Week start day (0 = Sunday, 1 = Monday)
 // Default to Sunday for US financial convention, but can be changed to Monday (1) for ISO standard

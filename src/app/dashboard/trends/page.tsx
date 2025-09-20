@@ -214,7 +214,7 @@ export default function TrendsPage() {
 
   useEffect(() => {
     fetchTrends()
-  }, [filters])
+  }, [filters, fetchTrends])
 
   // Fetch categories on component mount
   useEffect(() => {

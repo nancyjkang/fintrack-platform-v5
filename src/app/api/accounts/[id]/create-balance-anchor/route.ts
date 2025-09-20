@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAuth } from '@/lib/auth'
 import { handleApiError } from '@/lib/api-response'
-import { getCurrentUTCDate, toUTCDateString } from '@/lib/utils/date-utils'
+import { toUTCDateString } from '@/lib/utils/date-utils'
 
 /**
  * POST /api/accounts/[id]/create-balance-anchor

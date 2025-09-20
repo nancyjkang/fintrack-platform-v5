@@ -3,7 +3,7 @@ import { AccountBalanceHistoryService } from '@/lib/services/account'
 import { TransactionService } from '@/lib/services/transaction'
 import { verifyAuth } from '@/lib/auth'
 import { handleApiError } from '@/lib/api-response'
-import { createUTCDate, getCurrentUTCDate, subtractDays, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
+import { createUTCDate, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
 import type { Transaction } from '@prisma/client'
 
 /**
