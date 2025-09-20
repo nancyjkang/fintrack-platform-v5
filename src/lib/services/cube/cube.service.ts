@@ -533,7 +533,7 @@ export class CubeService extends BaseService {
     }
 
     return Array.from(aggregatedData.values()).sort((a, b) => {
-      const dateCompare = a.period_start.getTime() - b.period_start.getTime()
+      const dateCompare = a.period_start.valueOf() - b.period_start.valueOf()
       if (dateCompare !== 0) return dateCompare
       return a.category_name.localeCompare(b.category_name)
     })
@@ -550,7 +550,7 @@ export class CubeService extends BaseService {
       case 'BI_WEEKLY':
         // Bi-weekly periods start every 14 days from a reference date
         const referenceDate = createUTCDate(year, 0, 1) // January 1st
-        const daysSinceReference = Math.floor((date.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24))
+        const daysSinceReference = Math.floor((date.valueOf() - referenceDate.valueOf()) / (1000 * 60 * 60 * 24))
         const biWeeklyPeriod = Math.floor(daysSinceReference / 14)
         return addDays(referenceDate, biWeeklyPeriod * 14)
 
