@@ -1199,7 +1199,7 @@ export class CubeService extends BaseService {
     endDate: Date,
     accountId?: number
   ): Promise<{ insertedCount: number; processingTime: number }> {
-    const startTime = getCurrentUTCDate().getTime()
+    const startTime = getCurrentUTCDate().valueOf()
 
     try {
       // Step 1: Single SQL query to get all aggregated data for the entire date range
@@ -1256,7 +1256,7 @@ export class CubeService extends BaseService {
       console.log(`📊 Got ${rawResults.length} aggregated transaction groups`)
 
       // Step 2: Group results by periods in memory (much faster than 74 SQL queries!)
-      const cubeRecords: any[] = []
+      const cubeRecords: Array<Omit<FinancialCube, 'id' | 'created_at' | 'updated_at'>> = []
       const weeklyPeriods = this.generatePeriods(startDate, endDate, 'WEEKLY')
       const monthlyPeriods = this.generatePeriods(startDate, endDate, 'MONTHLY')
 
@@ -1312,10 +1312,9 @@ export class CubeService extends BaseService {
             account_id: aggregate.account_id,
             account_name: aggregate.account_name,
             is_recurring: aggregate.is_recurring,
-            total_amount: aggregate.total_amount,
+            total_amount: new Decimal(aggregate.total_amount),
             transaction_count: aggregate.transaction_count,
-            created_at: getCurrentUTCDate(),
-            updated_at: getCurrentUTCDate()
+            merchant_name: null
           })
         }
       }
@@ -1371,10 +1370,9 @@ export class CubeService extends BaseService {
             account_id: aggregate.account_id,
             account_name: aggregate.account_name,
             is_recurring: aggregate.is_recurring,
-            total_amount: aggregate.total_amount,
+            total_amount: new Decimal(aggregate.total_amount),
             transaction_count: aggregate.transaction_count,
-            created_at: getCurrentUTCDate(),
-            updated_at: getCurrentUTCDate()
+            merchant_name: null
           })
         }
       }
@@ -1389,7 +1387,7 @@ export class CubeService extends BaseService {
         insertedCount = cubeRecords.length
       }
 
-      const processingTime = getCurrentUTCDate().getTime() - startTime
+      const processingTime = getCurrentUTCDate().valueOf() - startTime
       console.log(`✅ Batch rebuild complete: ${insertedCount} records in ${processingTime}ms`)
 
       return { insertedCount, processingTime }
@@ -1410,7 +1408,7 @@ export class CubeService extends BaseService {
     endDate: Date,
     transactionType?: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   ): Promise<{ deletedCount: number; insertedCount: number; processingTime: number }> {
-    const startTime = getCurrentUTCDate().getTime()
+    const startTime = getCurrentUTCDate().valueOf()
 
     try {
       // Step 1: Delete existing cube records for the date range
@@ -1427,7 +1425,7 @@ export class CubeService extends BaseService {
       const batchResult = await this.rebuildCubeForDateRangeBatch(tenantId, startDate, endDate)
       const insertedCount = batchResult.insertedCount
 
-      const processingTime = getCurrentUTCDate().getTime() - startTime
+      const processingTime = getCurrentUTCDate().valueOf() - startTime
 
       return {
         deletedCount: deleteResult.count,
