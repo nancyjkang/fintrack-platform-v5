@@ -149,7 +149,7 @@ export default function BalanceHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<string>('');
+  const [timePeriod, setTimePeriod] = useState<string>('last-30-days');
 
   // Filter state - default to last 30 days
   const [filters, setFilters] = useState<FilterType>(() => {
@@ -218,7 +218,20 @@ export default function BalanceHistoryPage() {
         throw new Error('Authentication required');
       }
       // Load transactions and derive summary for consistency
-      const transactionsResponse = await fetch(`/api/accounts/${filters.accountId}/transactions-with-balances?startDate=${filters.startDate}&endDate=${filters.endDate}&sortOrder=desc&limit=1000`, {
+      const params = new URLSearchParams({
+        sortOrder: 'desc',
+        limit: '1000'
+      });
+
+      // Only add date parameters if they have values (for "All time" support)
+      if (filters.startDate) {
+        params.append('startDate', filters.startDate);
+      }
+      if (filters.endDate) {
+        params.append('endDate', filters.endDate);
+      }
+
+      const transactionsResponse = await fetch(`/api/accounts/${filters.accountId}/transactions-with-balances?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import { TransactionService } from '@/lib/services/transaction'
 import { verifyAuth } from '@/lib/auth'
 import { handleApiError } from '@/lib/api-response'
 import { createUTCDate, getCurrentUTCDate, subtractDays, parseAndConvertToUTC, toUTCDateString } from '@/lib/utils/date-utils'
+import type { Transaction } from '@prisma/client'
 
 /**
  * GET /api/accounts/[id]/transactions-with-balances
@@ -48,41 +49,65 @@ export async function GET(
       return handleApiError(new Error('Invalid endDate format. Use YYYY-MM-DD'))
     }
 
-    // 6. Set default date range if not provided (last 30 days)
-    const defaultEndDate = getCurrentUTCDate()
-    const defaultStartDate = subtractDays(defaultEndDate, 30)
+    // 6. Handle date range - if no dates provided, fetch all transactions (no date filter)
+    let finalStartDate: Date | undefined;
+    let finalEndDate: Date | undefined;
 
-    const finalStartDate = startDate ? createUTCDate(
-      parseInt(startDate.split('-')[0]),
-      parseInt(startDate.split('-')[1]) - 1,
-      parseInt(startDate.split('-')[2])
-    ) : defaultStartDate
+    if (startDate) {
+      finalStartDate = createUTCDate(
+        parseInt(startDate.split('-')[0]),
+        parseInt(startDate.split('-')[1]) - 1,
+        parseInt(startDate.split('-')[2])
+      );
+    }
 
-    const finalEndDate = endDate ? createUTCDate(
-      parseInt(endDate.split('-')[0]),
-      parseInt(endDate.split('-')[1]) - 1,
-      parseInt(endDate.split('-')[2])
-    ) : defaultEndDate
+    if (endDate) {
+      finalEndDate = createUTCDate(
+        parseInt(endDate.split('-')[0]),
+        parseInt(endDate.split('-')[1]) - 1,
+        parseInt(endDate.split('-')[2])
+      );
+    }
 
     // 7. Initialize service and get transactions with running balances
     const service = new AccountBalanceHistoryService()
 
-    // Build filters for TransactionService
-    const filters = {
-      account_id: accountId,
-      date_from: finalStartDate,
-      date_to: finalEndDate
+    // Build filters for TransactionService - only include date filters if provided
+    const filters: any = {
+      account_id: accountId
+    };
+
+    if (finalStartDate) {
+      filters.date_from = finalStartDate;
+    }
+    if (finalEndDate) {
+      filters.date_to = finalEndDate;
     }
 
     // Get transactions in the specified date range
     const transactions = await TransactionService.getTransactions(auth.tenantId, filters)
 
-    // Calculate running balances using balance anchors as primary source of truth
-    const transactionsWithBalance = await service.calculateRunningBalancesFromAnchor(
-      transactions.transactions,
-      accountId,
-      auth.tenantId
-    )
+    // For date-filtered requests, we need to calculate the correct starting balance
+    // The anchor-based method assumes all transactions since anchor, but we're filtering by date
+    let transactionsWithBalance: Array<Transaction & { balance: number }>;
+
+    if (finalStartDate || finalEndDate) {
+      // Date filtering is active - calculate proper starting balance for the range
+      transactionsWithBalance = await service.calculateRunningBalancesForDateRange(
+        transactions.transactions,
+        accountId,
+        auth.tenantId,
+        finalStartDate,
+        finalEndDate
+      );
+    } else {
+      // No date filtering - use standard anchor-based calculation
+      transactionsWithBalance = await service.calculateRunningBalancesFromAnchor(
+        transactions.transactions,
+        accountId,
+        auth.tenantId
+      );
+    }
 
     // Sort transactions based on requested order using deterministic sorting
     // This must match the sorting used in calculateRunningBalancesFromAnchor to preserve balance calculation order
@@ -111,8 +136,8 @@ export async function GET(
         transactions: sortedTransactions,
         count: sortedTransactions.length,
         dateRange: {
-          startDate: toUTCDateString(finalStartDate),
-          endDate: toUTCDateString(finalEndDate)
+          startDate: finalStartDate ? toUTCDateString(finalStartDate) : null,
+          endDate: finalEndDate ? toUTCDateString(finalEndDate) : null
         },
         calculationMethod: 'balance-anchor-primary', // Indicates which method was used
         metadata: {

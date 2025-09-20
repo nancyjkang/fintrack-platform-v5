@@ -11,18 +11,30 @@ jest.mock('@/lib/prisma', () => ({
     },
     transaction: {
       count: jest.fn(),
+      create: jest.fn(),
+    },
+    accountBalanceAnchor: {
+      create: jest.fn(),
     },
     $transaction: jest.fn(),
   },
 }))
 
+jest.mock('@/lib/services/category/default-categories.service', () => ({
+  defaultCategoriesService: {
+    getDefaultCategoryId: jest.fn(),
+  },
+}))
+
 import { AccountService } from '../account.service'
 import { prisma } from '@/lib/prisma'
+import { defaultCategoriesService } from '@/lib/services/category/default-categories.service'
 import { Decimal } from '@prisma/client/runtime/library'
 import { createUTCDate } from '@/lib/utils/date-utils'
 
-// Get the mocked prisma
+// Get the mocked prisma and services
 const mockPrisma = prisma as any
+const mockDefaultCategoriesService = defaultCategoriesService as jest.Mocked<typeof defaultCategoriesService>
 
 describe('AccountService', () => {
   const mockTenantId = 'tenant-123'
@@ -640,6 +652,10 @@ describe('AccountService', () => {
       const updatedAccount = { ...mockAccount, balance: 1500 }
       mockPrisma.account.update.mockResolvedValue(updatedAccount)
 
+      // Mock default category service
+      const mockDefaultCategoryId = 999
+      mockDefaultCategoriesService.getDefaultCategoryId.mockResolvedValue(mockDefaultCategoryId)
+
       // Mock adjustment transaction creation
       const adjustmentTransaction = {
         id: 1,
@@ -649,7 +665,7 @@ describe('AccountService', () => {
         description: 'System Balance Adjustment',
         date: createUTCDate(2025, 0, 15),
         type: 'TRANSFER',
-        category_id: null
+        category_id: mockDefaultCategoryId
       }
       mockPrisma.transaction.create.mockResolvedValue(adjustmentTransaction)
 
@@ -658,6 +674,7 @@ describe('AccountService', () => {
       expect(result.account).toEqual(updatedAccount)
       expect(result.adjustmentTransaction).toEqual(adjustmentTransaction)
       expect(mockPrisma.accountBalanceAnchor.create).toHaveBeenCalled()
+      expect(mockDefaultCategoriesService.getDefaultCategoryId).toHaveBeenCalledWith(mockTenantId, 'TRANSFER')
       expect(mockPrisma.transaction.create).toHaveBeenCalledWith({
         data: {
           tenant_id: mockTenantId,
@@ -666,7 +683,7 @@ describe('AccountService', () => {
           description: 'System Balance Adjustment',
           date: expect.any(Date),
           type: 'TRANSFER',
-          category_id: null
+          category_id: mockDefaultCategoryId
         }
       })
     })

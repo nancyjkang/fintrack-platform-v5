@@ -14,6 +14,7 @@ interface BalanceHistoryFiltersProps {
 
 const DATE_RANGE_OPTIONS = [
   { value: '', label: 'All time' },
+  { value: 'last-30-days', label: 'Last 30 days' },
   { value: 'this-week', label: 'This week' },
   { value: 'last-week', label: 'Last week' },
   { value: 'this-month', label: 'This month' },
@@ -40,6 +41,11 @@ export function BalanceHistoryFilters({
     let endDate = toUTCDateString(today);
 
     switch (value) {
+      case 'last-30-days': {
+        const thirtyDaysAgo = subtractDays(today, 30);
+        startDate = toUTCDateString(thirtyDaysAgo);
+        break;
+      }
       case 'this-week': {
         const startOfWeek = subtractDays(today, today.getUTCDay());
         startDate = toUTCDateString(startOfWeek);
@@ -123,6 +129,7 @@ export function BalanceHistoryFilters({
       const { startDate, endDate } = getDateRange(value);
       onFiltersChange({ startDate, endDate, fromTimePeriod: true } as Partial<FilterType> & { fromTimePeriod: boolean });
     } else {
+      // For "All time", clear the date filters to fetch all data
       onFiltersChange({ startDate: '', endDate: '', fromTimePeriod: true } as Partial<FilterType> & { fromTimePeriod: boolean });
     }
   };

@@ -140,6 +140,143 @@ export class AccountBalanceHistoryService extends BaseService {
   }
 
   /**
+   * Calculate running balances for a specific date range
+   *
+   * This method properly handles date-filtered requests by:
+   * 1. Finding the balance at the start of the date range
+   * 2. Calculating forward from that starting balance
+   *
+   * @param transactions - Filtered transactions within the date range
+   * @param accountId - Account ID for balance calculation
+   * @param tenantId - Tenant ID for data isolation
+   * @param startDate - Start date of the range (optional)
+   * @param endDate - End date of the range (optional)
+   * @returns Promise<Array<Transaction & { balance: number }>> - Transactions with correct running balances
+   */
+  public async calculateRunningBalancesForDateRange(
+    transactions: Transaction[],
+    accountId: number,
+    tenantId: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Array<Transaction & { balance: number }>> {
+    if (transactions.length === 0) {
+      return [];
+    }
+
+    // Sort transactions by date ascending for calculation
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      const dateA = toUTCDateString(a.date);
+      const dateB = toUTCDateString(b.date);
+
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+
+      if (a.id !== b.id) {
+        return a.id - b.id;
+      }
+
+      return (a.description || '').localeCompare(b.description || '');
+    });
+
+    // Calculate the starting balance for the date range using anchor-based method
+    let startingBalance: number;
+
+    // Find the latest balance anchor for this account
+    const latestAnchor = await this.findLatestBalanceAnchor(accountId, tenantId);
+
+    console.log(`🔍 [calculateRunningBalancesForDateRange] Account ${accountId}, startDate: ${startDate ? toUTCDateString(startDate) : 'none'}, endDate: ${endDate ? toUTCDateString(endDate) : 'none'}`);
+    console.log(`🔍 [calculateRunningBalancesForDateRange] Found anchor: ${latestAnchor ? `${toUTCDateString(latestAnchor.anchor_date)} = $${latestAnchor.balance}` : 'none'}`);
+
+    if (latestAnchor && startDate) {
+      const anchorDate = toUTCDateString(latestAnchor.anchor_date);
+      const anchorBalance = Number(latestAnchor.balance);
+      const startDateString = toUTCDateString(startDate);
+
+      if (startDateString <= anchorDate) {
+        // Start date is before or on anchor date - calculate backwards from anchor
+        const transactionsFromStartToAnchor = await prisma.transaction.findMany({
+          where: {
+            tenant_id: tenantId,
+            account_id: accountId,
+            date: {
+              gte: startDate,
+              lt: latestAnchor.anchor_date
+            }
+          },
+          orderBy: { date: 'asc' }
+        });
+
+        const impactFromStartToAnchor = transactionsFromStartToAnchor.reduce((sum, t) =>
+          sum + this.getTransactionBalanceImpact(t), 0
+        );
+
+        startingBalance = anchorBalance - impactFromStartToAnchor;
+        console.log(`🔍 [calculateRunningBalancesForDateRange] Start date BEFORE anchor: calculated starting balance = $${startingBalance} (anchor $${anchorBalance} - impact $${impactFromStartToAnchor})`);
+      } else {
+        // Start date is after anchor date - calculate forward from anchor
+        const transactionsFromAnchorToStart = await prisma.transaction.findMany({
+          where: {
+            tenant_id: tenantId,
+            account_id: accountId,
+            date: {
+              gte: latestAnchor.anchor_date,
+              lt: startDate
+            }
+          },
+          orderBy: { date: 'asc' }
+        });
+
+        const impactFromAnchorToStart = transactionsFromAnchorToStart.reduce((sum, t) =>
+          sum + this.getTransactionBalanceImpact(t), 0
+        );
+
+        startingBalance = anchorBalance + impactFromAnchorToStart;
+        console.log(`🔍 [calculateRunningBalancesForDateRange] Start date AFTER anchor: calculated starting balance = $${startingBalance} (anchor $${anchorBalance} + impact $${impactFromAnchorToStart})`);
+      }
+    } else if (latestAnchor) {
+      // No start date but have anchor - use anchor balance
+      startingBalance = Number(latestAnchor.balance);
+    } else {
+      // No anchor - calculate from beginning of time
+      if (startDate) {
+        const balanceResult = await this.calculateBalanceAtDate(
+          tenantId,
+          accountId,
+          toUTCDateString(createUTCDate(
+            startDate.getUTCFullYear(),
+            startDate.getUTCMonth(),
+            startDate.getUTCDate() - 1
+          )) // day before start
+        );
+        startingBalance = balanceResult.balance;
+      } else {
+        startingBalance = 0;
+      }
+    }
+
+    // Calculate running balances forward from the starting balance
+    const transactionsWithBalance: Array<Transaction & { balance: number }> = [];
+    let runningBalance = startingBalance;
+
+    for (const transaction of sortedTransactions) {
+      const impact = this.getTransactionBalanceImpact(transaction);
+      runningBalance += impact;
+
+      transactionsWithBalance.push({
+        ...transaction,
+        balance: runningBalance
+      });
+    }
+
+    // Return sorted by date descending (newest first) for display
+    return transactionsWithBalance.sort((a, b) =>
+      toUTCDateString(b.date).localeCompare(toUTCDateString(a.date))
+    );
+  }
+
+  /**
    * Legacy method: Calculate running balances from account balance (fallback method)
    *
    * This method works backwards from the current account balance to calculate historical balances.
@@ -235,6 +372,8 @@ export class AccountBalanceHistoryService extends BaseService {
     tenantId: string
   ): Promise<{ anchor_date: Date; balance: string | number | import('@prisma/client/runtime/library').Decimal } | null> { // eslint-disable-line no-restricted-globals
     try {
+      console.log(`🔍 [findLatestBalanceAnchor] Searching for anchors: account_id=${accountId}, tenant_id=${tenantId}`);
+      
       const anchors = await prisma.accountBalanceAnchor.findMany({
         where: {
           account_id: accountId,
@@ -245,6 +384,11 @@ export class AccountBalanceHistoryService extends BaseService {
         },
         take: 1
       });
+
+      console.log(`🔍 [findLatestBalanceAnchor] Found ${anchors.length} anchors`);
+      if (anchors.length > 0) {
+        console.log(`🔍 [findLatestBalanceAnchor] Latest anchor: ${toUTCDateString(anchors[0].anchor_date)} = $${anchors[0].balance}`);
+      }
 
       return anchors.length > 0 ? anchors[0] : null;
     } catch (error) {

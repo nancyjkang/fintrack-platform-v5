@@ -2,6 +2,7 @@ import { BaseService } from '../base'
 import type { Account } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { getCurrentUTCDate, parseAndConvertToUTC } from '@/lib/utils/date-utils'
+import { defaultCategoriesService } from '../category/default-categories.service'
 
 export interface CreateAccountData {
   name: string
@@ -371,16 +372,22 @@ export class AccountService extends BaseService {
       // Create adjustment transaction if there's a significant difference
       let adjustmentTransaction = null
       if (Math.abs(difference) > 0.01) {
+        // Get the default "Uncategorized Transfer" category
+        const defaultCategoryId = await defaultCategoriesService.getDefaultCategoryId(
+          tenantId,
+          'TRANSFER'
+        )
+
         // Always use TRANSFER type for reconciliation adjustments (MVP accounting system)
         adjustmentTransaction = await this.prisma.transaction.create({
           data: {
             tenant_id: tenantId,
             account_id: accountId,
+            category_id: defaultCategoryId,
             amount: new Decimal(difference), // Explicitly convert to Decimal with correct sign
             description: 'System Balance Adjustment',
             date: reconcileDate,
-            type: 'TRANSFER',
-            category_id: null // System Transfer category (to be implemented)
+            type: 'TRANSFER'
           }
         })
       }
